@@ -244,7 +244,20 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
 
     page.goto(ui + "/system/orgs")
     page.get_by_role("button", name=re.compile("^State:")).click()
-    page.get_by_role("menuitemradio", name="Suspended", exact=True).click()
+    selected = page.get_by_role("menuitemradio", name="All", exact=True)
+    hovered = page.get_by_role("menuitemradio", name="Suspended", exact=True)
+    expect(selected).to_have_attribute("aria-checked", "true")
+    hovered.hover()
+    expect(hovered).to_be_focused()
+    assert selected.evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    ) != hovered.evaluate("el => getComputedStyle(el).backgroundColor"), (
+        "Selection and hover must not paint two rows alike"
+    )
+    expect(
+        selected.locator("[data-slot=dropdown-menu-radio-item-indicator]")
+    ).to_be_visible()
+    hovered.click()
     expect(page).to_have_url(re.compile(r"[?&]state=suspended"))
     page.keyboard.press("Escape")
     expect(org_row(page, "labs")).to_contain_text("Suspended")

@@ -403,10 +403,6 @@
 	box-shadow: 1px 0 0 var(--line);
 }
 
-[data-slot="data-table"]:is([data-scroll="start"], [data-scroll="middle"]) [data-pin="end"] {
-	box-shadow: inset 1px 0 0 var(--line);
-}
-
 /* A row's tint; pinned cells layer it over their opaque background so they match the rest of the row. */
 @property --row-tint {
 	syntax: "<color>";
@@ -471,6 +467,7 @@
 		padding-top: 4px;
 	}
 	& tbody > tr {
+		background-color: transparent;
 		border-bottom-width: 0;
 		border-radius: var(--band-radius, 6px);
 	}
@@ -504,7 +501,18 @@
 		box-shadow: none;
 		pointer-events: none;
 	}
-	& tbody [data-pin] {
+	& tbody td {
+		background-color: var(--card-bg, var(--panel));
+		background-image: linear-gradient(var(--row-tint), var(--row-tint));
+	}
+	& tbody td:first-child {
+		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
+	}
+	& tbody td:last-child {
+		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
+	}
+	& tbody td[data-pin] {
+		border-radius: 0;
 		background-image: none;
 	}
 	& tbody [data-pin]::before {

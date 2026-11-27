@@ -59,10 +59,7 @@ export function FilterMenu({
 						<DropdownMenuRadioItem
 							key={o.value}
 							value={o.value}
-							className={cn(
-								"min-h-8 justify-between gap-3 py-0 pr-2.5 text-[12.5px] data-checked:bg-panel dark:data-checked:bg-panel2 [&>[data-slot=dropdown-menu-radio-item-indicator]]:hidden",
-								mono && "font-mono",
-							)}
+							className={cn("min-h-8 justify-between gap-3 py-0 pr-8 text-[12.5px]", mono && "font-mono")}
 						>
 							<span>{o.label}</span>
 							{o.count !== undefined && <span className="font-mono text-fg3">{o.count}</span>}
