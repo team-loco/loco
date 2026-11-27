@@ -6409,6 +6409,189 @@
         }
       }
     },
+    "/loco.routing.v1.RoutingService/BindPublisher": {
+      "post": {
+        "tags": [
+          "loco.routing.v1.RoutingService"
+        ],
+        "summary": "BindPublisher",
+        "operationId": "loco.routing.v1.RoutingService.BindPublisher",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.routing.v1.BindPublisherRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.routing.v1.BindPublisherResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.routing.v1.RoutingService/ListRouteIntents": {
+      "post": {
+        "tags": [
+          "loco.routing.v1.RoutingService"
+        ],
+        "summary": "ListRouteIntents",
+        "operationId": "loco.routing.v1.RoutingService.ListRouteIntents",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.routing.v1.ListRouteIntentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.routing.v1.ListRouteIntentsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.routing.v1.RoutingService/ReportPublication": {
+      "post": {
+        "tags": [
+          "loco.routing.v1.RoutingService"
+        ],
+        "summary": "ReportPublication",
+        "operationId": "loco.routing.v1.RoutingService.ReportPublication",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.routing.v1.ReportPublicationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.routing.v1.ReportPublicationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.secret.v1.SecretService/DeleteSecrets": {
       "post": {
         "tags": [
@@ -17363,6 +17546,196 @@
         "additionalProperties": false,
         "description": "UpdateResourceResponse is the response containing the updated resource ID."
       },
+      "loco.routing.v1.BindPublisherRequest": {
+        "type": "object",
+        "properties": {
+          "appDomain": {
+            "type": "string",
+            "title": "app_domain",
+            "format": "hostname"
+          },
+          "reservedPrefixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "reserved_prefixes",
+            "uniqueItems": true
+          }
+        },
+        "title": "BindPublisherRequest",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.BindPublisherResponse": {
+        "type": "object",
+        "properties": {
+          "publisherId": {
+            "type": "string",
+            "title": "publisher_id"
+          }
+        },
+        "title": "BindPublisherResponse",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.ListRouteIntentsRequest": {
+        "type": "object",
+        "properties": {
+          "publisherId": {
+            "type": "string",
+            "title": "publisher_id",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "session_id",
+            "format": "uuid",
+            "description": "A random UUID generated once per process. A different writer must wait for\n the current session to expire. Each successful list renews the session."
+          },
+          "afterSequence": {
+            "type": "string",
+            "title": "after_sequence",
+            "format": "int64",
+            "description": "Zero requests the initial snapshot. Advance using next_sequence, never a\n per-publication revision. Tombstones remain available after acknowledgement.\nint64.gte = 0\n"
+          }
+        },
+        "title": "ListRouteIntentsRequest",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.ListRouteIntentsResponse": {
+        "type": "object",
+        "properties": {
+          "intents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.routing.v1.RouteIntent"
+            },
+            "title": "intents"
+          },
+          "nextSequence": {
+            "type": "string",
+            "title": "next_sequence",
+            "format": "int64"
+          },
+          "hasMore": {
+            "type": "boolean",
+            "title": "has_more"
+          },
+          "sessionSeconds": {
+            "type": "integer",
+            "title": "session_seconds",
+            "format": "int32",
+            "description": "Lease budget measured conservatively from when this list call began."
+          }
+        },
+        "title": "ListRouteIntentsResponse",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.PublicationOutcome": {
+        "type": "string",
+        "title": "PublicationOutcome",
+        "enum": [
+          "PUBLICATION_OUTCOME_UNSPECIFIED",
+          "PUBLICATION_OUTCOME_PUBLISHED",
+          "PUBLICATION_OUTCOME_ERROR"
+        ]
+      },
+      "loco.routing.v1.ReportPublicationRequest": {
+        "type": "object",
+        "properties": {
+          "publisherId": {
+            "type": "string",
+            "title": "publisher_id",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "session_id",
+            "format": "uuid"
+          },
+          "publicationId": {
+            "type": "string",
+            "title": "publication_id",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "int64.gt = 0\n"
+          },
+          "outcome": {
+            "not": {
+              "enum": [
+                "PUBLICATION_OUTCOME_UNSPECIFIED"
+              ]
+            },
+            "title": "outcome",
+            "$ref": "#/components/schemas/loco.routing.v1.PublicationOutcome"
+          },
+          "message": {
+            "type": "string",
+            "title": "message",
+            "maxLength": 512,
+            "description": "Safe operator-facing text only. Do not include provider response bodies,\n secrets, zone identifiers, or record identifiers."
+          }
+        },
+        "title": "ReportPublicationRequest",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.ReportPublicationResponse": {
+        "type": "object",
+        "title": "ReportPublicationResponse",
+        "additionalProperties": false
+      },
+      "loco.routing.v1.RouteIntent": {
+        "type": "object",
+        "properties": {
+          "publicationId": {
+            "type": "string",
+            "title": "publication_id"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64"
+          },
+          "hostname": {
+            "type": "string",
+            "title": "hostname"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "clusterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "cluster_ids"
+          },
+          "preference": {
+            "type": "string",
+            "title": "preference",
+            "description": "\"nearest\" asks the publisher to prefer a nearby member of this exact set."
+          },
+          "withdrawing": {
+            "type": "boolean",
+            "title": "withdrawing"
+          },
+          "changeSequence": {
+            "type": "string",
+            "title": "change_sequence",
+            "format": "int64"
+          }
+        },
+        "title": "RouteIntent",
+        "additionalProperties": false
+      },
       "loco.secret.v1.DeleteSecretsRequest": {
         "type": "object",
         "properties": {
@@ -17740,7 +18113,8 @@
           "ENTITY_TYPE_ORGANIZATION",
           "ENTITY_TYPE_WORKSPACE",
           "ENTITY_TYPE_RESOURCE",
-          "ENTITY_TYPE_USER"
+          "ENTITY_TYPE_USER",
+          "ENTITY_TYPE_ROUTING_PUBLISHER"
         ],
         "description": "EntityType represents the type of entity a token can be associated with."
       },
@@ -19500,6 +19874,10 @@
     {
       "name": "loco.resource.v1.ResourceService",
       "description": "ResourceService manages resource lifecycle and operations."
+    },
+    {
+      "name": "loco.routing.v1.RoutingService",
+      "description": "RoutingService exposes provider-neutral routing intent. External publishers own\n provider credentials and record identifiers; these never enter this contract."
     },
     {
       "name": "loco.secret.v1.SecretService",

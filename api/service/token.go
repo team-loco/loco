@@ -219,7 +219,7 @@ func (s *TokenServer) checkTokenLimit(ctx context.Context, qtx *genDb.Queries, o
 		return checkOrgLimit(ctx, qtx, s.counts, limits.TokensPerEntity, orgID, existing, 1)
 	case genDb.EntityTypeResource:
 		return checkResourceLimit(ctx, qtx, s.counts, limits.TokensPerEntity, owner.ID, existing, 1)
-	case genDb.EntityTypeUser, genDb.EntityTypeSystem:
+	case genDb.EntityTypeUser, genDb.EntityTypeSystem, genDb.EntityTypeRoutingPublisher:
 		return limits.TokensPerEntity.Check(limits.Install(s.counts), existing, 1)
 	default:
 		panic(fmt.Errorf("%w: %s", errUnknownEntityType, owner.Type))
@@ -415,6 +415,8 @@ func apiTokenRowToProto(row genDb.CreateAPITokenRow) *tokenv1.Token {
 
 func protoEntityTypeToDb(et tokenv1.EntityType) genDb.EntityType {
 	switch et {
+	case tokenv1.EntityType_ENTITY_TYPE_ROUTING_PUBLISHER:
+		return genDb.EntityTypeRoutingPublisher
 	case tokenv1.EntityType_ENTITY_TYPE_SYSTEM:
 		return genDb.EntityTypeSystem
 	case tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION:
@@ -432,6 +434,8 @@ func protoEntityTypeToDb(et tokenv1.EntityType) genDb.EntityType {
 
 func dbEntityTypeToProto(et genDb.EntityType) tokenv1.EntityType {
 	switch et {
+	case genDb.EntityTypeRoutingPublisher:
+		return tokenv1.EntityType_ENTITY_TYPE_ROUTING_PUBLISHER
 	case genDb.EntityTypeSystem:
 		return tokenv1.EntityType_ENTITY_TYPE_SYSTEM
 	case genDb.EntityTypeOrganization:
@@ -497,7 +501,7 @@ func recordTokenEvent(ctx context.Context, q genDb.Querier, eventType string, ta
 		ev.ResourceID = new(target.ID)
 	case genDb.EntityTypeUser:
 		return nil
-	case genDb.EntityTypeSystem:
+	case genDb.EntityTypeSystem, genDb.EntityTypeRoutingPublisher:
 	}
 	return events.Record(ctx, q, ev)
 }

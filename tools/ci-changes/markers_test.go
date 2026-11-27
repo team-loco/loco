@@ -170,5 +170,5 @@ func TestADispatchRunsEveryWorkflowAndReusesNoPass(t *testing.T) {
 	for _, workflow := range []string{"api", "web", "publish", "images"} {
 		assert.Equal(t, "true", selected[workflow], workflow)
 	}
-	assert.JSONEq(t, `["apps","builds","telemetry"]`, selected["e2e-shards"])
+	assert.JSONEq(t, `["apps","builds","routing","telemetry"]`, selected["e2e-shards"])
 }

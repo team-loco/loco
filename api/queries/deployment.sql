@@ -178,9 +178,9 @@ JOIN deployments d ON d.id = l.deployment_id
 WHERE l.resource_id = $1
 ORDER BY l.environment_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id;
 
--- name: ListLiveDeploymentsForEnvironment :many
+-- name: ListDesiredDeploymentsForEnvironment :many
 SELECT sqlc.embed(d), l.cluster_id, l.region, l.replicas, l.status AS placement_status
-FROM live_deployment_placements l
+FROM desired_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.environment_id = $1
 ORDER BY l.resource_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id;
@@ -292,6 +292,16 @@ WHERE d.id IN (
     OFFSET sqlc.arg(keep)::int
 )
   AND d.status IN ('superseded', 'failed', 'canceled')
+  AND NOT EXISTS (
+      SELECT 1 FROM deployment_placements target JOIN clusters c ON c.id = target.cluster_id
+      WHERE target.deployment_id = d.id AND target.status = 'failed' AND c.removed_at IS NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM deployment_placements next JOIN deployments newer ON newer.id = next.deployment_id
+            WHERE newer.resource_id = d.resource_id AND newer.environment_id = d.environment_id
+              AND next.cluster_id = target.cluster_id
+              AND (newer.created_at, newer.id) > (d.created_at, d.id)
+        )
+  )
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id)
   AND NOT EXISTS (
       SELECT 1 FROM observed_placement_rollouts ro

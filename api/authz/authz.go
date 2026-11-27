@@ -127,6 +127,8 @@ func (a *Authorizer) check(
 				{EntityType: queries.EntityTypeOrganization, EntityID: ids.OrgID},
 				{EntityType: queries.EntityTypeWorkspace, EntityID: ids.WorkspaceID},
 			}
+		case queries.EntityTypeRoutingPublisher:
+			return ErrInsufficientPermissions
 		case queries.EntityTypeSystem:
 			return ErrInsufficientPermissions
 		default:

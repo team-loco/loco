@@ -518,6 +518,71 @@ func (q *Queries) ListDeploymentPlacements(ctx context.Context, deploymentID uui
 	return items, nil
 }
 
+const listDesiredDeploymentsForEnvironment = `-- name: ListDesiredDeploymentsForEnvironment :many
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+FROM desired_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.environment_id = $1
+ORDER BY l.resource_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id
+`
+
+type ListDesiredDeploymentsForEnvironmentRow struct {
+	Deployment      Deployment      `json:"deployment"`
+	ClusterID       uuid.UUID       `json:"clusterId"`
+	Region          string          `json:"region"`
+	Replicas        int32           `json:"replicas"`
+	PlacementStatus PlacementStatus `json:"placementStatus"`
+}
+
+func (q *Queries) ListDesiredDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListDesiredDeploymentsForEnvironmentRow, error) {
+	rows, err := q.db.Query(ctx, listDesiredDeploymentsForEnvironment, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDesiredDeploymentsForEnvironmentRow
+	for rows.Next() {
+		var i ListDesiredDeploymentsForEnvironmentRow
+		if err := rows.Scan(
+			&i.Deployment.ID,
+			&i.Deployment.ResourceID,
+			&i.Deployment.Status,
+			&i.Deployment.EnvironmentID,
+			&i.Deployment.Spec,
+			&i.Deployment.SpecVersion,
+			&i.Deployment.Trigger,
+			&i.Deployment.SourceDeploymentID,
+			&i.Deployment.ActorType,
+			&i.Deployment.ActorID,
+			&i.Deployment.Method,
+			&i.Deployment.CanceledByType,
+			&i.Deployment.CanceledByID,
+			&i.Deployment.CommitSha,
+			&i.Deployment.CommitDirty,
+			&i.Deployment.PlainEnv,
+			&i.Deployment.SecretEnv,
+			&i.Deployment.ActivitySeq,
+			&i.Deployment.Traceparent,
+			&i.Deployment.Ready,
+			&i.Deployment.CreatedAt,
+			&i.Deployment.StartedAt,
+			&i.Deployment.CompletedAt,
+			&i.Deployment.UpdatedAt,
+			&i.ClusterID,
+			&i.Region,
+			&i.Replicas,
+			&i.PlacementStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
@@ -634,71 +699,6 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.ActorAvatarUrl,
 			&i.CanceledByName,
 			&i.CommitMessage,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listLiveDeploymentsForEnvironment = `-- name: ListLiveDeploymentsForEnvironment :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
-FROM live_deployment_placements l
-JOIN deployments d ON d.id = l.deployment_id
-WHERE l.environment_id = $1
-ORDER BY l.resource_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id
-`
-
-type ListLiveDeploymentsForEnvironmentRow struct {
-	Deployment      Deployment      `json:"deployment"`
-	ClusterID       uuid.UUID       `json:"clusterId"`
-	Region          string          `json:"region"`
-	Replicas        int32           `json:"replicas"`
-	PlacementStatus PlacementStatus `json:"placementStatus"`
-}
-
-func (q *Queries) ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error) {
-	rows, err := q.db.Query(ctx, listLiveDeploymentsForEnvironment, environmentID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListLiveDeploymentsForEnvironmentRow
-	for rows.Next() {
-		var i ListLiveDeploymentsForEnvironmentRow
-		if err := rows.Scan(
-			&i.Deployment.ID,
-			&i.Deployment.ResourceID,
-			&i.Deployment.Status,
-			&i.Deployment.EnvironmentID,
-			&i.Deployment.Spec,
-			&i.Deployment.SpecVersion,
-			&i.Deployment.Trigger,
-			&i.Deployment.SourceDeploymentID,
-			&i.Deployment.ActorType,
-			&i.Deployment.ActorID,
-			&i.Deployment.Method,
-			&i.Deployment.CanceledByType,
-			&i.Deployment.CanceledByID,
-			&i.Deployment.CommitSha,
-			&i.Deployment.CommitDirty,
-			&i.Deployment.PlainEnv,
-			&i.Deployment.SecretEnv,
-			&i.Deployment.ActivitySeq,
-			&i.Deployment.Traceparent,
-			&i.Deployment.Ready,
-			&i.Deployment.CreatedAt,
-			&i.Deployment.StartedAt,
-			&i.Deployment.CompletedAt,
-			&i.Deployment.UpdatedAt,
-			&i.ClusterID,
-			&i.Region,
-			&i.Replicas,
-			&i.PlacementStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -1074,6 +1074,16 @@ WHERE d.id IN (
     OFFSET $3::int
 )
   AND d.status IN ('superseded', 'failed', 'canceled')
+  AND NOT EXISTS (
+      SELECT 1 FROM deployment_placements target JOIN clusters c ON c.id = target.cluster_id
+      WHERE target.deployment_id = d.id AND target.status = 'failed' AND c.removed_at IS NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM deployment_placements next JOIN deployments newer ON newer.id = next.deployment_id
+            WHERE newer.resource_id = d.resource_id AND newer.environment_id = d.environment_id
+              AND next.cluster_id = target.cluster_id
+              AND (newer.created_at, newer.id) > (d.created_at, d.id)
+        )
+  )
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id)
   AND NOT EXISTS (
       SELECT 1 FROM observed_placement_rollouts ro

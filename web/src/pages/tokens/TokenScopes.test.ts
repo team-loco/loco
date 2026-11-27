@@ -11,7 +11,11 @@ test("token details show every target and exact independent scopes", () => {
 	const nodes = ["cart", "orders", "payments", "inventory"].map((name) =>
 		entityNode(EntityType.RESOURCE, name, name, null),
 	);
-	const scopes = nodes.map((node) => ({ entityType: node.entityType, entityId: node.id, scope: Scope.WRITE }));
+	const scopes = nodes.map((node) => ({
+		entityType: node.entityType,
+		entityId: node.id,
+		scope: Scope.WRITE,
+	}));
 	const token = create(TokenSchema, { scopes });
 	const entities = new Map(nodes.map((node) => [node.key, node]));
 	const html = renderToStaticMarkup(createElement(TokenScopeList, { token, entities }));
@@ -37,4 +41,28 @@ test("token details preserve admin-only, member and combined grants and full unk
 	expect(html).toContain(">Read<");
 	expect(html).toContain(">Member<");
 	expect(html.match(/aria-label="Scopes for/g)).toHaveLength(1);
+});
+
+test("routing publisher grants retain their identity and exact scopes", () => {
+	const token = create(TokenSchema, {
+		scopes: [
+			{
+				entityType: EntityType.ROUTING_PUBLISHER,
+				entityId: "publisher-id",
+				scope: Scope.READ,
+			},
+			{
+				entityType: EntityType.ROUTING_PUBLISHER,
+				entityId: "publisher-id",
+				scope: Scope.WRITE,
+			},
+		],
+	});
+	const entities = withScopeEntities(new Map(), token.scopes);
+	const html = renderToStaticMarkup(createElement(TokenScopeList, { token, entities }));
+	expect(html).toContain("routing publisher");
+	expect(html).toContain("publisher-id");
+	expect(html).toContain(">Read<");
+	expect(html).toContain(">Write<");
+	expect(html).not.toContain(">Admin<");
 });

@@ -15,6 +15,13 @@ const checkDomainAvailability = `-- name: CheckDomainAvailability :one
 SELECT NOT EXISTS(
     SELECT 1 FROM resource_domains
     WHERE domain = $1
+    UNION ALL
+    SELECT 1 FROM public_route_publications p WHERE p.hostname = $1
+      AND (NOT p.withdrawing OR p.acknowledged_revision <> p.revision OR p.drain_until IS NULL OR p.drain_until > NOW())
+    UNION ALL
+    SELECT 1 FROM route_publishers b, unnest(b.reserved_prefixes) prefix
+      WHERE $1 = split_part($1::text, '.', 1) || '.' || b.app_domain
+      AND starts_with(split_part($1::text, '.', 1), prefix)
 ) as is_available
 `
 

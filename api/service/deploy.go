@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -60,6 +61,16 @@ func createDeployment(
 	}
 	for _, target := range d.targets {
 		if err := lockAssignableCluster(ctx, qtx, target.clusterID, false, d.service.GetPlatform()); err != nil {
+			return uuid.UUID{}, err
+		}
+		if err := qtx.DeleteRoutingRetirement(
+			ctx,
+			genDb.DeleteRoutingRetirementParams{
+				ResourceID:    params.ResourceID,
+				EnvironmentID: params.EnvironmentID,
+				ClusterID:     target.clusterID,
+			},
+		); err != nil {
 			return uuid.UUID{}, err
 		}
 	}
@@ -269,11 +280,12 @@ func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resourc
 	if err := removePlacement(ctx, qtx, res.ID, live.EnvironmentID, live.ClusterID); err != nil {
 		return err
 	}
+	retirable := append(slices.Clone(placementLiveStatuses), genDb.PlacementStatusFailed)
 	if _, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
 		Status:       genDb.PlacementStatusCanceled,
 		DeploymentID: live.ID,
 		ClusterID:    live.ClusterID,
-		FromStatuses: placementStatusNames(placementLiveStatuses...),
+		FromStatuses: placementStatusNames(retirable...),
 	}); err != nil {
 		return fmt.Errorf("cancel placement of deployment %s: %w", live.ID, err)
 	}
@@ -375,9 +387,10 @@ func routingHostnames(
 	queries genDb.Querier,
 	resourceID, environmentID uuid.UUID,
 ) ([]string, error) {
-	rows, err := queries.ListEnvironmentResourceDomains(ctx, genDb.ListEnvironmentResourceDomainsParams{
-		ResourceIds: []uuid.UUID{resourceID}, EnvironmentID: environmentID,
-	})
+	rows, err := queries.EffectiveRoutingHostnames(
+		ctx,
+		genDb.EffectiveRoutingHostnamesParams{ResourceID: resourceID, EnvironmentID: environmentID},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list routing domains: %w", err)
 	}

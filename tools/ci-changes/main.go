@@ -272,7 +272,7 @@ func withUsers(all filters, own map[string]bool) map[string]bool {
 // A test in a shard package is compiled only into that package's test binary.
 // All other E2E inputs, including shared code and fixtures, exercise every shard.
 func affectedShards(inputs func(file string) bool, files []string) []string {
-	all := []string{"apps", "builds", "telemetry"}
+	all := []string{"apps", "builds", "routing", "telemetry"}
 	if files == nil {
 		return all
 	}

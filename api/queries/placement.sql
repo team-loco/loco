@@ -131,6 +131,7 @@ RETURNING desired_revision;
 UPDATE placements
 SET observed_revision = sqlc.arg(observed_revision),
     ready_replicas = sqlc.arg(ready_replicas),
+    public_route = sqlc.narg(public_route),
     status_updated_at = NOW(),
     updated_at = NOW()
 WHERE id = sqlc.arg(id)

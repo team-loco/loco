@@ -249,9 +249,9 @@ EOF
 """
 
 [tasks.e2e]
-description = "Run an end-to-end shard of tests/e2e (builds, apps, telemetry or controlplane) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"
+description = "Run an end-to-end shard of tests/e2e (builds, apps, routing, telemetry or controlplane) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"
 usage = '''
-arg "<shard>" help="the test package: builds, apps, telemetry or controlplane"
+arg "<shard>" help="the test package: builds, apps, routing, telemetry or controlplane"
 arg "[test]" help="a go test -run pattern"
 flag "--keep" help="leave the platform running for another run"
 flag "--skip-build" help="reuse the images and binaries of the last run"
@@ -260,7 +260,7 @@ run = 'E2E_KEEP=${usage_keep:-false} E2E_SKIP_BUILD=${usage_skip_build:-false} g
 
 [tasks."e2e:teardown"]
 description = "Remove this worktree's run of an end-to-end shard (or E2E_RUN_ID's): its kind cluster, containers, compose project and state"
-usage = 'arg "<shard>" help="the test package: builds, apps, telemetry or controlplane"'
+usage = 'arg "<shard>" help="the test package: builds, apps, routing, telemetry or controlplane"'
 run = 'E2E_TEARDOWN_ONLY=true go -C tests/e2e test -count=1 -run "^$" "./${usage_shard}"'
 
 [tasks."docs:build"]

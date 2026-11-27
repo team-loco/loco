@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resource', 'user');
+CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resource', 'user', 'routing_publisher');
 
 CREATE TABLE user_scopes (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -95,6 +95,9 @@ CREATE TABLE api_tokens (
     entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL,
     scopes JSONB NOT NULL,
+    routing_publisher_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'routing_publisher' THEN entity_id END
+    ) STORED REFERENCES route_publishers(id) ON DELETE CASCADE,
     personal_user_id UUID GENERATED ALWAYS AS (
         CASE WHEN entity_type = 'user' THEN entity_id END
     ) STORED REFERENCES users(id) ON DELETE CASCADE,
@@ -114,6 +117,7 @@ CREATE TABLE api_tokens (
     UNIQUE (name, entity_type, entity_id)
 );
 
+CREATE INDEX api_tokens_routing_publisher_idx ON api_tokens(routing_publisher_ref) WHERE routing_publisher_ref IS NOT NULL;
 CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
 CREATE INDEX api_tokens_personal_user_idx ON api_tokens (personal_user_id) WHERE personal_user_id IS NOT NULL;
 CREATE INDEX api_tokens_organization_idx ON api_tokens (organization_ref) WHERE organization_ref IS NOT NULL;

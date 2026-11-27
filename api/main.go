@@ -41,6 +41,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/transit"
+	"github.com/team-loco/loco/api/publicrouting"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
@@ -62,6 +63,7 @@ import (
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	routingv1connect "github.com/team-loco/loco/gen/go/loco/routing/v1/routingv1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -279,6 +281,8 @@ type deps struct {
 	placementWindowSweeper *sweepers.PlacementWindowSweeper
 	clusterSilenceSweeper  *sweepers.ClusterSilenceSweeper
 
+	publicRouting *publicrouting.Reconciler
+	routing       *service.RoutingServer
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
 	regionAdmin   *service.RegionAdminServer
@@ -447,6 +451,14 @@ func newDeps(
 		placementWindowSweeper: sweepers.NewPlacementWindowSweeper(pool, placementWindowSweep),
 		clusterSilenceSweeper:  sweepers.NewClusterSilenceSweeper(pool, clusterSilentAfter, ac.HeartbeatInterval),
 
+		publicRouting: publicrouting.New(pool, ac.Routing),
+		routing: service.NewRoutingServer(
+			pool,
+			queries,
+			ac.RoutingSessionSeconds,
+			ac.Routing.BatchSize,
+			ac.RoutingDrainSeconds,
+		),
 		config: service.NewConfigServer(service.ConfigSettings{
 			APIVersion:                ac.Version,
 			MinCLIVersion:             ac.MinCLIVersion,
@@ -577,6 +589,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	mux.HandleFunc(readyPath, d.ready)
 	mux.HandleFunc("/application-not-found", d.domain.ApplicationNotFound)
 
+	routingv1connect.RegisterRoutingServiceHandler(authenticatedServer, d.routing)
 	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, d.agent)
 	ingestv1connect.RegisterIngestServiceHandler(baseServer, d.ingest)
@@ -613,6 +626,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	tokenRetention := limits.ExpiredTokenRetentionDays.Value(ac.CountLimits)
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval, tokenRetention) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
+	background.Go(func() { d.publicRouting.Run(ctx) })
 	background.Go(func() { d.placementWindowSweeper.Run(ctx) })
 	background.Go(func() { d.clusterSilenceSweeper.Run(ctx) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })

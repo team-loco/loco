@@ -29,6 +29,7 @@ enum EntityType {
   ENTITY_TYPE_WORKSPACE = 3;
   ENTITY_TYPE_RESOURCE = 4;
   ENTITY_TYPE_USER = 5;
+  ENTITY_TYPE_ROUTING_PUBLISHER = 6;
 }
 
 // Scope represents the permission level.

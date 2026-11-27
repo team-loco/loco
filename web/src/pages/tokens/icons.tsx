@@ -1,10 +1,12 @@
-import { BoxIcon, Building2Icon, GlobeIcon, LayersIcon, UserIcon } from "lucide-react";
+import { BoxIcon, Building2Icon, GlobeIcon, NetworkIcon, LayersIcon, UserIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { NodeKind, OwnerKey } from "./model";
 
 export function kindIcon(kind: NodeKind): ReactNode {
 	switch (kind) {
+		case "publisher":
+			return <NetworkIcon />;
 		case "org":
 			return <Building2Icon />;
 		case "ws":

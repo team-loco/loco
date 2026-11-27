@@ -369,6 +369,7 @@ CREATE TABLE
         apply_failed BOOLEAN NOT NULL DEFAULT false,
         observed_revision BIGINT NOT NULL DEFAULT 0,
         ready_replicas INT NOT NULL DEFAULT 0,
+        public_route JSONB,
         problem_reason TEXT NOT NULL DEFAULT '',
         status_updated_at TIMESTAMPTZ,
         region_status TEXT NOT NULL DEFAULT '',
@@ -728,7 +729,147 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER deployment_placement_change AFTER INSERT OR UPDATE ON deployment_placements
 FOR EACH ROW EXECUTE FUNCTION notify_deployment_placement_change();
 
+-- External publication survives resource/environment deletion so owned records can be withdrawn.
+CREATE TABLE route_publishers (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    app_domain TEXT NOT NULL UNIQUE,
+    reserved_prefixes TEXT[] NOT NULL DEFAULT '{}',
+    bootstrapped BOOLEAN NOT NULL DEFAULT false,
+    change_sequence BIGINT NOT NULL DEFAULT 0,
+    session_id UUID,
+    session_expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE public_route_publications (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    publisher_id UUID NOT NULL REFERENCES route_publishers(id) ON DELETE RESTRICT,
+    hostname TEXT NOT NULL UNIQUE,
+    resource_id UUID NOT NULL,
+    environment_id UUID NOT NULL,
+    cluster_ids UUID[] NOT NULL DEFAULT '{}',
+    withdrawing BOOLEAN NOT NULL DEFAULT false,
+    revision BIGINT NOT NULL DEFAULT 1 CHECK (revision > 0),
+    change_sequence BIGINT NOT NULL,
+    acknowledged_revision BIGINT NOT NULL DEFAULT 0,
+    acknowledged_at TIMESTAMPTZ,
+    drain_until TIMESTAMPTZ,
+    message TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (acknowledged_revision <= revision)
+);
+CREATE UNIQUE INDEX public_route_publications_feed ON public_route_publications(publisher_id, change_sequence);
+CREATE INDEX public_route_publications_resource ON public_route_publications(resource_id, environment_id);
+CREATE TABLE public_routing_retirements (
+    resource_id UUID NOT NULL,
+    environment_id UUID NOT NULL,
+    cluster_id UUID NOT NULL,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (resource_id, environment_id, cluster_id)
+);
+-- Requested targets survive build failure; staged retirement changes intent while
+-- the existing live view continues to describe workloads that are still serving.
+CREATE VIEW desired_deployment_placements AS
+WITH latest AS NOT MATERIALIZED (
+    SELECT DISTINCT ON (d.resource_id, d.environment_id, dp.cluster_id)
+        d.id AS deployment_id, d.resource_id, d.environment_id,
+        dp.cluster_id, dp.region, dp.replicas, dp.status
+    FROM deployment_placements dp JOIN deployments d ON d.id = dp.deployment_id
+    ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC
+), desired AS (
+    SELECT * FROM latest WHERE status NOT IN ('canceled', 'superseded')
+    UNION ALL
+    SELECT live.* FROM live_deployment_placements live JOIN latest
+        USING (resource_id, environment_id, cluster_id)
+    WHERE latest.status IN ('canceled', 'superseded')
+)
+SELECT desired.* FROM desired JOIN clusters c ON c.id = desired.cluster_id
+WHERE c.removed_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM public_routing_retirements r
+      WHERE r.resource_id = desired.resource_id AND r.environment_id = desired.environment_id
+        AND r.cluster_id = desired.cluster_id);
+
+CREATE TABLE public_routing_dirty (
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resource_id UUID NOT NULL,
+    environment_id UUID NOT NULL,
+    PRIMARY KEY (resource_id, environment_id)
+);
+CREATE INDEX public_routing_dirty_ready ON public_routing_dirty(next_attempt_at, resource_id, environment_id);
+-- +goose StatementBegin
+CREATE FUNCTION enqueue_public_routing() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO public_routing_dirty(resource_id, environment_id) VALUES (OLD.resource_id, OLD.environment_id) ON CONFLICT DO NOTHING;
+        RETURN OLD;
+    END IF;
+    INSERT INTO public_routing_dirty(resource_id, environment_id) VALUES (NEW.resource_id, NEW.environment_id) ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+CREATE TRIGGER public_routing_deployment AFTER INSERT OR UPDATE OF status OR DELETE ON deployments
+FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
+CREATE TRIGGER public_routing_domains AFTER INSERT OR UPDATE OR DELETE ON resource_domains
+FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
+CREATE TRIGGER public_routing_placement_create AFTER INSERT OR DELETE ON placements
+FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
+CREATE TRIGGER public_routing_placement_change AFTER UPDATE ON placements
+FOR EACH ROW WHEN (OLD.desired_revision IS DISTINCT FROM NEW.desired_revision
+ OR OLD.ready_replicas IS DISTINCT FROM NEW.ready_replicas
+ OR OLD.public_route IS DISTINCT FROM NEW.public_route)
+EXECUTE FUNCTION enqueue_public_routing();
+CREATE TRIGGER public_routing_retirement AFTER INSERT OR DELETE ON public_routing_retirements
+FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
+
+-- +goose StatementBegin
+CREATE FUNCTION enqueue_cluster_public_routing() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO public_routing_dirty(resource_id, environment_id)
+    SELECT DISTINCT resource_id, environment_id FROM placements WHERE cluster_id = NEW.id
+    ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+CREATE TRIGGER public_routing_cluster_change AFTER UPDATE OF removed_at ON clusters
+FOR EACH ROW WHEN (OLD.removed_at IS DISTINCT FROM NEW.removed_at)
+EXECUTE FUNCTION enqueue_cluster_public_routing();
+
+-- +goose StatementBegin
+CREATE FUNCTION guard_public_domain() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS(SELECT 1 FROM public_route_publications p WHERE p.hostname = NEW.domain
+        AND (p.resource_id <> NEW.resource_id OR p.environment_id <> NEW.environment_id)
+        AND (NOT p.withdrawing OR p.acknowledged_revision <> p.revision
+             OR p.drain_until IS NULL OR p.drain_until > NOW()))
+      OR EXISTS(SELECT 1 FROM route_publishers b, unnest(b.reserved_prefixes) prefix
+        WHERE NEW.domain = split_part(NEW.domain, '.', 1) || '.' || b.app_domain
+          AND starts_with(split_part(NEW.domain, '.', 1), prefix)) THEN
+        RAISE unique_violation USING CONSTRAINT = 'resource_domains_domain_key', MESSAGE = 'domain is reserved';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+CREATE TRIGGER guard_public_domain BEFORE INSERT OR UPDATE OF domain ON resource_domains
+FOR EACH ROW EXECUTE FUNCTION guard_public_domain();
+
 -- +goose Down
+DROP VIEW IF EXISTS desired_deployment_placements;
+DROP TRIGGER IF EXISTS public_routing_deployment ON deployments;
+DROP TRIGGER IF EXISTS guard_public_domain ON resource_domains;
+DROP FUNCTION IF EXISTS guard_public_domain;
+DROP TRIGGER IF EXISTS public_routing_domains ON resource_domains;
+DROP TRIGGER IF EXISTS public_routing_placement_create ON placements;
+DROP TRIGGER IF EXISTS public_routing_placement_change ON placements;
+DROP TRIGGER IF EXISTS public_routing_retirement ON public_routing_retirements;
+DROP FUNCTION IF EXISTS enqueue_public_routing;
+DROP TRIGGER IF EXISTS public_routing_cluster_change ON clusters;
+DROP FUNCTION IF EXISTS enqueue_cluster_public_routing;
+DROP TABLE IF EXISTS public_routing_dirty;
+DROP TABLE IF EXISTS public_routing_retirements;
+DROP TABLE IF EXISTS public_route_publications;
+DROP TABLE IF EXISTS route_publishers;
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS deployment_placements_json;

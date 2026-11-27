@@ -156,7 +156,7 @@ func (q *Queries) GetPlacementTraceparent(ctx context.Context, id uuid.UUID) (*s
 }
 
 const getResourceEnvironmentPlacement = `-- name: GetResourceEnvironmentPlacement :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, restarted_at, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, restarted_at, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, public_route, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3
 `
 
@@ -188,6 +188,7 @@ func (q *Queries) GetResourceEnvironmentPlacement(ctx context.Context, arg GetRe
 		&i.ApplyFailed,
 		&i.ObservedRevision,
 		&i.ReadyReplicas,
+		&i.PublicRoute,
 		&i.ProblemReason,
 		&i.StatusUpdatedAt,
 		&i.RegionStatus,
@@ -366,7 +367,7 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_env, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.restarted_at, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.region_status, placements.region_status_since, placements.created_at, placements.updated_at,
+SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_env, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.restarted_at, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.public_route, placements.problem_reason, placements.status_updated_at, placements.region_status, placements.region_status_since, placements.created_at, placements.updated_at,
        resource_suspended(placements.resource_id)::boolean AS suspended,
        COALESCE((SELECT d.traceparent FROM deployments d WHERE d.id = placements.deployment_id), '')::text
          AS traceparent
@@ -415,6 +416,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.Placement.ApplyFailed,
 			&i.Placement.ObservedRevision,
 			&i.Placement.ReadyReplicas,
+			&i.Placement.PublicRoute,
 			&i.Placement.ProblemReason,
 			&i.Placement.StatusUpdatedAt,
 			&i.Placement.RegionStatus,
@@ -435,7 +437,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 }
 
 const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, restarted_at, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, restarted_at, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, public_route, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
 ORDER BY id
 FOR UPDATE
@@ -474,6 +476,7 @@ func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg Lis
 			&i.ApplyFailed,
 			&i.ObservedRevision,
 			&i.ReadyReplicas,
+			&i.PublicRoute,
 			&i.ProblemReason,
 			&i.StatusUpdatedAt,
 			&i.RegionStatus,
@@ -904,10 +907,11 @@ const updatePlacementStatus = `-- name: UpdatePlacementStatus :one
 UPDATE placements
 SET observed_revision = $1,
     ready_replicas = $2,
+    public_route = $3,
     status_updated_at = NOW(),
     updated_at = NOW()
-WHERE id = $3
-  AND cluster_id = $4
+WHERE id = $4
+  AND cluster_id = $5
   AND NOT desired_deleted
   AND NOT resource_suspended(placements.resource_id)
   AND $1::bigint >= observed_revision
@@ -918,6 +922,7 @@ RETURNING deployment_id, desired_revision, resource_id, environment_id, region
 type UpdatePlacementStatusParams struct {
 	ObservedRevision int64     `json:"observedRevision"`
 	ReadyReplicas    int32     `json:"readyReplicas"`
+	PublicRoute      []byte    `json:"publicRoute"`
 	ID               uuid.UUID `json:"id"`
 	ClusterID        uuid.UUID `json:"clusterId"`
 }
@@ -934,6 +939,7 @@ func (q *Queries) UpdatePlacementStatus(ctx context.Context, arg UpdatePlacement
 	row := q.db.QueryRow(ctx, updatePlacementStatus,
 		arg.ObservedRevision,
 		arg.ReadyReplicas,
+		arg.PublicRoute,
 		arg.ID,
 		arg.ClusterID,
 	)

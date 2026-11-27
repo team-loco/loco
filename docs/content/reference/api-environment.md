@@ -75,6 +75,20 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | `LOCO_APPLY_RETRY_DELAY` | `300` | Seconds between those sends. |
 | `LOCO_WORKSPACE_NAMESPACE_GRACE` | `24h` | How long a workspace may have no deployments on a cluster before the API leaves it off the workspaces that cluster keeps, and the cluster's agent deletes the workspace's namespaces there. |
 
+## Public routing publication
+
+These settings coordinate optional external publishers. Unbound app domains remain operator-managed; the API contains no provider credentials.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `LOCO_ROUTING_INTERVAL` | `5s` | Interval between batches of durable routing work. |
+| `LOCO_ROUTING_RETRY_SECONDS` | `5` | Seconds before pending or failed resource routing work is retried. |
+| `LOCO_ROUTING_BATCH_SIZE` | `500` | Maximum resource work items per batch and route intents per publisher response. |
+| `LOCO_ROUTING_DRAIN_SECONDS` | `120` | Seconds after a current publication acknowledgement before managed placement retirement or old-hostname removal. This is a propagation budget, not a guarantee that every connection has moved. |
+| `LOCO_ROUTING_SESSION_SECONDS` | `60` | Publisher session lifetime, renewed by listing intents. A second writer waits for expiry; expired or replaced sessions cannot acknowledge publications. |
+
+See [public routing](public-routing.md) for domain binding, publisher permissions and lifecycle behavior.
+
 ## Builds and images
 
 | Variable | Default | Effect |
