@@ -45,7 +45,7 @@ A user with the system read or system admin role reads the system tenant through
 
 In the installation scope:
 
-- Queries accept `@component` (the sending component, such as `loco-api` or `loco-controller`) and `@cluster` (the worker cluster's ID, or `control-plane`), next to `@level`, `@region`, `@replica`, text search and the other [query syntax](../reference/log-queries.md). In metrics requests, `attributes` accepts the keys `component` and `cluster`.
+- Queries accept `@component` (the sending component, such as `loco-api` or `loco-controller`), `@cluster` (the worker cluster's ID, or `control-plane`) and `@node` (the Kubernetes node name), next to `@level`, `@region`, `@replica`, text search and the other [query syntax](../reference/log-queries.md). In metrics requests, `attributes` accepts the keys `component`, `cluster` and `node`. The `node` key matches `ResourceAttributes['k8s.node.name']`, together with `cluster` to distinguish equal node names in different clusters.
 - `resource_ids` and `environment_id` belong to workspaces. A request that sets either, or a query that uses `@resource` or `@build`, fails with `invalid_argument`.
 - Metrics cover what the senders export: the API's runtime and stream metrics, the controllers' runtime and controller-runtime metrics, and the collectors' platform metrics.
 

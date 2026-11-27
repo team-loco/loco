@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -232,6 +233,74 @@ func TestSystemReadersQueryMetrics(t *testing.T) {
 		} else if len(response.GetSeries()) != 1 || response.GetSeries()[0].GetPoints()[0].GetValue() != tc.want {
 			t.Errorf("attributes %v: series %v, want one at %v", tc.attributes, response.GetSeries(), tc.want)
 		}
+	}
+}
+
+func TestSystemReadersQueryMetricsByNode(t *testing.T) {
+	t.Parallel()
+	f := newObservabilityFixture(t)
+	ch := newTestClickHouse(t)
+	at := time.Now().UTC().Truncate(time.Minute).Add(-time.Minute)
+	const (
+		nodeMetric = "k8s.node.cpu.usage"
+		nodeA      = "node-a"
+		nodeB      = "node-b"
+		nodeKey    = "node"
+	)
+	for _, row := range []struct {
+		node, cluster, workspace, pointNode string
+		value                               float64
+	}{
+		{nodeA, systemWorkerCluster, systemtenant.WorkspaceID, "", 0.2},
+		{nodeA, systemWorkerCluster, systemtenant.WorkspaceID, "", 0.6},
+		{nodeB, systemWorkerCluster, systemtenant.WorkspaceID, "", 0.9},
+		{nodeA, "other-cluster", systemtenant.WorkspaceID, "", 70},
+		{nodeA, systemWorkerCluster, f.workspace.String(), "", 99},
+		{"node-c", systemWorkerCluster, systemtenant.WorkspaceID, nodeA, 7},
+	} {
+		resource := systemResource("loco-otel", row.cluster)
+		resource[workspaceAttribute] = row.workspace
+		resource["k8s.node.name"] = row.node
+		attributes := map[string]string{}
+		if row.pointNode != "" {
+			attributes[nodeKey] = row.pointNode
+		}
+		if err := ch.Conn().Exec(t.Context(),
+			"INSERT INTO otel_metrics_gauge (ResourceAttributes, Attributes, MetricName, TimeUnix, Value) "+
+				"VALUES (?, ?, ?, ?, ?)",
+			resource, attributes, nodeMetric, at, row.value,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := observabilityTestClient(
+		t, NewObservabilityServer(ch, f.authorizer, f.queries, observabilityTestConfig), f.callers,
+	)
+	for node, want := range map[string]float64{nodeA: 0.4, nodeB: 0.9, "unreported-node": 0} {
+		t.Run(node, func(t *testing.T) {
+			response, err := client.QueryMetrics(callerContext(t, systemReader), &observabilityv1.QueryMetricsRequest{
+				Installation: true,
+				StartTime:    timestamppb.New(at.Add(-time.Second)),
+				EndTime:      timestamppb.New(at.Add(time.Second)),
+				MetricName:   nodeMetric, IntervalSeconds: 60, Aggregation: "avg",
+				Attributes: map[string]string{"cluster": systemWorkerCluster, nodeKey: node},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want == 0 {
+				if len(response.GetSeries()) != 0 {
+					t.Fatalf("node %s = %v, want no data", node, response.GetSeries())
+				}
+				return
+			}
+			if len(response.GetSeries()) != 1 || len(response.GetSeries()[0].GetPoints()) != 1 {
+				t.Fatalf("node %s = %v, want one point", node, response.GetSeries())
+			}
+			if got := response.GetSeries()[0].GetPoints()[0].GetValue(); math.Abs(got-want) > 1e-9 {
+				t.Fatalf("node %s = %v, want %v", node, got, want)
+			}
+		})
 	}
 }
 

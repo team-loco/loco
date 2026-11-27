@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/pdata/pmetric/pmetricotlp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
@@ -134,4 +138,91 @@ func TestProxyTelemetryReachesTheSystemTenant(t *testing.T) {
 		"SELECT count() FROM otel_traces WHERE WorkspaceId = '%s' AND ServiceName = 'loco-obs-proxy' "+
 			"AND SpanName = 'ingest.logs' AND ResourceAttributes['loco.cluster.id'] = '%s' AND OrganizationId = ''",
 		systemtenant.WorkspaceID, systemtenant.ControlPlaneClusterID), func(count int) bool { return count > 0 })
+}
+
+func TestSystemMetricsSelectNodeResourceIdentity(t *testing.T) {
+	t.Parallel()
+	var token string
+	platform.Eventually(t, ingestTokenTimeout, "the cluster ingest token", func(ctx context.Context) error {
+		var err error
+		token, err = p.IngestToken(ctx, p.CollectorNamespace())
+		if err == nil && token == "" {
+			return errors.New("empty ingest token")
+		}
+		return err
+	})
+	const name = "e2e.node.identity"
+	timestamp := time.Now().Truncate(time.Second)
+	metrics := pmetric.NewMetrics()
+	samples := []struct {
+		node  string
+		value float64
+	}{{"e2e-node-a", 0.2}, {"e2e-node-b", 0.8}}
+	for _, sample := range samples {
+		resource := metrics.ResourceMetrics().AppendEmpty()
+		resource.Resource().Attributes().PutStr("loco.telemetry.scope", "platform")
+		resource.Resource().Attributes().PutStr("k8s.node.name", sample.node)
+		metric := resource.ScopeMetrics().AppendEmpty().Metrics().AppendEmpty()
+		metric.SetName(name)
+		point := metric.SetEmptyGauge().DataPoints().AppendEmpty()
+		point.SetTimestamp(pcommon.NewTimestampFromTime(timestamp))
+		point.SetDoubleValue(sample.value)
+		// A point label must not override the node identity from its resource.
+		point.Attributes().PutStr("node", "e2e-node-decoy")
+	}
+	payload, err := pmetricotlp.NewExportRequestFromMetrics(metrics).MarshalProto()
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := do(t, t.Context(), http.MethodPost, p.OTLPURL+"/v1/metrics", map[string]string{
+		contentType: protobufContentType, authorizationHeader: "Bearer " + token,
+	}, payload)
+	if response.status != http.StatusOK {
+		t.Fatalf("metric ingestion status %d: %s", response.status, response.body)
+	}
+	decoded := pmetricotlp.NewExportResponse()
+	if err = decoded.UnmarshalProto(response.body); err != nil {
+		t.Fatal(err)
+	}
+	if rejected := decoded.PartialSuccess().RejectedDataPoints(); rejected != 0 {
+		t.Fatalf("rejected %d metric points", rejected)
+	}
+	query := func(node string) (*observabilityv1.QueryMetricsResponse, error) {
+		return p.Admin.Observability.QueryMetrics(t.Context(), &observabilityv1.QueryMetricsRequest{
+			Installation:    true,
+			MetricName:      name,
+			Aggregation:     "avg",
+			IntervalSeconds: 60,
+			StartTime:       timestamppb.New(timestamp.Add(-time.Minute)),
+			EndTime:         timestamppb.New(timestamp.Add(time.Minute)),
+			Attributes:      map[string]string{"cluster": p.ClusterID, "node": node},
+		})
+	}
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"node-specific metrics through OTLP and ClickHouse",
+		func(context.Context) error {
+			for _, sample := range samples {
+				result, queryErr := query(sample.node)
+				if queryErr != nil {
+					return queryErr
+				}
+				if len(result.GetSeries()) != 1 || len(result.GetSeries()[0].GetPoints()) != 1 {
+					return fmt.Errorf("node %s: want one point, got %v", sample.node, result)
+				}
+				if value := result.GetSeries()[0].GetPoints()[0].GetValue(); math.Abs(value-sample.value) > 1e-9 {
+					return fmt.Errorf("node %s: value %g, want %g", sample.node, value, sample.value)
+				}
+			}
+			return nil
+		},
+	)
+	result, err := query("e2e-node-decoy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.GetSeries()) != 0 {
+		t.Fatalf("point label selected unrelated node data: %v", result)
+	}
 }
