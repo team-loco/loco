@@ -283,16 +283,6 @@ func CaptureActor(ctx context.Context, q genDb.Querier, ev Event) (*ActorSnapsho
 	if err != nil {
 		return nil, err
 	}
-	return captureActor(ctx, q, ev, actorType, actorID)
-}
-
-func captureActor(
-	ctx context.Context,
-	q genDb.Querier,
-	ev Event,
-	actorType string,
-	actorID *uuid.UUID,
-) (*ActorSnapshot, error) {
 	identity, err := q.GetEventActor(ctx, genDb.GetEventActorParams{ActorType: actorType, ActorID: actorID})
 	if err != nil {
 		return nil, fmt.Errorf("look up event actor: %w", err)

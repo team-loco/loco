@@ -334,31 +334,29 @@ func TestDeploymentOutcomePreservesInitiatingActor(t *testing.T) {
 				t.Fatalf("deployment %s failure = %v, %v", id, rows, err)
 			}
 			ev := rows[0]
+			name, email, tokenType := derefString(
+				ev.ActorName,
+			), derefString(
+				ev.ActorEmail,
+			), derefString(
+				ev.ActorTokenType,
+			)
 			t.Logf(
 				"outcome after membership removal and identity change: actor=%s name=%q email=%q tokenType=%q operator=%v",
 				kind,
-				derefString(
-					ev.ActorName,
-				),
-				derefString(ev.ActorEmail),
-				derefString(ev.ActorTokenType),
+				name,
+				email,
+				tokenType,
 				ev.ActedAsOperator,
 			)
-			if ev.ActorName == nil || *ev.ActorName != wantName {
-				t.Errorf("outcome actor name = %v, want %q", ev.ActorName, wantName)
+			if name != wantName {
+				t.Errorf("outcome actor name = %q, want %q", name, wantName)
 			}
-			if derefString(ev.ActorEmail) != wantEmail || derefString(ev.ActorTokenType) != wantTokenType ||
-				ev.ActedAsOperator {
-				t.Errorf(
-					"outcome actor email/type/operator = %q/%q/%v, want %q/%q/false",
-					derefString(
-						ev.ActorEmail,
-					),
-					derefString(ev.ActorTokenType),
-					ev.ActedAsOperator,
-					wantEmail,
-					wantTokenType,
-				)
+			if email != wantEmail || tokenType != wantTokenType {
+				t.Errorf("outcome actor email/type = %q/%q, want %q/%q", email, tokenType, wantEmail, wantTokenType)
+			}
+			if ev.ActedAsOperator {
+				t.Error("member's deployment outcome was marked as an operator's action")
 			}
 		})
 	}

@@ -296,9 +296,14 @@ func TestRecordedActorSurvivesUserRenameAndDeletion(t *testing.T) {
 		if listErr != nil || len(rows) != 1 {
 			t.Fatalf("historical actor search after %s: %v, %v", mutation, rows, listErr)
 		}
-		if rows[0].ActorName == nil || *rows[0].ActorName != "Original Actor" || rows[0].ActorEmail == nil ||
-			*rows[0].ActorEmail != "original@example.test" {
-			t.Fatalf("historical actor changed: %+v", rows[0])
+		if rows[0].ActorName == nil || rows[0].ActorEmail == nil {
+			t.Fatalf("historical actor identity missing: %+v", rows[0])
+		}
+		if *rows[0].ActorName != "Original Actor" {
+			t.Fatalf("historical actor name changed: %q", *rows[0].ActorName)
+		}
+		if *rows[0].ActorEmail != "original@example.test" {
+			t.Fatalf("historical actor email changed: %q", *rows[0].ActorEmail)
 		}
 		t.Logf("after %s: actor name=%q email=%q", mutation, *rows[0].ActorName, *rows[0].ActorEmail)
 	}

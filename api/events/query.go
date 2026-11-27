@@ -28,8 +28,7 @@ var queryFields = map[string]bool{
 	severityField: true, regionField: true, reasonField: true, resourceField: true,
 }
 
-// The audit query reads events e, the acting user u, the user an event is about, s, and the resource r,
-// workspace w and environment n the event happened in.
+// The audit query reads events e, their subject user s, and their resource r, workspace w and environment n.
 const (
 	actorValues  = "(SELECT unnest(ARRAY[e.actor_name, e.actor_email]))"
 	targetValues = "(SELECT unnest(ARRAY[e.subject_id::text, e.data->>'name', e.data->>'domain', s.name, s.email, " +
