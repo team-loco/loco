@@ -403,10 +403,6 @@
 	box-shadow: 1px 0 0 var(--line);
 }
 
-[data-slot="data-table"]:is([data-scroll="start"], [data-scroll="middle"]) [data-pin="end"] {
-	box-shadow: inset 1px 0 0 var(--line);
-}
-
 /* A row's tint; pinned cells layer it over their opaque background so they match the rest of the row. */
 @property --row-tint {
 	syntax: "<color>";
@@ -503,9 +499,6 @@
 		border-radius: var(--band-radius, 6px);
 		box-shadow: none;
 		pointer-events: none;
-	}
-	& [data-pin="end"] {
-		box-shadow: none;
 	}
 	& tbody td {
 		background-color: var(--card-bg, var(--panel));

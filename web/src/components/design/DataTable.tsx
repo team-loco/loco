@@ -577,7 +577,7 @@ export function DataTable<T extends RowData>({
 											style={fitBounds(column, sizing, index)}
 											className="flex h-(--row-h) min-w-0 items-center"
 										>
-											{BAR}
+											{column.columnDef.meta?.pinEnd === true ? <Skeleton className="h-3 w-7 shrink-0" /> : BAR}
 										</TableCell>
 									))
 								) : (

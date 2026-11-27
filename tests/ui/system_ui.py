@@ -54,6 +54,40 @@ def row_menu(page, name, item):
 
 
 with session(repo / "tests/ui/out/system") as browser:
+    # Delayed fleet responses keep the sticky action column at its loaded width.
+    for color in ("loco", "paper"):
+        context, page, errors = open_page(
+            browser,
+            user="admin",
+            narrow=True,
+            state=state,
+            storage={"loco:color:v1": color},
+        )
+        pattern = "**/loco.cluster.v1.ClusterAdminService/ListClusters"
+        held = hold(context, pattern)
+        page.goto(ui + "/system/clusters")
+        table = page.get_by_role("table", name="Clusters", exact=True)
+        actions = table.get_by_role("columnheader", name="Actions", exact=True)
+        expect(actions).to_be_visible()
+        expect(table.locator("[data-slot=skeleton]").first).to_be_visible()
+        loading_box = actions.bounding_box()
+        context.unroute(pattern)
+        for request in held:
+            request.continue_()
+        expect(row(page, "us-ca-1")).to_be_visible()
+        loaded_box = actions.bounding_box()
+        assert abs(loaded_box["width"] - loading_box["width"]) <= 1, (
+            loading_box,
+            loaded_box,
+        )
+        assert actions.evaluate("el => getComputedStyle(el).boxShadow") == "none"
+        button = page.get_by_role("button", name="Actions for us-ca-1", exact=True)
+        assert button.evaluate(
+            "el => { const b=el.getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth; }"
+        )
+        assert not errors, errors
+        context.close()
+
     # A user without a system role never sees the switch.
     context, page, errors = open_page(browser, user="member", state=state)
     page.goto(ui + "/dashboard")
