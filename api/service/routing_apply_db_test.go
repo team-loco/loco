@@ -119,6 +119,12 @@ func TestManagedSourceMoveKeepsOldRouteThroughPendingAndFailedBuilds(t *testing.
 	if slices.Contains(f.publications(t)[0].ClusterIds, replacement) {
 		t.Fatal("unbuilt region admitted")
 	}
+	if _, err := f.queries.PruneDeploymentHistory(t.Context(), db.PruneDeploymentHistoryParams{
+		ResourceID: f.resourceID, EnvironmentID: f.envID, Keep: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	retained()
 	disabled := source + "    environments:\n      prod:\n        enabled: false\n"
 	applyOK(t, f.deployFixture, disabled, applyOptions{confirmDestructive: true})
 	f.reconcile(t)
