@@ -27,7 +27,7 @@ jobs:
         platform: ${{ fromJSON(github.event_name == 'push' && '["linux/amd64","linux/arm64"]' || '["linux/amd64"]') }}
 
     env:
-      MISE_ENABLE_TOOLS: go,yq,github:project-zot/zot
+      MISE_ENABLE_TOOLS: ${{ matrix.platform == 'linux/amd64' && 'go,yq,github:project-zot/zot' || 'go' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

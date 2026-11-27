@@ -38,7 +38,7 @@ jobs:
       matrix:
         arch: ${{ fromJSON(github.event_name == 'push' && '["amd64","arm64"]' || '["amd64"]') }}
     env:
-      MISE_ENABLE_TOOLS: go,helm,kubectl,flux2,yq,github:project-zot/zot
+      MISE_ENABLE_TOOLS: ${{ matrix.arch == 'amd64' && 'go,helm,kubectl,flux2,yq,github:project-zot/zot' || 'go' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.PUSH == 'true'

@@ -19,7 +19,7 @@ jobs:
         endpoint: [oldest, newest]
         shard: [builds, telemetry]
     env:
-      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot
+      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot,github:pressly/goose
       E2E_RUN_ID: compatibility
       E2E_KUBERNETES_VERSION: ${{ matrix.endpoint }}
     steps:
