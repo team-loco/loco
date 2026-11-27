@@ -1,21 +1,18 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
-import type { Deployment, Replica } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import type { ReactNode } from "react";
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { InlineCode } from "@/components/design/InlineCode";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
-import { aroundWindow, HOUR_MS, windowLabel, windowSpan } from "@/lib/obs-time";
+import { aroundWindow, HOUR_MS, windowSpan } from "@/lib/obs-time";
 import { placementIn } from "@/lib/deployment-utils";
 import { agoLabel, formatClock, formatDateTime, maybeTsMs, msToTimestamp, readyMs, tsMs } from "@/lib/time";
 
 import { LevelBadge } from "@/pages/observability/format";
 import { logLevel } from "@/pages/observability/query";
 
-import { replicaState } from "./deployment-progress";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
 import { depTag, type RegionProblem, type RegionView } from "./model";
@@ -61,12 +58,11 @@ function RegionLogs({
 		<div
 			aria-label={`Last log lines in ${region}`}
 			data-slot="incident-log"
-			className="flex flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
+			className="flex min-w-0 flex-1 basis-48 flex-col font-mono text-[11.5px] leading-normal"
 		>
-			<span className="px-3 pb-1 font-sans text-fg3">{windowLabel(window, timePref)}</span>
-			{logs.isLoading && <span className="px-3 text-fg3">Loading…</span>}
+			{logs.isLoading && <span className="text-fg3">Loading…</span>}
 			{!logs.isLoading && lines.length === 0 && (
-				<span className="px-3 text-fg3">
+				<span className="text-fg3">
 					{logs.error !== null
 						? "Failed to load logs"
 						: `No logs ${at === undefined ? "in this region in the last hour" : "around this failure"}`}
@@ -77,7 +73,7 @@ function RegionLogs({
 				return (
 					<div
 						key={`${String(ms)}-${i.toString()}`}
-						className="grid grid-cols-[62px_72px_minmax(0,1fr)] items-center gap-2.5 px-3 py-[3px]"
+						className="grid grid-cols-[62px_72px_minmax(0,1fr)] items-center gap-2.5 py-[3px]"
 					>
 						<span className="text-fg3">{ms === undefined ? "" : formatClock(ms, false, timePref)}</span>
 						<span>
@@ -90,21 +86,6 @@ function RegionLogs({
 				);
 			})}
 		</div>
-	);
-}
-
-function replicaTitle(replica: Replica): ReactNode {
-	const name = <InlineCode>{replica.name}</InlineCode>;
-	if (replica.restarts === 0)
-		return (
-			<>
-				Replica {name} is {replicaState(replica.state).label.toLowerCase()}
-			</>
-		);
-	return (
-		<>
-			Replica {name} restarted {replica.restarts.toString()} {replica.restarts === 1 ? "time" : "times"}
-		</>
 	);
 }
 
@@ -142,72 +123,80 @@ export function IncidentCard({
 			: undefined;
 	const at = maybeTsMs(report?.since) ?? maybeTsMs(region.status?.statusSince);
 	const serving = region.serving;
-	const failing = (region.status?.replicas ?? []).filter(
-		(r) => !r.ready && r.state !== "Stopping" && r.state !== "Stopped",
-	);
-	const [only] = failing.length === 1 ? failing : [];
-	const title = only === undefined ? problem.title : replicaTitle(only);
+	const deploymentFailed = report !== undefined && current?.status === DeploymentStatus.FAILED;
+	const title = deploymentFailed ? "Deployment failed" : problem.title;
+	const diagnostics = (report?.detail ?? "")
+		.split(" · ")
+		.filter(Boolean)
+		.map((detail) => {
+			const exit = /^exit (-?\d+)$/.exec(detail);
+			if (exit !== null) return { label: "Exit code", value: exit[1] };
+			const restarts = /^(\d+) restarts?$/.exec(detail);
+			if (restarts !== null) return { label: "Restarts", value: restarts[1] };
+			return { label: "Details", value: detail };
+		});
 	const goodMs = lastGood === undefined ? undefined : readyMs(lastGood);
 	const servingMs = serving === undefined ? undefined : (maybeTsMs(serving.startedAt) ?? tsMs(serving.createdAt));
-	const sub =
-		serving === undefined || servingMs === undefined ? (
-			(report?.message ?? problem.message)
-		) : (
-			<>
-				Serving deployment <InlineCode>{depTag(serving)}</InlineCode> in <InlineCode>{region.name}</InlineCode>,
-				deployed {agoLabel(servingMs, nowMs)}
-			</>
-		);
+	const explanation = report?.message ?? problem.message;
 	const query = report === undefined || report.logsQuery === "" ? `@region:${region.name}` : report.logsQuery;
 	const logs = logsHref(query, at);
 
 	return (
 		<section
 			aria-labelledby="incident-title"
-			className="flex flex-col gap-3.5 rounded-card bg-[color-mix(in_oklch,var(--warn)_6%,transparent)] px-5 pt-[18px] pb-5 ring-1 ring-warn/30 ring-inset"
+			className="flex flex-col gap-2.5 rounded-card bg-[color-mix(in_oklch,var(--err)_6%,transparent)] px-4 py-3 ring-1 ring-err/30 ring-inset"
 		>
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex min-w-0 flex-col gap-1">
-					<h2 id="incident-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">
-						{title}
-					</h2>
-					{sub !== "" && <span className="text-[13px] text-fg3">{sub}</span>}
+			<div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4">
+				<div className="flex min-w-0 flex-col gap-2.5">
+					<div className="flex flex-col gap-1">
+						<h2 id="incident-title" className="m-0 text-[14px] font-medium">
+							{title}
+						</h2>
+						{explanation !== "" && <p className="m-0 text-[12.5px] text-fg2">{explanation}</p>}
+						{serving !== undefined && servingMs !== undefined && (
+							<p className="m-0 text-[12.5px] text-fg2">
+								Serving deployment <InlineCode>{depTag(serving)}</InlineCode> in <InlineCode>{region.name}</InlineCode>,
+								deployed {agoLabel(servingMs, nowMs)}
+							</p>
+						)}
+					</div>
+					<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background px-3 py-2 ring-1 ring-line">
+						<RegionLogs
+							workspaceId={workspaceId}
+							environmentId={environmentId}
+							resourceId={resourceId}
+							region={region.name}
+							query={query}
+							at={at}
+							nowMs={nowMs}
+						/>
+						{logs !== undefined && (
+							<Button size="sm" nativeButton={false} render={<Link to={logs} />}>
+								<ScrollTextIcon />
+								View logs
+							</Button>
+						)}
+					</div>
 				</div>
-				{logs !== undefined && (
-					<Button size="sm" nativeButton={false} render={<Link to={logs} />}>
-						<ScrollTextIcon />
-						View replica logs
-					</Button>
-				)}
-			</div>
-			{serving !== undefined && <p className="m-0 text-[13px] text-fg3">{report?.message ?? problem.message}</p>}
-			{report?.detail && (
-				<div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-[13px]">
-					{report.detail.split(" · ").map((detail, i) => (
-						<Badge
-							key={i}
-							tone="warn"
-							className="h-auto max-w-full font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
-						>
-							{detail}
-						</Badge>
+				<dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-line pt-2.5 text-[12px] text-fg2 sm:max-w-[280px] sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+					<dt className="text-fg3">Affected regions</dt>
+					<dd className="m-0 font-mono [overflow-wrap:anywhere]">{region.name}</dd>
+					{diagnostics.map(({ label, value }, i) => (
+						<div key={i} className="contents">
+							<dt className="text-fg3">{label}</dt>
+							<dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">{value}</dd>
+						</div>
 					))}
-				</div>
-			)}
-			{at !== undefined && (
-				<span className="text-[12px] text-fg3">Since {formatDateTime(at, true, false, timePref)}</span>
-			)}
-			<RegionLogs
-				workspaceId={workspaceId}
-				environmentId={environmentId}
-				resourceId={resourceId}
-				region={region.name}
-				query={query}
-				at={at}
-				nowMs={nowMs}
-			/>
+					{at !== undefined && (
+						<>
+							<dt className="text-fg3">Since</dt>
+							<dd className="m-0">{formatDateTime(at, false, false, timePref)}</dd>
+						</>
+					)}
+				</dl>
+			</div>
 			{lastGood !== undefined && (
-				<div className="flex flex-wrap items-center justify-between gap-3 border-t border-warn/20 pt-3">
+				<div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
 					<span className="text-[13px]">
 						<span className="text-fg3">Last healthy</span>{" "}
 						<span className="font-mono text-[12.5px]">{depTag(lastGood)}</span>

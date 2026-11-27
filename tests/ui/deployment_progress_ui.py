@@ -399,7 +399,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             )
         )
     ).to_be_visible()
-    incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
+    incident_logs = incident.get_by_role("link", name="View logs", exact=True)
     incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
     assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
     failure_ms = int(
@@ -411,7 +411,12 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(
         incident.get_by_text("Process exited with code 1", exact=True)
     ).to_be_visible()
-    expect(incident.get_by_text("Since ", exact=False)).to_be_visible()
+    expect(incident.get_by_text("Since", exact=True)).to_be_visible()
+    expect(
+        incident.get_by_role("heading", name="Deployment failed", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Affected regions", exact=True)).to_be_visible()
+    expect(incident.get_by_text("Exit code", exact=True)).to_have_count(0)
     preview = incident.locator('[data-slot="incident-log"]')
     expect(preview.get_by_text("Before failure", exact=True)).to_be_visible()
     expect(preview.get_by_text("After failure", exact=True)).to_be_visible()
@@ -433,6 +438,21 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context.unroute(
         "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
     )
+    # Render only reported diagnostics, keeping arbitrary failure details intact.
+    sql(
+        state,
+        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(snapshot, '{{problem,detail}}', to_jsonb('exit 1 · 3 restarts · Back-off restarting failed container'::text)) WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    expect(
+        incident.locator("dt").filter(has_text=re.compile(r"^Exit code$"))
+    ).to_be_visible()
+    expect(
+        incident.locator("dt").filter(has_text=re.compile(r"^Restarts$"))
+    ).to_be_visible()
+    expect(
+        incident.get_by_text("Back-off restarting failed container", exact=True)
+    ).to_be_visible()
     # A later cluster outage must not be replaced by this stale deployment problem.
     sql(
         state,
@@ -447,6 +467,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(
         incident.get_by_text("Process exited with code 1", exact=True)
     ).to_have_count(0)
+    expect(
+        incident.get_by_role("heading", name="Not reporting", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Exit code", exact=True)).to_have_count(0)
     sql(
         state,
         f"UPDATE cluster_heartbeats SET last_heartbeat=NOW() WHERE cluster_id='{p['cluster']}';",
