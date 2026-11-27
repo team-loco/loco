@@ -68,6 +68,7 @@ export function SystemUsers() {
 	});
 	const page = loaded.query;
 	const users = page.data?.users ?? [];
+	const emptyTitle = params.q.trim() ? "No matches" : "No users";
 	const nextPageToken = page.data?.nextPageToken ?? "";
 	const pager = tokenPager(params.pages, nextPageToken, (pages) => {
 		if (!page.isPlaceholderData) void setParams({ pages });
@@ -106,7 +107,7 @@ export function SystemUsers() {
 						label="Users"
 						band
 						loading={page.isLoading}
-						empty={<EmptyState icon={<UsersIcon />} title={params.q.trim() ? "No matches" : "No users"} />}
+						empty={<EmptyState icon={<UsersIcon />} title={emptyTitle} />}
 						activeRowId={params.user}
 						onRowClick={(row) => {
 							void setParams({ user: row.original.id });
