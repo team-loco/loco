@@ -131,7 +131,7 @@ The Traces view uses the shared observability shell, TimeRangeMenu and ResourceM
 
 Log message previews and details remove terminal color and style sequences before highlighting text. The JSON record and raw-message copy preserve the original log body.
 
-Code viewers keep wrap and copy as icon buttons inside the code surface, with accessible names and tooltips. Reserve room beside the code for those controls. Avoid a separate toolbar row for them; deployment selection, download and close stay in the spec dialog header.
+Code viewers keep wrap and copy as icon buttons inside the code surface, with accessible names and tooltips. Reserve room beside the first lines for those controls; keep later lines at full width. Avoid a separate toolbar row for them; deployment selection, download and close stay in the spec dialog header.
 
 The Metrics view opens with the collected CPU and memory charts below the resource and time filters. Keep planned metrics and inactive controls out of the chart area; preserve loading, empty and error states for the collected metrics.
 

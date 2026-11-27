@@ -103,7 +103,6 @@ function CodeBlock({
 				{...(label === undefined ? {} : { role: "img", "aria-label": label })}
 				className={cn(
 					"m-0 min-h-0 overflow-auto py-3 font-mono text-sm leading-[1.6] text-(--sh-identifier) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-					isJson && "pr-[76px]",
 				)}
 			>
 				<Code
@@ -112,6 +111,7 @@ function CodeBlock({
 					className={cn(
 						lineNumbers ? "code-lines" : "code-plain block px-4 whitespace-normal",
 						shouldWrap && "code-wrap",
+						isJson && "[&>.sh__line:nth-child(-n+2)]:pr-[76px]",
 						!lineNumbers && !shouldWrap && "w-max min-w-full",
 					)}
 				/>

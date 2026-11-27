@@ -86,7 +86,11 @@ function Single({ text, wrap }: { text: string; wrap: boolean }) {
 	const digits = text.split("\n").length.toString().length;
 	return (
 		<pre className="m-0 text-(--sh-identifier)" style={{ "--code-digits": digits } as CSSProperties}>
-			<Code code={text} language="yaml" className={cn("code-lines", wrap && "code-wrap")} />
+			<Code
+				code={text}
+				language="yaml"
+				className={cn("code-lines [&>.sh__line:nth-child(-n+2)]:pr-[76px]", wrap && "code-wrap")}
+			/>
 		</pre>
 	);
 }
@@ -115,7 +119,7 @@ function Compare({ lines, diffOnly, wrap }: { lines: DiffLine[]; diffOnly: boole
 	return (
 		<div
 			className={cn(
-				"grid",
+				"grid [&>div:nth-child(-n+2)>span:last-child]:pr-[76px]",
 				wrap
 					? "grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)]"
 					: "w-max min-w-full grid-cols-[40px_max-content_40px_max-content]",
@@ -262,10 +266,7 @@ export function SpecDialogContent({
 				>
 					{copiedKey === a.id ? <CheckIcon /> : <CopyIcon />}
 				</Button>
-				<div
-					data-slot="spec-body"
-					className="min-h-0 overflow-auto pt-2 pr-[76px] pb-3 font-mono text-[12.5px] leading-5"
-				>
+				<div data-slot="spec-body" className="min-h-0 overflow-auto pt-2 pb-3 font-mono text-[12.5px] leading-5">
 					{b === undefined || diff === undefined ? (
 						<Single text={aText} wrap={wrap} />
 					) : (
