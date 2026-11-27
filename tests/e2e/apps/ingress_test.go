@@ -124,7 +124,7 @@ func TestIngress(t *testing.T) {
 			w.Namespace,
 			"get",
 			"httproute",
-			"-l", "loco.io/resource-id="+publicID,
+			"-l", "app=resource-"+publicID,
 			"-o",
 			"jsonpath={.items[*].spec.hostnames[*]}",
 		)
@@ -200,7 +200,7 @@ func TestIngress(t *testing.T) {
 				"get",
 				"httproute",
 				"-l",
-				"loco.io/resource-id="+publicID,
+				"app=resource-"+publicID,
 				"-o",
 				"jsonpath={.items[*].metadata.name}",
 			)
@@ -350,7 +350,7 @@ func gatewayReaches(t *testing.T, w *platform.Workspace, resourceID, probe strin
 func requireNoPublicRoutes(t *testing.T, w *platform.Workspace, resourceID string) {
 	t.Helper()
 	routes := p.MustKubectl(t, "-n", w.Namespace, "get", "httproute",
-		"-l", "loco.io/resource-id="+resourceID, "-o", "jsonpath={.items[*].metadata.name}")
+		"-l", "app=resource-"+resourceID, "-o", "jsonpath={.items[*].metadata.name}")
 	if routes != "" {
 		t.Fatalf("private resource has public routes: %s", routes)
 	}
