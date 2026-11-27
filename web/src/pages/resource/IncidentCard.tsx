@@ -4,11 +4,13 @@ import { Link } from "react-router";
 import type { Deployment, Replica } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { ReactNode } from "react";
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { InlineCode } from "@/components/design/InlineCode";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
-import { HOUR_MS } from "@/lib/obs-time";
-import { agoLabel, formatClock, maybeTsMs, readyMs, tsMs } from "@/lib/time";
+import { aroundWindow, HOUR_MS, windowLabel, windowSpan } from "@/lib/obs-time";
+import { placementIn } from "@/lib/deployment-utils";
+import { agoLabel, formatClock, formatDateTime, maybeTsMs, msToTimestamp, readyMs, tsMs } from "@/lib/time";
 
 import { LevelBadge } from "@/pages/observability/format";
 import { logLevel } from "@/pages/observability/query";
@@ -25,19 +27,33 @@ function RegionLogs({
 	environmentId,
 	resourceId,
 	region,
+	query,
+	at,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
 	region: string;
+	query: string;
+	at: number | undefined;
+	nowMs: number;
 }) {
 	const timePref = useTimePreferences();
+	const window = at === undefined ? { kind: "relative" as const, spanMs: HOUR_MS } : aroundWindow(at, nowMs);
 	const logs = useQueryLogs({
 		workspaceId,
 		environmentId,
 		resourceIds: [resourceId],
-		spanMs: HOUR_MS,
-		query: `@region:${region}`,
+		spanMs: windowSpan(window),
+		query,
+		...(window.kind === "absolute"
+			? {
+					startTime: msToTimestamp(window.from),
+					endTime: msToTimestamp(window.to),
+				}
+			: {}),
+		around: at,
 		limit: LOG_LINES,
 	});
 	const lines = logs.entries.toReversed();
@@ -47,10 +63,13 @@ function RegionLogs({
 			data-slot="incident-log"
 			className="flex flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
 		>
+			<span className="px-3 pb-1 font-sans text-fg3">{windowLabel(window, timePref)}</span>
 			{logs.isLoading && <span className="px-3 text-fg3">Loading…</span>}
 			{!logs.isLoading && lines.length === 0 && (
 				<span className="px-3 text-fg3">
-					{logs.error !== null ? "Failed to load logs" : "No logs in this region in the last hour"}
+					{logs.error !== null
+						? "Failed to load logs"
+						: `No logs ${at === undefined ? "in this region in the last hour" : "around this failure"}`}
 				</span>
 			)}
 			{lines.map((l, i) => {
@@ -107,13 +126,16 @@ export function IncidentCard({
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
-	/** Logs of one replica, or of the resource when `replica` is null. */
-	logsHref: (replica: string | null) => string | undefined;
+	/** Logs selected by the reported problem, around its timestamp. */
+	logsHref: (query: string, at: number | undefined) => string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	nowMs: number;
 }) {
+	const timePref = useTimePreferences();
 	const current = region.current;
+	const report = placementIn(current, region.name)?.problem;
+	const at = maybeTsMs(report?.since) ?? maybeTsMs(region.status?.statusSince);
 	const serving = region.serving;
 	const failing = (region.status?.replicas ?? []).filter(
 		(r) => !r.ready && r.state !== "Stopping" && r.state !== "Stopped",
@@ -124,14 +146,15 @@ export function IncidentCard({
 	const servingMs = serving === undefined ? undefined : (maybeTsMs(serving.startedAt) ?? tsMs(serving.createdAt));
 	const sub =
 		serving === undefined || servingMs === undefined ? (
-			problem.message
+			(report?.message ?? problem.message)
 		) : (
 			<>
 				Serving deployment <InlineCode>{depTag(serving)}</InlineCode> in <InlineCode>{region.name}</InlineCode>,
 				deployed {agoLabel(servingMs, nowMs)}
 			</>
 		);
-	const logs = logsHref(only?.name ?? null);
+	const query = report === undefined || report.logsQuery === "" ? `@region:${region.name}` : report.logsQuery;
+	const logs = logsHref(query, at);
 
 	return (
 		<section
@@ -152,11 +175,31 @@ export function IncidentCard({
 					</Button>
 				)}
 			</div>
+			{serving !== undefined && report !== undefined && <p className="m-0 text-[13px] text-fg3">{report.message}</p>}
+			{report?.detail && (
+				<div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-[13px]">
+					{report.detail.split(" · ").map((detail, i) => (
+						<Badge
+							key={i}
+							tone="warn"
+							className="h-auto max-w-full font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
+						>
+							{detail}
+						</Badge>
+					))}
+				</div>
+			)}
+			{at !== undefined && (
+				<span className="text-[12px] text-fg3">Since {formatDateTime(at, true, false, timePref)}</span>
+			)}
 			<RegionLogs
 				workspaceId={workspaceId}
 				environmentId={environmentId}
 				resourceId={resourceId}
 				region={region.name}
+				query={query}
+				at={at}
+				nowMs={nowMs}
 			/>
 			{lastGood !== undefined && (
 				<div className="flex flex-wrap items-center justify-between gap-3 border-t border-warn/20 pt-3">

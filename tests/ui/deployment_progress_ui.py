@@ -3,6 +3,7 @@ import json
 import re
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -353,6 +354,15 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         state,
         f"UPDATE deployments SET updated_at=NOW()-INTERVAL '10 minutes',completed_at=NOW()-INTERVAL '10 minutes' WHERE id='{p['current']}';",
     )
+    # Keep the failure six hours old, with its replica already removed.
+    failed_at = sql(
+        state,
+        "SELECT to_char(NOW()-INTERVAL '6 hours', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"');",
+    ).strip()
+    sql(
+        state,
+        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(jsonb_set(snapshot, '{{problem,since}}', to_jsonb('{failed_at}'::text)), '{{replicas}}', '[]'::jsonb) WHERE deployment_id='{p['current']}';",
+    )
     page.reload()
     expect(panel).to_have_count(0)
     incident = page.locator('section[aria-labelledby="incident-title"]')
@@ -366,6 +376,16 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
     incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
     assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
+    failure_ms = int(
+        datetime.fromisoformat(failed_at.replace("Z", "+00:00")).timestamp() * 1000
+    )
+    assert incident_query.get("at") == [str(failure_ms)], incident_query
+    assert int(incident_query["from"][0]) == failure_ms - 5 * 60_000, incident_query
+    assert int(incident_query["to"][0]) == failure_ms + 5 * 60_000, incident_query
+    expect(
+        incident.get_by_text("Process exited with code 1", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Since ", exact=False)).to_be_visible()
     incident.get_by_role("button", name="Roll back", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui", exact=True)
     expect(dialog).to_be_visible()
