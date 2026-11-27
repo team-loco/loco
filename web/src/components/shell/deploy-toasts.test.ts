@@ -113,7 +113,7 @@ test("a deploy toasts when it starts, fails and retries, and goes live, once per
 
 test("a failed deploy toasts failed", () => {
 	const crash = { reason: "restarts_exhausted", message: "Crashed." };
-	expect(titles([deployment(DeploymentStatus.CRASHED, crash)])).toEqual([["failed: api deploy failed (Crashed.)"]]);
+	expect(titles([deployment(DeploymentStatus.CRASHED, crash)])).toEqual([["failed: api deploy failed ()"]]);
 });
 
 test("the viewer's own deploy skips the start toast, and deploys of unknown resources toast nothing", () => {

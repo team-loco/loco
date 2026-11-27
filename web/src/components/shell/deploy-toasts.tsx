@@ -44,7 +44,7 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 					toast: { tone: "warning", title: withCode`${name} deploy is failing`, description },
 				};
 	if (d.status === DeploymentStatus.FAILED || d.status === DeploymentStatus.CRASHED)
-		return { state: "failed", toast: { tone: "failed", title: withCode`${name} deploy failed`, description } };
+		return { state: "failed", toast: { tone: "failed", title: withCode`${name} deploy failed`, description: "" } };
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
 	// Problems on a live deployment toast from their resource.degraded event, see degradedToast.
 	return {

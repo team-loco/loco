@@ -1,6 +1,6 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { ArrowRightIcon, RocketIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@connectrpc/connect-query";
@@ -213,7 +213,6 @@ export function RecentDeployments({
 				/>
 			) : total === 0 && rows.length === 0 ? (
 				<EmptyState
-					icon={<RocketIcon />}
 					title={
 						<>
 							No deployments to <InlineCode>{envName}</InlineCode> in the last 24 hours
