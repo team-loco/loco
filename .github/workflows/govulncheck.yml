@@ -14,6 +14,8 @@ jobs:
     name: Reachable Go Vulnerabilities
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MISE_ENABLE_TOOLS: go,go:golang.org/x/vuln/cmd/govulncheck
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

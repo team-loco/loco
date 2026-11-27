@@ -10,6 +10,8 @@ jobs:
   validate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: go,python,helm,kustomize,flux2,kubectl,kubeconform,yq,gh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,6 +41,7 @@ jobs:
       contents: read
       packages: write
     env:
+      MISE_ENABLE_TOOLS: go,python,helm,kustomize,flux2,kubectl,kubeconform,yq,gh
       GH_TOKEN: ${{ github.token }}
       CORE_COMMIT: ${{ github.sha }}
     steps:

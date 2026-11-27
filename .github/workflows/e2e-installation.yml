@@ -21,6 +21,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+    env:
+      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot,flux2,gh,github:pressly/goose
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools

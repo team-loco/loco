@@ -11,6 +11,8 @@ jobs:
   generate:
     name: Verify Generated Code
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: go,bun,buf,go:connectrpc.com/protoc-gen-connect-openapi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -45,6 +47,8 @@ jobs:
     # each to the branch's newest commit.
     concurrency:
       group: ${{ github.event_name == 'push' && 'buf-registry' || format('buf-{0}', github.run_id) }}
+    env:
+      MISE_ENABLE_TOOLS: buf,gh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

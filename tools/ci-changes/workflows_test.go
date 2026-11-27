@@ -341,3 +341,47 @@ func TestDuplicatePRRun(t *testing.T) {
 		})
 	}
 }
+
+// A cache of the whole toolchain defeats a job's smaller tool selection.
+func TestToolCacheFollowsJobSelection(t *testing.T) {
+	var action struct {
+		Runs struct {
+			Steps []struct {
+				ID  string `yaml:"id"`
+				Run string `yaml:"run"`
+			} `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	readYAML(t, "../../.github/actions/setup-tools/action.yml", &action)
+	var script string
+	for _, step := range action.Runs.Steps {
+		if step.ID == "mise-tools" {
+			script = step.Run
+		}
+	}
+	require.NotEmpty(t, script)
+	results := map[string]string{}
+	for _, selection := range []string{"go", "go,bun,uv,python,yq,github:project-zot/zot", "go,helm"} {
+		t.Run(selection, func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "output")
+			cmd := exec.CommandContext(t.Context(), "bash", "-eu", "-c", script)
+			cmd.Dir = "../.."
+			cmd.Env = append(os.Environ(), "MISE_ENABLE_TOOLS="+selection, "GITHUB_OUTPUT="+output)
+			logs, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", logs)
+			data, err := os.ReadFile(output)
+			require.NoError(t, err)
+			values := map[string]string{}
+			for line := range strings.Lines(string(data)) {
+				key, value, found := strings.Cut(strings.TrimSpace(line), "=")
+				require.True(t, found)
+				values[key] = value
+			}
+			assert.Equal(t, strings.Contains(","+selection+",", ",helm,"), values["helm"] == "true")
+			require.Len(t, values["hash"], 64)
+			results[selection] = values["hash"]
+		})
+	}
+	assert.NotEqual(t, results["go"], results["go,bun,uv,python,yq,github:project-zot/zot"])
+	assert.NotEqual(t, results["go"], results["go,helm"])
+}

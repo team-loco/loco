@@ -16,6 +16,8 @@ jobs:
   checks:
     name: Chart Checks
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: helm,github:helm-unittest/helm-unittest,github:losisin/helm-values-schema-json,uv,python,yq
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,6 +53,7 @@ jobs:
       contents: read
       packages: read
     env:
+      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot
       E2E_RUN_ID: ci
       E2E_IMAGES: ${{ inputs.images }}
       E2E_VERSION: ${{ inputs.images != '' && format('sha-{0}', github.sha) || 'e2e' }}
