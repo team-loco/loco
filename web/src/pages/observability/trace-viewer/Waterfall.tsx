@@ -250,7 +250,7 @@ export function Waterfall({
 									<span
 										className={cn(
 											"tv-span-bar absolute top-[8px] h-[14px] min-w-[2px] rounded-[3px]",
-											selected.spanId === span.spanId && "ring-1 ring-foreground",
+											selected.spanId === span.spanId && "ring-1 ring-inset ring-foreground",
 										)}
 										style={{
 											left: `${String(left * 100)}%`,
