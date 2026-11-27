@@ -30,12 +30,13 @@ const (
 )
 
 const (
-	webSignInErrorDomain = "loco.auth"
-	reasonSignInCanceled = "SIGN_IN_CANCELED"
-	reasonSignInExpired  = "SIGN_IN_EXPIRED"
-	reasonSignInInvalid  = "SIGN_IN_INVALID"
-	reasonSignupClosed   = "SIGNUP_CLOSED"
-	callbackAccessDenied = "access_denied"
+	webSignInErrorDomain   = "loco.auth"
+	reasonSignInCanceled   = "SIGN_IN_CANCELED"
+	reasonSignInExpired    = "SIGN_IN_EXPIRED"
+	reasonSignInInvalid    = "SIGN_IN_INVALID"
+	reasonSignupClosed     = "SIGNUP_CLOSED"
+	reasonAccountSuspended = "ACCOUNT_SUSPENDED"
+	callbackAccessDenied   = "access_denied"
 )
 
 var (
@@ -275,6 +276,8 @@ func webSignInError(err error) error {
 
 func webSignInReason(err error) string {
 	switch {
+	case errors.Is(err, auth.ErrAccountSuspended):
+		return reasonAccountSuspended
 	case errors.Is(err, auth.ErrSignupClosed):
 		return reasonSignupClosed
 	case errors.Is(err, errWebLoginCanceled):

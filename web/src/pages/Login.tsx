@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { nextPathFrom, signInOnClick } from "@/auth/next";
 import { AppLoading } from "@/context/AppLoader";
 
+import { SuspendedAccount } from "./auth/SuspendedAccount";
 import { SignInCard } from "./auth/SignInCard";
 import { signInError } from "./auth/sign-in-error";
 
@@ -21,11 +22,13 @@ export function Login() {
 		return <AppLoading />;
 	}
 
+	if (error?.reason === "ACCOUNT_SUSPENDED") return <SuspendedAccount />;
+
 	return (
 		<SignInCard
 			next={nextPathFrom(location.state)}
 			loginHint={loginHint}
-			error={error}
+			error={error?.message ?? null}
 			autoStart={!isAuthenticated && !signInOnClick(location.state)}
 		/>
 	);

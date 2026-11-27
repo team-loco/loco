@@ -13,10 +13,12 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/google/uuid"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -341,4 +343,77 @@ func stateOf(t *testing.T, req *authv1.CompleteWebLoginRequest) string {
 		t.Fatal(err)
 	}
 	return callback.Query().Get(webLoginState)
+}
+
+func TestSuspendedWebLoginReportsReasonWithoutIssuingSession(t *testing.T) {
+	t.Parallel()
+	f := newWebAuthFixture(t)
+	callback, binding := f.start(t, "good-code")
+	ctx, _ := webCall(t, binding)
+	signedIn, err := f.client.CompleteWebLogin(ctx, callback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userID, err := uuid.Parse(signedIn.GetUser().GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, statusErr := f.queries.SetUserStatus(
+		t.Context(),
+		genDb.SetUserStatusParams{ID: userID, Status: genDb.UserStatusSuspended},
+	); statusErr != nil {
+		t.Fatal(statusErr)
+	}
+	for _, withInvitation := range []bool{false, true} {
+		if withInvitation {
+			org, createErr := f.queries.CreateOrg(
+				t.Context(),
+				genDb.CreateOrgParams{Name: "inviting-org", CreatedBy: userID},
+			)
+			if createErr != nil {
+				t.Fatal(createErr)
+			}
+			if _, inviteErr := f.queries.CreateInvitation(t.Context(), genDb.CreateInvitationParams{
+				OrgID:     org.ID,
+				Email:     dashboardEmail,
+				Role:      genDb.OrgRoleMember,
+				InvitedBy: userID,
+				ExpiresAt: time.Now().Add(time.Hour),
+			}); inviteErr != nil {
+				t.Fatal(inviteErr)
+			}
+		}
+		callback, binding = f.start(t, "good-code")
+		suspendedCtx, info := webCall(t, binding)
+		_, err = f.client.CompleteWebLogin(suspendedCtx, callback)
+		if got := signInReason(t, err); got != "ACCOUNT_SUSPENDED" {
+			t.Fatalf("suspended sign-in reason = %q, want ACCOUNT_SUSPENDED", got)
+		}
+		for _, value := range info.ResponseHeader().Values("Set-Cookie") {
+			cookie, parseErr := http.ParseSetCookie(value)
+			if parseErr != nil {
+				t.Fatal(parseErr)
+			}
+			if cookie.Value != "" {
+				t.Fatalf("suspended sign-in issued a cookie: %s", cookie.Name)
+			}
+		}
+		t.Logf("suspended sign-in (pending invitation=%t): ACCOUNT_SUSPENDED, no session cookies", withInvitation)
+	}
+	if _, statusErr := f.queries.SetUserStatus(
+		t.Context(),
+		genDb.SetUserStatusParams{ID: userID, Status: genDb.UserStatusActive},
+	); statusErr != nil {
+		t.Fatal(statusErr)
+	}
+	callback, binding = f.start(t, "good-code")
+	ctx, _ = webCall(t, binding)
+	restored, err := f.client.CompleteWebLogin(ctx, callback)
+	if err != nil {
+		t.Fatalf("reinstated sign-in: %v", err)
+	}
+	t.Log("reinstated account: sign-in succeeds")
+	if restored.GetUser().GetId() != signedIn.GetUser().GetId() {
+		t.Fatal("reinstated sign-in returned a different account")
+	}
 }

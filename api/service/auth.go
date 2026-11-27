@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -589,8 +590,8 @@ func lockSessionAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUI
 	if err != nil {
 		return fmt.Errorf("read session account: %w", err)
 	}
-	if user.Status != genDb.UserStatusActive {
-		return tvm.ErrInvalidExpiredToken
+	if user.Status == genDb.UserStatusSuspended {
+		return errors.Join(tvm.ErrInvalidExpiredToken, auth.ErrAccountSuspended)
 	}
 	return nil
 }
