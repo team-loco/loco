@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     copied_text,
+    evidence,
     expect_rpc,
     load_state,
     observe_event_batches,
@@ -53,9 +54,68 @@ sql(
     f"INSERT INTO user_scopes(user_id,entity_type,entity_id,scope) VALUES('{reader}','resource','{resource}','read') ON CONFLICT DO NOTHING",
 )
 out = Path(args.out)
+
+
+def assert_event_column_alignment(page, events, phase):
+    table = events.get_by_role("table", name="Events", exact=True)
+    alignment_script = """table => {
+      const info = el => {
+        const box = el.getBoundingClientRect(), style = getComputedStyle(el);
+        return {x: box.x, width: box.width, display: style.display, tracks: style.gridTemplateColumns};
+      };
+      return {
+        fontStatus: document.fonts.status,
+        headers: [...table.querySelectorAll('thead th')].map(info),
+        cells: [...table.querySelector('tbody tr[data-interactive]').querySelectorAll('td')].map(info),
+        grids: ['table', 'thead', 'thead tr', 'tbody', 'tbody tr[data-interactive]'].map(selector => {
+          const element = selector === 'table' ? table : table.querySelector(selector);
+          return {selector, ...info(element)};
+        }),
+      };
+    }"""
+    page.screenshot(path=out / f"{phase}-initial.png")
+    print(
+        phase + " initial: " + json.dumps(table.evaluate(alignment_script)), flush=True
+    )
+    evidence.settle(page)
+    print(
+        phase + " capture-settled: " + json.dumps(table.evaluate(alignment_script)),
+        flush=True,
+    )
+    page.screenshot(path=out / f"{phase}-capture-settled.png")
+    page.evaluate(
+        "async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }"
+    )
+    alignment = table.evaluate(alignment_script)
+    print(phase + " fonts-settled: " + json.dumps(alignment), flush=True)
+    page.screenshot(path=out / f"{phase}-fonts-settled.png")
+    for header, cell in zip(alignment["headers"], alignment["cells"], strict=True):
+        assert abs(header["x"] - cell["x"]) < 1, alignment
+
+
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state, now=time.time())
     observe_event_batches(page)
+    stream_url = "**/loco.event.v1.EventService/StreamEvents"
+    page.route(
+        stream_url,
+        lambda route: route.fulfill(
+            status=403,
+            json={"code": "permission_denied", "message": "Event stream refused"},
+        ),
+    )
+    page.goto(
+        state["ui_url"] + base + "/observability?view=events&q=@reason:out_of_memory"
+    )
+    events = page.get_by_role("region", name="Events", exact=True)
+    expect(
+        page.get_by_role("status").filter(has_text="Live updates disconnected")
+    ).to_contain_text("HTTP 403")
+    expect(
+        events.get_by_role("row", name="Degraded in us-ca-1", exact=True)
+    ).to_have_count(1)
+    assert_event_column_alignment(page, events, "first-mount-disconnected-table")
+    page.unroute(stream_url)
     now_ms = int(time.time() * 1000)
     page.goto(
         state["ui_url"]
@@ -222,33 +282,7 @@ with session(out) as browser:
     expect(
         events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
     ).to_be_visible()
-    table = events.get_by_role("table", name="Events", exact=True)
-    alignment_script = """table => {
-      const info = el => {
-        const box = el.getBoundingClientRect(), style = getComputedStyle(el);
-        return {x: box.x, width: box.width, display: style.display, tracks: style.gridTemplateColumns};
-      };
-      return {
-        fontStatus: document.fonts.status,
-        headers: [...table.querySelectorAll('thead th')].map(info),
-        cells: [...table.querySelector('tbody tr[data-interactive]').querySelectorAll('td')].map(info),
-        grids: ['table', 'thead', 'thead tr', 'tbody', 'tbody tr[data-interactive]'].map(selector => {
-          const element = selector === 'table' ? table : table.querySelector(selector);
-          return {selector, ...info(element)};
-        }),
-      };
-    }"""
-    print(
-        "Event table immediately after disconnect: "
-        + json.dumps(table.evaluate(alignment_script)),
-        flush=True,
-    )
-    page.wait_for_timeout(2500)
-    alignment = table.evaluate(alignment_script)
-    print("Event table after refresh gap: " + json.dumps(alignment), flush=True)
-    page.screenshot(path=out / "disconnected-table-alignment.png")
-    for header, cell in zip(alignment["headers"], alignment["cells"], strict=True):
-        assert abs(header["x"] - cell["x"]) < 1, alignment
+    assert_event_column_alignment(page, events, "reloaded-disconnected-table")
     page.unroute(stream_url)
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
         notice.get_by_role("button", name="Reconnect", exact=True).click()
