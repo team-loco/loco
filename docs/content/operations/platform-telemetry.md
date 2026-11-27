@@ -12,6 +12,7 @@ Platform telemetry is the logs, metrics and traces Loco's own components produce
 | Observability proxy | Workload ingestion traces, including the storage write and record counts | `loco-control-plane` value `platformTelemetry.enabled` |
 | Application and build controllers | Traces of reconciles and Kubernetes API calls, controller-runtime metrics (reconciles, work queues, client requests), Go runtime metrics | `loco-worker` value `global.platformTelemetry.enabled` |
 | Worker cluster | Node metrics, cluster state and Kubernetes events from the Loco, collector and `global.platformTelemetry.namespaces` namespaces | `loco-worker` value `global.platformTelemetry.enabled` |
+| Worker capacity | Effective CPU and memory requests of assigned, nonterminal pods, including workspace builds | `loco-worker` value `global.platformTelemetry.enabled` |
 
 The API keeps writing its logs to standard output either way. Customer workloads' telemetry is never part of it.
 
@@ -60,6 +61,12 @@ LIMIT 100
 ```
 
 ## Turn it on
+
+The System dashboard reads capacity from ClickHouse. Enable worker platform telemetry and keep its destination pointed at the control plane to populate node capacity, reservation treemaps and workspace allocations. A custom platform exporter sends those observations to that backend instead; the control plane cannot display data it does not receive. No metrics-server installation is required.
+
+The controller reports reservations through a private endpoint scraped by the cluster collector. Native allocatable capacity and node usage are sampled separately. The dashboard distinguishes missing observations from zero and marks observations stale after three collection intervals. Capacity reads consider the most recent 24 hours; this operational window is independent of telemetry retention. An inspector pins its reservation collection while paging or searching. Refresh it when that collection is no longer available.
+
+In System, open a cluster to select a node and inspect its CPU or memory reservations and usage. The treemap groups the largest consumers and lets you inspect the exact remaining consumers. Open an organization to rank its workspaces by allocated CPU or memory, then use the existing Resources list. Configured size remains the desired per-replica size. Runtime reservations follow the selected environment; builds belong to the workspace and remain visible across environments. Partial cluster coverage is shown explicitly.
 
 On the control plane, set its physical region. This is independent of the default region for new services:
 

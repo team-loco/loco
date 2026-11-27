@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/capacitymetrics"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/systemtenant"
@@ -128,6 +130,7 @@ ORDER BY TimeUnix DESC LIMIT 2`,
 			return completeCapacitySample(ctx, source, captured)
 		},
 	)
+	reservedCPU, reservedMemory := readEffectiveResourceReservations(t, w, resource, pod.Spec.NodeName)
 	p.MustKubectl(t, "-n", w.Namespace, "delete", "pod", name, "--wait=true")
 	platform.Eventually(
 		t,
@@ -164,6 +167,34 @@ AND TimeUnix=fromUnixTimestamp64Milli(%s) AND Attributes['pod_uid']='%s'`,
 			return nil
 		},
 	)
+	platform.Eventually(
+		t,
+		3*time.Minute,
+		"deleted pod leaves the resource allocation API",
+		func(ctx context.Context) error {
+			rows, err := p.User.Resource.ListResourceAllocations(ctx, &resourcev1.ListResourceAllocationsRequest{
+				WorkspaceId: w.ID, EnvironmentId: w.EnvironmentID, ResourceIds: []string{resource},
+			})
+			if err != nil {
+				return err
+			}
+			if len(rows.GetResources()) != 1 {
+				return fmt.Errorf("resource reservations unavailable: %v", rows)
+			}
+			row := rows.GetResources()[0]
+			if row.GetCpuMillicores() != reservedCPU-800 || row.GetMemoryBytes() != reservedMemory-256<<20 {
+				return fmt.Errorf(
+					"deleted init pod still counted: before=%dm/%dB after=%dm/%dB",
+					reservedCPU, reservedMemory, row.GetCpuMillicores(), row.GetMemoryBytes(),
+				)
+			}
+			t.Logf(
+				"real pod deletion through collector, ClickHouse and resource RPC: %dm/%dB -> %dm/%dB",
+				reservedCPU, reservedMemory, row.GetCpuMillicores(), row.GetMemoryBytes(),
+			)
+			return nil
+		},
+	)
 	t.Log(
 		"800m/256Mi init request reached ClickHouse; next complete collection excludes the deleted pod",
 	)
@@ -197,4 +228,63 @@ AND MetricName IN ('%s','%s','%s')`,
 		return fmt.Errorf("capacity collection is partial: %v", rows)
 	}
 	return nil
+}
+
+func readEffectiveResourceReservations(t *testing.T, w *platform.Workspace, resource, node string) (int64, int64) {
+	t.Helper()
+	var actual corev1.Node
+	p.MustGet(t, &actual, "node", node)
+	var reservedCPU, reservedMemory int64
+	platform.Eventually(
+		t,
+		3*time.Minute,
+		"effective reservations served by the real allocation APIs",
+		func(ctx context.Context) error {
+			nodes, err := p.Admin.ClusterAdmin.ListClusterNodes(ctx, &clusterv1.ListClusterNodesRequest{
+				ClusterId: p.ClusterID, Query: node,
+			})
+			if err != nil {
+				return err
+			}
+			if nodes.GetSample().GetId() == "" || len(nodes.GetNodes()) != 1 {
+				return fmt.Errorf("node collection not available: %v", nodes)
+			}
+			capacity := nodes.GetNodes()[0]
+			if capacity.GetCpuMillicoresAllocatable() != actual.Status.Allocatable.Cpu().MilliValue() ||
+				capacity.GetMemoryBytesAllocatable() != actual.Status.Allocatable.Memory().Value() {
+				return fmt.Errorf("native allocatable capacity differs from Kubernetes: %v", capacity)
+			}
+			inspector, err := p.Admin.ClusterAdmin.GetNodeAllocations(ctx, &clusterv1.GetNodeAllocationsRequest{
+				ClusterId: p.ClusterID, Node: node, WorkspaceId: w.ID, SampleId: nodes.GetSample().GetId(),
+			})
+			if err != nil {
+				return err
+			}
+			found := false
+			for _, consumer := range inspector.GetConsumers() {
+				if consumer.GetId() == resource && consumer.GetCpuMillicores() >= 800 {
+					found = consumer.GetResourceLinkAvailable()
+				}
+			}
+			if !found {
+				return fmt.Errorf("resource missing from selected-node inspector: %v", inspector)
+			}
+			rows, err := p.User.Resource.ListResourceAllocations(ctx, &resourcev1.ListResourceAllocationsRequest{
+				WorkspaceId: w.ID, EnvironmentId: w.EnvironmentID, ResourceIds: []string{resource},
+			})
+			if err != nil {
+				return err
+			}
+			if len(rows.GetResources()) != 1 {
+				return fmt.Errorf("resource reservations unavailable: %v", rows)
+			}
+			row := rows.GetResources()[0]
+			if row.GetCpuMillicores() < 800 || row.GetMemoryBytes() < 256<<20 {
+				return fmt.Errorf("effective init request missing from resource API: %v", row)
+			}
+			reservedCPU, reservedMemory = row.GetCpuMillicores(), row.GetMemoryBytes()
+			return nil
+		},
+	)
+	return reservedCPU, reservedMemory
 }
