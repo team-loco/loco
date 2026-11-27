@@ -24,7 +24,7 @@ func TestDeleteResourceAndStatusReportDoNotDeadlock(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	resourceServer := NewResourceServer(
-		f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
+		f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(), nil,
 	)
 	admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
 

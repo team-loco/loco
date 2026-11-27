@@ -45,7 +45,14 @@ func updateResourceRegions(
 	revision int64,
 ) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	ctx := reqctx.WithPrincipal(
 		t.Context(),
 		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb,
@@ -395,7 +402,7 @@ func TestRegionUpdatesRetainDeploymentPlatformAfterTargetChanges(t *testing.T) {
 			targets[otherRegion] = proto.CloneOf(targets[testRegion])
 			defaults := testServiceDefaults()
 			defaults.TargetPlatform = workloadplatform.ARM64
-			server := NewResourceServer(f.pool, f.queries, defaults, testClusterSilentAfter, limits.Defaults())
+			server := NewResourceServer(f.pool, f.queries, defaults, testClusterSilentAfter, limits.Defaults(), nil)
 			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 				ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb,
 				Scopes: []genDb.EntityScope{{

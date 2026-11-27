@@ -20,7 +20,14 @@ func getResourceByName(
 	name string,
 ) (*resourcev1.Resource, error) {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	nameKey := &resourcev1.GetResourceSlugKey{WorkspaceId: workspaceID.String(), Slug: name}
 	req := &resourcev1.GetResourceRequest{

@@ -73,7 +73,14 @@ func (f *deployFixture) addResource(t *testing.T, name, partial string) {
 		t.Fatalf("decode %s spec: %v", name, err)
 	}
 	id := f.tenant.resource(t, f.workspaceID(t), name, spec)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	request := &resourcev1.TransferPartialRequest{ResourceId: id.String(), Partial: partial}
 	if _, err := server.TransferPartial(f.tenant.owner(t), request); err != nil {
 		t.Fatalf("give %s to partial %s: %v", name, partial, err)

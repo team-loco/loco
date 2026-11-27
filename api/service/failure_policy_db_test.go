@@ -21,7 +21,14 @@ func TestUpdateResourceSetsTheFailurePolicyWithoutDeploying(t *testing.T) {
 	f.finishRollouts(t)
 	before := f.placement(t, f.clusterID)
 	count := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	ctx := f.rolloutContext(t)
 	workspaceID := f.workspaceID(t)
 	reader := []genDb.EntityScope{

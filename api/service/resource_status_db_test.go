@@ -152,7 +152,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uu
 }
 
 func (f *resourceStatusFixture) server() *ResourceServer {
-	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), f.silentAfter, limits.Defaults())
+	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), f.silentAfter, limits.Defaults(), nil)
 }
 
 func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.EnvironmentStatus {

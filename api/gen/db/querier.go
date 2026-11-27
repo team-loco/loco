@@ -199,6 +199,8 @@ type Querier interface {
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
 	ListAdminRegions(ctx context.Context) ([]ListAdminRegionsRow, error)
+	ListAllocationResources(ctx context.Context, arg ListAllocationResourcesParams) ([]ListAllocationResourcesRow, error)
+	ListAllocationWorkspaces(ctx context.Context, arg ListAllocationWorkspacesParams) ([]ListAllocationWorkspacesRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error)

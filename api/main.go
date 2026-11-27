@@ -469,7 +469,7 @@ func newDeps(
 			queries,
 			ac.Agent.JoinTokenTTL,
 			ac.Agent.JoinTokenMaxTTL,
-			ac.HeartbeatInterval,
+			ac.HeartbeatInterval, clickhouse,
 		),
 		regionAdmin: service.NewRegionAdminServer(queries),
 		systemRole:  service.NewSystemRoleServer(pool, queries),
@@ -482,7 +482,7 @@ func newDeps(
 		org:       service.NewOrgServer(pool, queries, ac.Invitations, ac.CountLimits),
 		workspace: service.NewWorkspaceServer(pool, queries, ac.CountLimits),
 		resource: service.NewResourceServer(
-			pool, queries, ac.ServiceDefaults, clusterSilentAfter, ac.CountLimits,
+			pool, queries, ac.ServiceDefaults, clusterSilentAfter, ac.CountLimits, clickhouse,
 		),
 		deployment: service.NewDeploymentServer(
 			pool,

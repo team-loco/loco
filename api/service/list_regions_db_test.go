@@ -51,7 +51,14 @@ func TestListRegionsUsesTheSameEligibleClustersForEveryEnvironment(t *testing.T)
 	}
 	f.addRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := f.workspaceReadScopes(t)
 
 	production := listRegions(t, server, scopes, f.envID.String())
@@ -88,7 +95,14 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := f.workspaceReadScopes(t)
 
 	ctx := t.Context()
@@ -120,7 +134,14 @@ func TestListRegionsReportsOfflineClusters(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := f.workspaceReadScopes(t)
 
 	silent := `DELETE FROM cluster_heartbeats WHERE cluster_id = $1`

@@ -303,7 +303,7 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 		"settings": func(t *testing.T, f *deployFixture) error {
 			t.Helper()
 			server := NewResourceServer(
-				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
+				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(), nil,
 			)
 			_, err := server.UpdateResource(f.rolloutContext(t), &resourcev1.UpdateResourceRequest{
 				ResourceId: f.resourceID.String(), Name: new("Renamed"),

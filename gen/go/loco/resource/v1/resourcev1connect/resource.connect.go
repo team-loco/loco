@@ -24,6 +24,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ResourceServiceListResourceAllocationsProcedure is the procedure name of the ResourceService's
+	// ListResourceAllocations RPC.
+	ResourceServiceListResourceAllocationsProcedure = "/loco.resource.v1.ResourceService/ListResourceAllocations"
 	// ResourceServiceCreateResourceProcedure is the procedure name of the ResourceService's
 	// CreateResource RPC.
 	ResourceServiceCreateResourceProcedure = "/loco.resource.v1.ResourceService/CreateResource"
@@ -66,6 +69,13 @@ const (
 )
 
 var (
+	resourceServiceListResourceAllocationsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListResourceAllocations"),
+			Procedure:  ResourceServiceListResourceAllocationsProcedure,
+		}
+	})
 	resourceServiceCreateResourceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -161,6 +171,7 @@ var (
 
 // ResourceServiceClient is a client for the loco.resource.v1.ResourceService service.
 type ResourceServiceClient interface {
+	ListResourceAllocations(context.Context, *v1.ListResourceAllocationsRequest) (*v1.ListResourceAllocationsResponse, error)
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error)
 	// GetResource retrieves a resource by ID or slug.
@@ -205,6 +216,7 @@ func NewResourceServiceClient(client *connect.Client) ResourceServiceClient {
 
 // ResourceServiceHandler is an implementation of the loco.resource.v1.ResourceService service.
 type ResourceServiceHandler interface {
+	ListResourceAllocations(context.Context, *v1.ListResourceAllocationsRequest) (*v1.ListResourceAllocationsResponse, error)
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error)
 	// GetResource retrieves a resource by ID or slug.
@@ -246,6 +258,7 @@ type ResourceServiceHandler interface {
 func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceHandler) {
 	adapter := resourceServiceHandler{svc: svc}
 	server.Register(
+		connect.Method{Spec: resourceServiceListResourceAllocationsSpec(), Handler: adapter.listResourceAllocations},
 		connect.Method{Spec: resourceServiceCreateResourceSpec(), Handler: adapter.createResource},
 		connect.Method{Spec: resourceServiceGetResourceSpec(), Handler: adapter.getResource},
 		connect.Method{Spec: resourceServiceUpdateResourceSpec(), Handler: adapter.updateResource},
@@ -264,6 +277,10 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 
 // UnimplementedResourceServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedResourceServiceHandler struct{}
+
+func (UnimplementedResourceServiceHandler) ListResourceAllocations(context.Context, *v1.ListResourceAllocationsRequest) (*v1.ListResourceAllocationsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListResourceAllocations is not implemented")
+}
 
 func (UnimplementedResourceServiceHandler) CreateResource(context.Context, *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.CreateResource is not implemented")
@@ -319,6 +336,14 @@ func (UnimplementedResourceServiceHandler) TransferPartial(context.Context, *v1.
 
 type resourceServiceClient struct {
 	client *connect.Client
+}
+
+func (c *resourceServiceClient) ListResourceAllocations(ctx context.Context, req *v1.ListResourceAllocationsRequest) (*v1.ListResourceAllocationsResponse, error) {
+	var res v1.ListResourceAllocationsResponse
+	if err := c.client.CallUnary(ctx, resourceServiceListResourceAllocationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *resourceServiceClient) CreateResource(ctx context.Context, req *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error) {
@@ -426,6 +451,18 @@ func (c *resourceServiceClient) TransferPartial(ctx context.Context, req *v1.Tra
 }
 
 type resourceServiceHandler struct{ svc ResourceServiceHandler }
+
+func (h resourceServiceHandler) listResourceAllocations(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListResourceAllocationsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListResourceAllocations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
 
 func (h resourceServiceHandler) createResource(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.CreateResourceRequest

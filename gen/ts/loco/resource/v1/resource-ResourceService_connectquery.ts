@@ -5,6 +5,11 @@
 import { ResourceService } from "./resource_pb";
 
 /**
+ * @generated from rpc loco.resource.v1.ResourceService.ListResourceAllocations
+ */
+export const listResourceAllocations = ResourceService.method.listResourceAllocations;
+
+/**
  * CreateResource creates a new resource.
  *
  * @generated from rpc loco.resource.v1.ResourceService.CreateResource

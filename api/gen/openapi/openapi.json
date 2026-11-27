@@ -1519,6 +1519,67 @@
         }
       }
     },
+    "/loco.cluster.v1.ClusterAdminService/GetNodeAllocations": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "GetNodeAllocations",
+        "operationId": "loco.cluster.v1.ClusterAdminService.GetNodeAllocations",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.GetNodeAllocationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.GetNodeAllocationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.cluster.v1.ClusterAdminService/IssueJoinToken": {
       "post": {
         "tags": [
@@ -1580,6 +1641,67 @@
         }
       }
     },
+    "/loco.cluster.v1.ClusterAdminService/ListClusterNodes": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "ListClusterNodes",
+        "operationId": "loco.cluster.v1.ClusterAdminService.ListClusterNodes",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.ListClusterNodesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.ListClusterNodesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.cluster.v1.ClusterAdminService/ListClusters": {
       "post": {
         "tags": [
@@ -1634,6 +1756,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.cluster.v1.ListClustersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.cluster.v1.ClusterAdminService/ListWorkspaceAllocations": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "ListWorkspaceAllocations",
+        "operationId": "loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.ListWorkspaceAllocationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.ListWorkspaceAllocationsResponse"
                 }
               }
             }
@@ -6030,6 +6213,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.resource.v1.ListRegionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.resource.v1.ResourceService/ListResourceAllocations": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "ListResourceAllocations",
+        "operationId": "loco.resource.v1.ResourceService.ListResourceAllocations",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.ListResourceAllocationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.ListResourceAllocationsResponse"
                 }
               }
             }
@@ -10521,6 +10765,106 @@
         "title": "StartBuildResponse",
         "additionalProperties": false
       },
+      "loco.capacity.v1.AllocationCoverage": {
+        "type": "object",
+        "properties": {
+          "reportingClusters": {
+            "type": "integer",
+            "title": "reporting_clusters",
+            "format": "int32"
+          },
+          "staleClusters": {
+            "type": "integer",
+            "title": "stale_clusters",
+            "format": "int32"
+          },
+          "missingClusters": {
+            "type": "integer",
+            "title": "missing_clusters",
+            "format": "int32"
+          },
+          "oldestReportedAt": {
+            "title": "oldest_reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "AllocationCoverage",
+        "additionalProperties": false,
+        "description": "Coverage includes every registered, non-removed worker cluster. A missing or stale\n cluster means a displayed zero is not proof that nothing is allocated there."
+      },
+      "loco.capacity.v1.AllocationSample": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "reportedAt": {
+            "title": "reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "stale"
+          }
+        },
+        "title": "AllocationSample",
+        "additionalProperties": false,
+        "description": "One complete controller collection, received through OpenTelemetry and ClickHouse.\n No sample means unknown reservations, including when individual points have arrived."
+      },
+      "loco.cluster.v1.AllocationConsumer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "Workspace ID in workspace scope; resource ID in resource scope. System/Other use literal IDs."
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "orgId": {
+            "type": "string",
+            "title": "org_id"
+          },
+          "orgName": {
+            "type": "string",
+            "title": "org_name"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "kind",
+            "description": "workspace, resource, system, or other. Resource reservations include workspace-scoped builds."
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32"
+          },
+          "pods": {
+            "type": "integer",
+            "title": "pods",
+            "format": "int32"
+          }
+        },
+        "title": "AllocationConsumer",
+        "additionalProperties": false
+      },
       "loco.cluster.v1.Cluster": {
         "type": "object",
         "properties": {
@@ -10868,6 +11212,110 @@
         "title": "GetClusterOperationsResponse",
         "additionalProperties": false
       },
+      "loco.cluster.v1.GetNodeAllocationsRequest": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id",
+            "format": "uuid"
+          },
+          "node": {
+            "type": "string",
+            "title": "node",
+            "maxLength": 253,
+            "minLength": 1
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200
+          },
+          "page": {
+            "type": "integer",
+            "title": "page",
+            "maximum": 1000000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "remainderOnly": {
+            "type": "boolean",
+            "title": "remainder_only"
+          },
+          "sampleId": {
+            "type": "string",
+            "title": "sample_id",
+            "maxLength": 200,
+            "minLength": 1,
+            "description": "Pins the inspector to the node list collection. An unavailable collection returns Aborted."
+          }
+        },
+        "title": "GetNodeAllocationsRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.GetNodeAllocationsResponse": {
+        "type": "object",
+        "properties": {
+          "sample": {
+            "title": "sample",
+            "$ref": "#/components/schemas/loco.capacity.v1.AllocationSample"
+          },
+          "node": {
+            "title": "node",
+            "$ref": "#/components/schemas/loco.cluster.v1.NodeCapacity"
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.AllocationConsumer"
+            },
+            "title": "top"
+          },
+          "remainder": {
+            "title": "remainder",
+            "$ref": "#/components/schemas/loco.cluster.v1.AllocationConsumer"
+          },
+          "system": {
+            "title": "system",
+            "$ref": "#/components/schemas/loco.cluster.v1.AllocationConsumer"
+          },
+          "consumers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.AllocationConsumer"
+            },
+            "title": "consumers"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "workspaceName": {
+            "type": "string",
+            "title": "workspace_name"
+          }
+        },
+        "title": "GetNodeAllocationsResponse",
+        "additionalProperties": false
+      },
       "loco.cluster.v1.IssueJoinTokenRequest": {
         "type": "object",
         "properties": {
@@ -10915,6 +11363,98 @@
         "title": "JoinToken",
         "additionalProperties": false
       },
+      "loco.cluster.v1.ListClusterNodesRequest": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200
+          },
+          "page": {
+            "type": "integer",
+            "title": "page",
+            "maximum": 1000000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          }
+        },
+        "title": "ListClusterNodesRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.ListClusterNodesResponse": {
+        "type": "object",
+        "properties": {
+          "sample": {
+            "title": "sample",
+            "$ref": "#/components/schemas/loco.capacity.v1.AllocationSample"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.NodeCapacity"
+            },
+            "title": "nodes"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32"
+          },
+          "cpuMillicoresRequested": {
+            "type": "string",
+            "title": "cpu_millicores_requested",
+            "format": "int64",
+            "description": "Totals cover every node, independent of node search and pagination."
+          },
+          "memoryBytesRequested": {
+            "type": "string",
+            "title": "memory_bytes_requested",
+            "format": "int64"
+          },
+          "cpuMillicoresAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cpu_millicores_allocatable",
+            "format": "int64",
+            "description": "Absent if any observed node lacks that native dimension."
+          },
+          "memoryBytesAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "memory_bytes_allocatable",
+            "format": "int64"
+          },
+          "capacityReportedAt": {
+            "title": "capacity_reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "capacityStale": {
+            "type": "boolean",
+            "title": "capacity_stale"
+          }
+        },
+        "title": "ListClusterNodesResponse",
+        "additionalProperties": false
+      },
       "loco.cluster.v1.ListClustersRequest": {
         "type": "object",
         "title": "ListClustersRequest",
@@ -10953,6 +11493,65 @@
         "title": "ListRegionsResponse",
         "additionalProperties": false
       },
+      "loco.cluster.v1.ListWorkspaceAllocationsRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200
+          },
+          "page": {
+            "type": "integer",
+            "title": "page",
+            "maximum": 1000000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "ascending": {
+            "type": "boolean",
+            "title": "ascending"
+          }
+        },
+        "title": "ListWorkspaceAllocationsRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.ListWorkspaceAllocationsResponse": {
+        "type": "object",
+        "properties": {
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.WorkspaceAllocation"
+            },
+            "title": "workspaces"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32"
+          },
+          "coverage": {
+            "title": "coverage",
+            "$ref": "#/components/schemas/loco.capacity.v1.AllocationCoverage"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          }
+        },
+        "title": "ListWorkspaceAllocationsResponse",
+        "additionalProperties": false
+      },
       "loco.cluster.v1.NewRegion": {
         "type": "object",
         "properties": {
@@ -10972,6 +11571,70 @@
         "title": "NewRegion",
         "additionalProperties": false,
         "description": "NewRegion describes the region CreateCluster creates. The API builds its code."
+      },
+      "loco.cluster.v1.NodeCapacity": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 253,
+            "minLength": 1
+          },
+          "ready": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "ready"
+          },
+          "cpuMillicoresAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cpu_millicores_allocatable",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "memoryBytesAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "memory_bytes_allocatable",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "cpuMillicoresRequested": {
+            "type": "string",
+            "title": "cpu_millicores_requested",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "memoryBytesRequested": {
+            "type": "string",
+            "title": "memory_bytes_requested",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32"
+          },
+          "capacityReportedAt": {
+            "title": "capacity_reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "capacityStale": {
+            "type": "boolean",
+            "title": "capacity_stale"
+          }
+        },
+        "title": "NodeCapacity",
+        "additionalProperties": false,
+        "description": "NodeCapacity combines independently sampled native node capacity and complete pod reservations."
       },
       "loco.cluster.v1.PauseClusterRequest": {
         "type": "object",
@@ -11092,6 +11755,40 @@
           }
         },
         "title": "ResumeClusterResponse",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.WorkspaceAllocation": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "orgId": {
+            "type": "string",
+            "title": "org_id"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "WorkspaceAllocation",
         "additionalProperties": false
       },
       "loco.config.v1.CountLimits": {
@@ -16393,6 +17090,97 @@
         "additionalProperties": false,
         "description": "ListRegionsResponse contains the regions the environment's clusters serve."
       },
+      "loco.resource.v1.ListResourceAllocationsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200
+          },
+          "page": {
+            "type": "integer",
+            "title": "page",
+            "maximum": 1000000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "ascending": {
+            "type": "boolean",
+            "title": "ascending"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 200,
+            "description": "Restrict to these resources, still subject to the caller's resource grants."
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32",
+            "description": "Zero selects 25. Existing resource tables can request their visible page in one read."
+          }
+        },
+        "title": "ListResourceAllocationsRequest",
+        "additionalProperties": false,
+        "description": "Assigned non-terminal pod reservations, distinct from desired per-replica size."
+      },
+      "loco.resource.v1.ListResourceAllocationsResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceReservation"
+            },
+            "title": "resources"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "coverage": {
+            "title": "coverage",
+            "$ref": "#/components/schemas/loco.capacity.v1.AllocationCoverage"
+          }
+        },
+        "title": "ListResourceAllocationsResponse",
+        "additionalProperties": false
+      },
       "loco.resource.v1.ListResourceOutputsRequest": {
         "type": "object",
         "properties": {
@@ -17001,6 +17789,43 @@
           }
         },
         "title": "ResourceRegionCount",
+        "additionalProperties": false
+      },
+      "loco.resource.v1.ResourceReservation": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64",
+            "description": "Actual runtime pod reservations within the requested environment (or all environments)."
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "workspaceBuildCpuMillicores": {
+            "type": "string",
+            "title": "workspace_build_cpu_millicores",
+            "format": "int64",
+            "description": "Actual builds belong to the workspace, independent of the environment filter."
+          },
+          "workspaceBuildMemoryBytes": {
+            "type": "string",
+            "title": "workspace_build_memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "ResourceReservation",
         "additionalProperties": false
       },
       "loco.resource.v1.ResourceSpec": {

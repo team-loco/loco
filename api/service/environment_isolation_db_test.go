@@ -248,7 +248,7 @@ func TestDeletionWaitsForAnotherEnvironmentsPlacement(t *testing.T) {
 			// Closing that window without the resource lock cannot see staging yet.
 			deploymentServer, scoped := f.deploymentWriter(t)
 			resourceServer := NewResourceServer(
-				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
+				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(), nil,
 			)
 			admin := reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
 			var deleteErr error

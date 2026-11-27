@@ -35,7 +35,7 @@ func newRegionFixture(t *testing.T) *regionFixture {
 			pool,
 			queries,
 			testAgentConfig().JoinTokenTTL,
-			testAgentConfig().JoinTokenMaxTTL, testHeartbeatInterval),
+			testAgentConfig().JoinTokenMaxTTL, testHeartbeatInterval, nil),
 		regions: NewRegionAdminServer(queries),
 		ctx:     systemAdminContext(t),
 	}
