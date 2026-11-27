@@ -450,6 +450,7 @@ def test_node_logs_keep_correlation_types_and_separate_workloads(
         "synthetic CRI files: controller/API/proxy collected once as platform logs; workload kept separate; collector logs excluded"
     )
     print(json.dumps(controller, sort_keys=True))
+    print(json.dumps(api, sort_keys=True))
 
 
 def test_platform_log_backlog_resumes_without_replay(configured_relays, tmp_path):
@@ -490,5 +491,7 @@ def test_platform_log_backlog_resumes_without_replay(configured_relays, tmp_path
         )
     assert resumed == ["during collector restart"], resumed
     print(
-        "synthetic CRI backlog read on first start; persisted checkpoint resumes after restart without replay"
+        json.dumps(
+            {"before_collector": first, "after_restart": resumed}, sort_keys=True
+        )
     )
