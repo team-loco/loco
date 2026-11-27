@@ -435,6 +435,17 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             request["endTime"].replace("Z", "+00:00")
         ) <= failure_time + timedelta(minutes=5), request
 
+    starts = [
+        datetime.fromisoformat(r["startTime"].replace("Z", "+00:00"))
+        for r in preview_requests
+    ]
+    ends = [
+        datetime.fromisoformat(r["endTime"].replace("Z", "+00:00"))
+        for r in preview_requests
+    ]
+    assert min(starts) == failure_time - timedelta(minutes=5), preview_requests
+    assert max(ends) == failure_time + timedelta(minutes=5), preview_requests
+
     context.unroute(
         "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
     )
