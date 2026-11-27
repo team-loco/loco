@@ -12,6 +12,8 @@ jobs:
     name: Web Checks
     runs-on: ubuntu-latest
 
+    env:
+      MISE_ENABLE_TOOLS: bun,uv,python
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -47,6 +49,8 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
 
+    env:
+      MISE_ENABLE_TOOLS: go,bun,uv,python,yq,github:project-zot/zot
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -75,6 +79,8 @@ jobs:
     name: Static Hosting Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      MISE_ENABLE_TOOLS: uv,python
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools

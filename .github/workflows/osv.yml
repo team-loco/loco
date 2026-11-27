@@ -135,6 +135,7 @@ jobs:
         image: ${{ fromJSON(github.event_name == 'pull_request' && needs.changes.outputs.all || needs.changes.outputs.images) }}
 
     env:
+      MISE_ENABLE_TOOLS: osv-scanner
       SCAN: ${{ contains(fromJSON(needs.changes.outputs.images), matrix.image) }}
 
     steps:

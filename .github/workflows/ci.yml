@@ -101,6 +101,8 @@ jobs:
       markers: ${{ steps.select.outputs.markers }}
       go-modules: ${{ steps.select.outputs.go-modules }}
       e2e-shards: ${{ steps.select.outputs.e2e-shards }}
+    env:
+      MISE_ENABLE_TOOLS: go,gh
     steps:
       # Protection reads only the newest head's CI Gate, so a run for a head the
       # PR has replaced is wasted runner time. Only older runs are cancelled: a

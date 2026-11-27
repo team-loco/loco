@@ -1,5 +1,5 @@
 name: Setup tools
-description: Install every tool pinned in mise.toml at the versions and checksums recorded in mise.lock. Caches are saved only on main, the one ref whose caches pull requests and merge groups can restore.
+description: Install the tools MISE_ENABLE_TOOLS selects from mise.toml at the versions and checksums recorded in mise.lock; when unset, install every tool. Caches are saved only on main, the one ref whose caches pull requests and merge groups can restore.
 
 inputs:
   go-cache:
@@ -54,10 +54,15 @@ runs:
       shell: bash
       run: |
         python3 -I -c '
-        import hashlib, json, tomllib
+        import hashlib, json, os, tomllib
         config = tomllib.load(open("mise.toml", "rb"))
+        tools = config["tools"]
+        enabled = os.environ.get("MISE_ENABLE_TOOLS")
+        if enabled is not None:
+            tools = {name: tools[name] for name in enabled.split(",") if name}
+        print("helm=" + str("helm" in tools).lower())
         digest = hashlib.sha256(open("mise.lock", "rb").read())
-        digest.update(json.dumps([config["tools"], config["settings"]], sort_keys=True).encode())
+        digest.update(json.dumps([tools, config["settings"]], sort_keys=True).encode())
         print("hash=" + digest.hexdigest())
         ' >> "$GITHUB_OUTPUT"
 
@@ -69,14 +74,14 @@ runs:
         cache_save: ${{ github.ref == 'refs/heads/main' }}
         cache_key: "{{cache_key_prefix}}-{{platform}}-{{version}}-{{env.MISE_TOOLS_HASH}}"
 
-    - if: github.ref == 'refs/heads/main'
+    - if: github.ref == 'refs/heads/main' && steps.mise-tools.outputs.helm == 'true'
       id: helm-deps-save
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: charts/*/charts/*.tgz
         key: helm-deps-${{ hashFiles('charts/*/Chart.yaml', 'charts/*/Chart.lock') }}
 
-    - if: github.ref != 'refs/heads/main'
+    - if: github.ref != 'refs/heads/main' && steps.mise-tools.outputs.helm == 'true'
       id: helm-deps-restore
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:

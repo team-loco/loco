@@ -38,6 +38,8 @@ jobs:
       matrix:
         shard: ${{ fromJSON(inputs.shards || '["apps","builds","telemetry"]') }}
 
+    env:
+      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot,github:pressly/goose
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

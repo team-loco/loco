@@ -13,6 +13,8 @@ jobs:
   codegen:
     name: Verify Generated Manifests
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: go,github:kubernetes-sigs/controller-tools,yq
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -34,6 +36,7 @@ jobs:
     name: Test Helm Chart
     runs-on: ubuntu-latest
     env:
+      MISE_ENABLE_TOOLS: go,helm,kubectl,kind,yq,github:project-zot/zot
       CONTROLLER_IMAGE: loco-controller
       IMAGE_TAG: ci
     steps:

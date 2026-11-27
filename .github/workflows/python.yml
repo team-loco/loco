@@ -10,6 +10,8 @@ jobs:
   checks:
     name: Python Checks
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: ruff
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
