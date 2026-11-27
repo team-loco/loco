@@ -805,6 +805,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert not errors, errors
     context.close()
     # A mounted failure preview must follow a newer problem from the deployment watch.
+    sql(
+        state,
+        f"DELETE FROM deployment_rollouts WHERE deployment_id='{p['current']}' AND revision > 2;",
+    )
     first_failure = int(time.time() * 1000)
     phase("deploying", "restarting", problem_since=first_failure)
     context, page, errors = open_page(browser, state=state)
@@ -842,9 +846,6 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "**/loco.observability.v1.ObservabilityService/QueryLogs", evolving_problem_logs
     )
     page.goto(state["ui_url"] + path)
-    page.get_by_role("region", name="Deploying", exact=True).get_by_role(
-        "button", name=re.compile(r"^Deploy\s*,")
-    ).click()
     expect(page.get_by_text("Initial failure log", exact=True)).to_be_visible()
     page.clock.fast_forward(6 * 60_000)
     latest_failure = int(page.evaluate("Date.now()") // 1000) * 1000
