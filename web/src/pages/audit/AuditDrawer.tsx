@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { toJsonString } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { BoxIcon, CopyIcon, UserIcon } from "lucide-react";
 
+import { CodeBlock } from "@/components/design/CodeBlock";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
@@ -10,7 +11,7 @@ import { useCopy } from "@/hooks/useCopy";
 import { formatFullTime } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn } from "@/lib/utils";
-import { PanelNav, PlainCode } from "@/pages/observability/shared";
+import { PanelNav } from "@/pages/observability/shared";
 
 import type { AuditRow } from "./model";
 import { OperatorTag } from "./OperatorTag";
@@ -44,8 +45,7 @@ export function AuditDrawer({
 	onClose: () => void;
 }) {
 	const timePref = useTimePreferences();
-	const [wrap, setWrap] = useState(true);
-	const [copied, copy] = useCopy();
+	const [, copy] = useCopy();
 	const raw = row === undefined ? "" : toJsonString(EventSchema, row.event, { prettySpaces: 2 });
 	return (
 		<Sheet
@@ -98,7 +98,7 @@ export function AuditDrawer({
 							</div>
 						</SheetHeader>
 						<SheetBody>
-							<dl className="m-0 text-[13px]">
+							<dl className="m-0 shrink-0 text-[13px]">
 								<Field term="Time">{formatFullTime(row.ms, false, timePref)}</Field>
 								<Field term="Actor" mono={false}>
 									{row.actor.name} {row.event.actedAsOperator && <OperatorTag />}
@@ -113,19 +113,17 @@ export function AuditDrawer({
 								<Field term="Request ID">{row.event.requestId === "" ? "—" : row.event.requestId}</Field>
 								<Field term="Sequence">#{row.event.seq.toLocaleString()}</Field>
 							</dl>
-							<div className="flex flex-col gap-1.5">
-								<span className="text-[12.5px] text-fg3">Raw event</span>
-								<PlainCode
-									copied={copied === "raw"}
+							<div className="flex min-h-64 flex-1 flex-col gap-1.5">
+								<span className="shrink-0 text-[12.5px] text-fg3">Raw event</span>
+								<CodeBlock
+									language="json"
 									copyLabel="Copy JSON"
-									onCopy={() => {
-										copy("raw", raw);
-									}}
-									wrap={wrap}
-									onWrap={setWrap}
+									lineNumbers={false}
+									wrap
+									className="flex-1 [&_pre]:flex-1"
 								>
 									{raw}
-								</PlainCode>
+								</CodeBlock>
 							</div>
 						</SheetBody>
 					</>
