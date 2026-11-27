@@ -128,7 +128,7 @@ func (r *ApplicationReconciler) ensureNamespace(ctx context.Context, app *loco.A
 
 	labels := environmentNamespaceLabels(app)
 	current := &corev1.Namespace{}
-	err := r.Get(ctx, client.ObjectKey{Name: namespace}, current)
+	err := r.APIReader.Get(ctx, client.ObjectKey{Name: namespace}, current)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("get namespace %s: %w", namespace, err)
 	}

@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -217,6 +218,93 @@ var _ = Describe("Environment infrastructure", func() {
 		)
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
+	It("rechecks live prerequisites before a new workload when the informer snapshot is stale", func() {
+		transport := &policyWriteTransport{}
+		observedConfig := rest.CopyConfig(cfg)
+		observedConfig.Wrap(func(base http.RoundTripper) http.RoundTripper { transport.base = base; return transport })
+		observed, err := client.NewWithWatch(observedConfig, client.Options{Scheme: k8sClient.Scheme()})
+		Expect(err).NotTo(HaveOccurred())
+		r := &ApplicationReconciler{
+			Client:                   observed,
+			APIReader:                k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry:                testTelemetry(),
+		}
+		first := isolationTestApplication("ws-stale-environment", "stale-env-first")
+		Expect(k8sClient.Create(ctx, first)).To(Succeed())
+		_, err = r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(first)})
+		Expect(err).NotTo(HaveOccurred())
+		namespace := &corev1.Namespace{}
+		namespaceKey := client.ObjectKey{Name: testEnvironmentNamespace(first)}
+		Expect(k8sClient.Get(ctx, namespaceKey, namespace)).To(Succeed())
+		snapshotNamespace := namespace.DeepCopy()
+		policy := &networkingv1.NetworkPolicy{}
+		policyKey := client.ObjectKey{Namespace: namespace.Name, Name: isolation.PolicyDefaultDeny}
+		Expect(k8sClient.Get(ctx, policyKey, policy)).To(Succeed())
+		snapshotPolicy := policy.DeepCopy()
+		Expect(k8sClient.Delete(ctx, policy)).To(Succeed())
+		namespace.Labels[locolabels.LabelWorkspaceID] = "different-workspace"
+		Expect(k8sClient.Update(ctx, namespace)).To(Succeed())
+		// Only the informer read is held stale; writes and the APIReader reach the real server.
+		r.Client = interceptor.NewClient(
+			observed,
+			interceptor.Funcs{
+				Get: func(
+					ctx context.Context, underlying client.WithWatch, key client.ObjectKey,
+					obj client.Object, opts ...client.GetOption,
+				) error {
+					switch current := obj.(type) {
+					case *corev1.Namespace:
+						if key == namespaceKey {
+							snapshotNamespace.DeepCopyInto(current)
+							return nil
+						}
+					case *networkingv1.NetworkPolicy:
+						if key == policyKey {
+							snapshotPolicy.DeepCopyInto(current)
+							return nil
+						}
+					}
+					return underlying.Get(ctx, key, obj, opts...)
+				},
+			},
+		)
+		transport.beforeDeployment = func() error {
+			current := &networkingv1.NetworkPolicy{}
+			if readErr := k8sClient.Get(ctx, policyKey, current); readErr != nil {
+				return fmt.Errorf("workload preceded policy restoration: %w", readErr)
+			}
+			actual := &corev1.Namespace{}
+			if readErr := k8sClient.Get(ctx, namespaceKey, actual); readErr != nil {
+				return readErr
+			}
+			if actual.Labels[locolabels.LabelWorkspaceID] != first.Spec.WorkspaceID {
+				return errors.New("workload preceded namespace identity restoration")
+			}
+			return nil
+		}
+		sibling := isolationTestApplication(first.Spec.WorkspaceID, "stale-env-second")
+		Expect(k8sClient.Create(ctx, sibling)).To(Succeed())
+		_, err = r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(sibling)})
+		Expect(err).NotTo(HaveOccurred())
+		deployment := &appsv1.Deployment{}
+		Expect(
+			k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace.Name, Name: testAppName(sibling)}, deployment),
+		).To(Succeed())
+		fmt.Fprintln(
+			GinkgoWriter,
+			"synthetic stale informer: live policy and namespace repaired before the sibling Deployment write",
+		)
+		for _, app := range []*loco.Application{first, sibling} {
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			_, err = r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(app)})
+			Expect(err).NotTo(HaveOccurred())
+		}
+	})
+
 	It("does not create a workload when a prerequisite policy write fails", func() {
 		transport := &policyWriteTransport{failPolicyCreate: true}
 		observedConfig := rest.CopyConfig(cfg)

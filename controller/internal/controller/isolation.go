@@ -172,11 +172,7 @@ func (r *ApplicationReconciler) ensureWorkspaceNetworkPolicies(
 			return fmt.Errorf("decode environment policy: %w", err)
 		}
 		current := &networkingv1.NetworkPolicy{}
-		err = r.Get(ctx, client.ObjectKeyFromObject(desired), current)
-		// A removed management label excludes an existing policy from the cache.
-		if apierrors.IsNotFound(err) {
-			err = r.APIReader.Get(ctx, client.ObjectKeyFromObject(desired), current)
-		}
+		err = r.APIReader.Get(ctx, client.ObjectKeyFromObject(desired), current)
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("get environment policy: %w", err)
 		}
