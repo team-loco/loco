@@ -1,3 +1,4 @@
+import { aroundWindow, windowValues } from "@/lib/obs-time";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -433,7 +434,16 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				workspaceId={resource.workspaceId}
 				environmentId={environmentId}
 				resourceId={resource.id}
-				logsHref={(replica) => obsLink("logs", replica === null ? null : { key: "replica", value: replica })}
+				logsHref={(query, at) =>
+					hasWs
+						? observabilityPath(activeOrgId, activeWorkspaceId, "logs", {
+								...envParam,
+								r: [resource.slug],
+								q: query,
+								...(at === undefined ? {} : { ...windowValues(aroundWindow(at, nowMs)), at }),
+							})
+						: undefined
+				}
 				canWrite={canWrite}
 				onRollback={openRollback}
 			/>

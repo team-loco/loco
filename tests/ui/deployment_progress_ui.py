@@ -3,6 +3,7 @@ import json
 import re
 import time
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -353,6 +354,41 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         state,
         f"UPDATE deployments SET updated_at=NOW()-INTERVAL '10 minutes',completed_at=NOW()-INTERVAL '10 minutes' WHERE id='{p['current']}';",
     )
+    # Keep the failure six hours old, with its replica already removed.
+    failed_at = sql(
+        state,
+        "SELECT to_char(NOW()-INTERVAL '6 hours', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"');",
+    ).strip()
+    sql(
+        state,
+        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(jsonb_set(snapshot, '{{problem,since}}', jsonb_build_object('seconds', EXTRACT(EPOCH FROM '{failed_at}'::timestamptz)::bigint)), '{{replicas}}', (SELECT jsonb_agg(replica) FROM jsonb_array_elements(snapshot->'replicas') replica WHERE replica->>'name' <> 'progress-new-1')) WHERE deployment_id='{p['current']}';",
+    )
+    failure_time = datetime.fromisoformat(failed_at.replace("Z", "+00:00"))
+    preview_requests = []
+
+    def incident_history(route):
+        request = route.request.post_data_json
+        preview_requests.append(request)
+        older = (
+            datetime.fromisoformat(request["endTime"].replace("Z", "+00:00"))
+            < failure_time
+        )
+        at = failure_time + timedelta(seconds=-1 if older else 1)
+        route.fulfill(
+            json={
+                "entries": [
+                    {
+                        "timestamp": at.isoformat(),
+                        "level": "LOG_LEVEL_ERROR",
+                        "body": "Before failure" if older else "After failure",
+                    }
+                ]
+            }
+        )
+
+    context.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
+    )
     page.reload()
     expect(panel).to_have_count(0)
     incident = page.locator('section[aria-labelledby="incident-title"]')
@@ -363,9 +399,94 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             )
         )
     ).to_be_visible()
-    incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
+    incident_logs = incident.get_by_role("link", name="View logs", exact=True)
     incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
     assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
+    failure_ms = int(
+        datetime.fromisoformat(failed_at.replace("Z", "+00:00")).timestamp() * 1000
+    )
+    assert incident_query.get("at") == [str(failure_ms)], incident_query
+    assert int(incident_query["from"][0]) == failure_ms - 5 * 60_000, incident_query
+    assert int(incident_query["to"][0]) == failure_ms + 5 * 60_000, incident_query
+    expect(
+        incident.get_by_text("Process exited with code 1", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Since", exact=True)).to_be_visible()
+    expect(
+        incident.get_by_role("heading", name="Deployment failed", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Affected regions", exact=True)).to_be_visible()
+    expect(incident.get_by_text("Exit code", exact=True)).to_have_count(0)
+    preview = incident.locator('[data-slot="incident-log"]')
+    expect(preview.get_by_text("Before failure", exact=True)).to_be_visible()
+    expect(preview.get_by_text("After failure", exact=True)).to_be_visible()
+    assert preview.inner_text().index("Before failure") < preview.inner_text().index(
+        "After failure"
+    )
+    assert len(preview_requests) == 2, preview_requests
+    for request in preview_requests:
+        assert request["query"] == "@replica:progress-new-1", request
+        assert request["environmentId"] == p["environment"], request
+        assert request["resourceIds"] == [p["resource"]], request
+        assert datetime.fromisoformat(
+            request["startTime"].replace("Z", "+00:00")
+        ) >= failure_time - timedelta(minutes=5), request
+        assert datetime.fromisoformat(
+            request["endTime"].replace("Z", "+00:00")
+        ) <= failure_time + timedelta(minutes=5), request
+
+    starts = [
+        datetime.fromisoformat(r["startTime"].replace("Z", "+00:00"))
+        for r in preview_requests
+    ]
+    ends = [
+        datetime.fromisoformat(r["endTime"].replace("Z", "+00:00"))
+        for r in preview_requests
+    ]
+    assert min(starts) == failure_time - timedelta(minutes=5), preview_requests
+    assert max(ends) == failure_time + timedelta(minutes=5), preview_requests
+
+    context.unroute(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
+    )
+    # Render only reported diagnostics, keeping arbitrary failure details intact.
+    sql(
+        state,
+        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(snapshot, '{{problem,detail}}', to_jsonb('exit 1 · 3 restarts · Back-off restarting failed container'::text)) WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    expect(
+        incident.locator("dt").filter(has_text=re.compile(r"^Exit code$"))
+    ).to_be_visible()
+    expect(
+        incident.locator("dt").filter(has_text=re.compile(r"^Restarts$"))
+    ).to_be_visible()
+    expect(
+        incident.get_by_text("Back-off restarting failed container", exact=True)
+    ).to_be_visible()
+    # A later cluster outage must not be replaced by this stale deployment problem.
+    sql(
+        state,
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE cluster_id='{p['cluster']}';",
+    )
+    page.reload()
+    expect(
+        incident.get_by_text(
+            "the cluster running this region has stopped reporting", exact=True
+        )
+    ).to_be_visible()
+    expect(
+        incident.get_by_text("Process exited with code 1", exact=True)
+    ).to_have_count(0)
+    expect(
+        incident.get_by_role("heading", name="Not reporting", exact=True)
+    ).to_be_visible()
+    expect(incident.get_by_text("Exit code", exact=True)).to_have_count(0)
+    sql(
+        state,
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW() WHERE cluster_id='{p['cluster']}';",
+    )
+    page.reload()
     incident.get_by_role("button", name="Roll back", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui", exact=True)
     expect(dialog).to_be_visible()

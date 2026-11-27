@@ -127,11 +127,11 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 	const message = status.message ?? "";
 	switch (status.status) {
 		case ResourceStatus.UNAVAILABLE:
-			return { region: region.name, title: withCode`${region.name} is down`, message };
+			return { region: region.name, title: "Service unavailable", message };
 		case ResourceStatus.DEGRADED:
-			return { region: region.name, title: withCode`${region.name} is degraded`, message };
+			return { region: region.name, title: "Service degraded", message };
 		case ResourceStatus.UNKNOWN:
-			return { region: region.name, title: withCode`${region.name} is not reporting`, message };
+			return { region: region.name, title: "Not reporting", message };
 		case ResourceStatus.HEALTHY:
 			break;
 		case ResourceStatus.DEPLOYING:
