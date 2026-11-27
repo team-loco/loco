@@ -717,6 +717,10 @@ type Build struct {
 	Message             string           `json:"message"`
 	CreatedBy           uuid.UUID        `json:"createdBy"`
 	ApiTokenID          *uuid.UUID       `json:"apiTokenId"`
+	ActorName           *string          `json:"actorName"`
+	ActorEmail          *string          `json:"actorEmail"`
+	ActorTokenType      *string          `json:"actorTokenType"`
+	ActedAsOperator     bool             `json:"actedAsOperator"`
 	Method              DeploymentMethod `json:"method"`
 	Traceparent         *string          `json:"traceparent"`
 	CreatedAt           time.Time        `json:"createdAt"`
@@ -783,6 +787,10 @@ type Deployment struct {
 	SourceDeploymentID *uuid.UUID           `json:"sourceDeploymentId"`
 	ActorType          DeploymentActorType  `json:"actorType"`
 	ActorID            uuid.UUID            `json:"actorId"`
+	ActorName          *string              `json:"actorName"`
+	ActorEmail         *string              `json:"actorEmail"`
+	ActorTokenType     *string              `json:"actorTokenType"`
+	ActedAsOperator    bool                 `json:"actedAsOperator"`
 	Method             DeploymentMethod     `json:"method"`
 	CanceledByType     *DeploymentActorType `json:"canceledByType"`
 	CanceledByID       *uuid.UUID           `json:"canceledById"`
@@ -867,7 +875,8 @@ type Event struct {
 	DeploymentID    *uuid.UUID `json:"deploymentId"`
 	ActorType       string     `json:"actorType"`
 	ActorID         *uuid.UUID `json:"actorId"`
-	ActorTokenName  *string    `json:"actorTokenName"`
+	ActorName       *string    `json:"actorName"`
+	ActorEmail      *string    `json:"actorEmail"`
 	ActorTokenType  *string    `json:"actorTokenType"`
 	ActedAsOperator bool       `json:"actedAsOperator"`
 	SubjectType     *string    `json:"subjectType"`

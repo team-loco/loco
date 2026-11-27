@@ -144,6 +144,7 @@ type Querier interface {
 	GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetEnrolledClusterByKeyRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
+	GetEventActor(ctx context.Context, arg GetEventActorParams) (GetEventActorRow, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetIdentityForUser(ctx context.Context, userID uuid.UUID) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)

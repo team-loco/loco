@@ -240,6 +240,10 @@ CREATE TABLE
         source_deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
         actor_type deployment_actor_type NOT NULL,
         actor_id UUID NOT NULL,
+        actor_name TEXT,
+        actor_email TEXT,
+        actor_token_type TEXT,
+        acted_as_operator BOOLEAN NOT NULL DEFAULT false,
         method deployment_method NOT NULL,
         canceled_by_type deployment_actor_type,
         canceled_by_id UUID,
@@ -637,6 +641,10 @@ CREATE TABLE
         created_by UUID NOT NULL,
         -- Set when an API token created the build; created_by records the same token ID.
         api_token_id UUID,
+        actor_name TEXT,
+        actor_email TEXT,
+        actor_token_type TEXT,
+        acted_as_operator BOOLEAN NOT NULL DEFAULT false,
         method deployment_method NOT NULL,
         -- the W3C trace context of the request that created the build
         traceparent TEXT,

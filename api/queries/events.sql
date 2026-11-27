@@ -1,10 +1,21 @@
 -- name: InsertEvent :one
 INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
-                    actor_token_name, actor_token_type, acted_as_operator)
-SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text, sqlc.arg('acted_as_operator')::boolean
+                    actor_name, actor_email, actor_token_type, acted_as_operator)
+SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11,
+       CASE WHEN sqlc.arg(has_actor_snapshot)::boolean THEN sqlc.narg(actor_name)::text ELSE COALESCE(u.name, t.name) END,
+       CASE WHEN sqlc.arg(has_actor_snapshot)::boolean THEN sqlc.narg(actor_email)::text ELSE u.email END,
+       CASE WHEN sqlc.arg(has_actor_snapshot)::boolean THEN sqlc.narg(actor_token_type)::text ELSE t.entity_type::text END,
+       sqlc.arg(acted_as_operator)::boolean
 FROM (SELECT 1) one
+LEFT JOIN users u ON $5 = 'user' AND u.id = $6
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq;
+
+-- name: GetEventActor :one
+SELECT COALESCE(u.name, t.name, '')::text AS name, u.email, COALESCE(t.entity_type::text, '')::text AS token_type
+FROM (SELECT 1) one
+LEFT JOIN users u ON sqlc.arg(actor_type)::text = 'user' AND u.id = sqlc.narg(actor_id)::uuid
+LEFT JOIN api_tokens t ON sqlc.arg(actor_type)::text = 'api_token' AND t.id = sqlc.narg(actor_id)::uuid;
 
 -- name: ListEventsAfter :many
 SELECT *

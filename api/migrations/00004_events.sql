@@ -11,7 +11,8 @@ CREATE TABLE events (
     deployment_id UUID,
     actor_type TEXT NOT NULL,
     actor_id UUID,
-    actor_token_name TEXT,
+    actor_name TEXT,
+    actor_email TEXT,
     actor_token_type TEXT,
     -- The actor changed the organization through an installation role, not as one of its members.
     acted_as_operator BOOLEAN NOT NULL DEFAULT false,

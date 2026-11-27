@@ -90,8 +90,8 @@ func (q *Queries) CountDeployments(ctx context.Context, arg CountDeploymentsPara
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, plain_env, secret_env, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id, traceparent)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, plain_env, secret_env, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id, traceparent, actor_name, actor_email, actor_token_type, acted_as_operator)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 RETURNING id
 `
 
@@ -111,6 +111,10 @@ type CreateDeploymentParams struct {
 	Trigger            DeploymentTrigger   `json:"trigger"`
 	SourceDeploymentID *uuid.UUID          `json:"sourceDeploymentId"`
 	Traceparent        *string             `json:"traceparent"`
+	ActorName          *string             `json:"actorName"`
+	ActorEmail         *string             `json:"actorEmail"`
+	ActorTokenType     *string             `json:"actorTokenType"`
+	ActedAsOperator    bool                `json:"actedAsOperator"`
 }
 
 // Deployment queries
@@ -131,6 +135,10 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Trigger,
 		arg.SourceDeploymentID,
 		arg.Traceparent,
+		arg.ActorName,
+		arg.ActorEmail,
+		arg.ActorTokenType,
+		arg.ActedAsOperator,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -187,7 +195,7 @@ func (q *Queries) DeployDeploymentPlacement(ctx context.Context, arg DeployDeplo
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, ready, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, actor_name, actor_email, actor_token_type, acted_as_operator, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, ready, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -204,6 +212,10 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.SourceDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
+		&i.ActorName,
+		&i.ActorEmail,
+		&i.ActorTokenType,
+		&i.ActedAsOperator,
 		&i.Method,
 		&i.CanceledByType,
 		&i.CanceledByID,
@@ -224,6 +236,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 
 const getDeploymentEvent = `-- name: GetDeploymentEvent :one
 SELECT d.resource_id, d.environment_id, d.spec, d.actor_type, d.actor_id,
+       d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator,
        r.name AS resource_name, r.type AS resource_type,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
 FROM deployments d
@@ -234,16 +247,20 @@ WHERE d.id = $1
 `
 
 type GetDeploymentEventRow struct {
-	ResourceID    uuid.UUID           `json:"resourceId"`
-	EnvironmentID uuid.UUID           `json:"environmentId"`
-	Spec          []byte              `json:"spec"`
-	ActorType     DeploymentActorType `json:"actorType"`
-	ActorID       uuid.UUID           `json:"actorId"`
-	ResourceName  string              `json:"resourceName"`
-	ResourceType  ResourceType        `json:"resourceType"`
-	CreatorID     *uuid.UUID          `json:"creatorId"`
-	CreatorEmail  *string             `json:"creatorEmail"`
-	CreatorName   *string             `json:"creatorName"`
+	ResourceID      uuid.UUID           `json:"resourceId"`
+	EnvironmentID   uuid.UUID           `json:"environmentId"`
+	Spec            []byte              `json:"spec"`
+	ActorType       DeploymentActorType `json:"actorType"`
+	ActorID         uuid.UUID           `json:"actorId"`
+	ActorName       *string             `json:"actorName"`
+	ActorEmail      *string             `json:"actorEmail"`
+	ActorTokenType  *string             `json:"actorTokenType"`
+	ActedAsOperator bool                `json:"actedAsOperator"`
+	ResourceName    string              `json:"resourceName"`
+	ResourceType    ResourceType        `json:"resourceType"`
+	CreatorID       *uuid.UUID          `json:"creatorId"`
+	CreatorEmail    *string             `json:"creatorEmail"`
+	CreatorName     *string             `json:"creatorName"`
 }
 
 // creator_* is NULL when the creating user, or the API token that names it, no longer exists.
@@ -256,6 +273,10 @@ func (q *Queries) GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDepl
 		&i.Spec,
 		&i.ActorType,
 		&i.ActorID,
+		&i.ActorName,
+		&i.ActorEmail,
+		&i.ActorTokenType,
+		&i.ActedAsOperator,
 		&i.ResourceName,
 		&i.ResourceType,
 		&i.CreatorID,
@@ -305,7 +326,7 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 }
 
 const getDeploymentView = `-- name: GetDeploymentView :one
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -346,6 +367,10 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Deployment.SourceDeploymentID,
 		&i.Deployment.ActorType,
 		&i.Deployment.ActorID,
+		&i.Deployment.ActorName,
+		&i.Deployment.ActorEmail,
+		&i.Deployment.ActorTokenType,
+		&i.Deployment.ActedAsOperator,
 		&i.Deployment.Method,
 		&i.Deployment.CanceledByType,
 		&i.Deployment.CanceledByID,
@@ -372,7 +397,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 }
 
 const getLiveDeploymentForRegion = `-- name: GetLiveDeploymentForRegion :one
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.resource_id = $1 AND l.environment_id = $2 AND l.region = $3
@@ -408,6 +433,10 @@ func (q *Queries) GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDep
 		&i.Deployment.SourceDeploymentID,
 		&i.Deployment.ActorType,
 		&i.Deployment.ActorID,
+		&i.Deployment.ActorName,
+		&i.Deployment.ActorEmail,
+		&i.Deployment.ActorTokenType,
+		&i.Deployment.ActedAsOperator,
 		&i.Deployment.Method,
 		&i.Deployment.CanceledByType,
 		&i.Deployment.CanceledByID,
@@ -431,7 +460,7 @@ func (q *Queries) GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDep
 }
 
 const listBuildingDeployments = `-- name: ListBuildingDeployments :many
-SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, ready, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, actor_name, actor_email, actor_token_type, acted_as_operator, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, ready, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE spec->'build'->>'buildId' = $1::text
  AND status = 'building'
 ORDER BY id FOR UPDATE
@@ -457,6 +486,10 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 			&i.SourceDeploymentID,
 			&i.ActorType,
 			&i.ActorID,
+			&i.ActorName,
+			&i.ActorEmail,
+			&i.ActorTokenType,
+			&i.ActedAsOperator,
 			&i.Method,
 			&i.CanceledByType,
 			&i.CanceledByID,
@@ -519,7 +552,7 @@ func (q *Queries) ListDeploymentPlacements(ctx context.Context, deploymentID uui
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -613,6 +646,10 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.SourceDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
+			&i.Deployment.ActorName,
+			&i.Deployment.ActorEmail,
+			&i.Deployment.ActorTokenType,
+			&i.Deployment.ActedAsOperator,
 			&i.Deployment.Method,
 			&i.Deployment.CanceledByType,
 			&i.Deployment.CanceledByID,
@@ -646,7 +683,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 }
 
 const listLiveDeploymentsForEnvironment = `-- name: ListLiveDeploymentsForEnvironment :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.environment_id = $1
@@ -681,6 +718,10 @@ func (q *Queries) ListLiveDeploymentsForEnvironment(ctx context.Context, environ
 			&i.Deployment.SourceDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
+			&i.Deployment.ActorName,
+			&i.Deployment.ActorEmail,
+			&i.Deployment.ActorTokenType,
+			&i.Deployment.ActedAsOperator,
 			&i.Deployment.Method,
 			&i.Deployment.CanceledByType,
 			&i.Deployment.CanceledByID,
@@ -711,7 +752,7 @@ func (q *Queries) ListLiveDeploymentsForEnvironment(ctx context.Context, environ
 }
 
 const listLiveDeploymentsForResource = `-- name: ListLiveDeploymentsForResource :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.resource_id = $1
@@ -746,6 +787,10 @@ func (q *Queries) ListLiveDeploymentsForResource(ctx context.Context, resourceID
 			&i.Deployment.SourceDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
+			&i.Deployment.ActorName,
+			&i.Deployment.ActorEmail,
+			&i.Deployment.ActorTokenType,
+			&i.Deployment.ActedAsOperator,
 			&i.Deployment.Method,
 			&i.Deployment.CanceledByType,
 			&i.Deployment.CanceledByID,
@@ -776,7 +821,7 @@ func (q *Queries) ListLiveDeploymentsForResource(ctx context.Context, resourceID
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.actor_name, d.actor_email, d.actor_token_type, d.acted_as_operator, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.traceparent, d.ready, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -870,6 +915,10 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.SourceDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
+			&i.Deployment.ActorName,
+			&i.Deployment.ActorEmail,
+			&i.Deployment.ActorTokenType,
+			&i.Deployment.ActedAsOperator,
 			&i.Deployment.Method,
 			&i.Deployment.CanceledByType,
 			&i.Deployment.CanceledByID,
@@ -960,7 +1009,7 @@ func (q *Queries) LockPlacementResource(ctx context.Context, arg LockPlacementRe
 }
 
 const previousLiveDeploymentForCluster = `-- name: PreviousLiveDeploymentForCluster :one
-SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.traceparent, previous.ready, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.actor_name, previous.actor_email, previous.actor_token_type, previous.acted_as_operator, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.traceparent, previous.ready, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id
 JOIN deployments current ON current.id = $1
 WHERE dp.cluster_id = $2
@@ -994,6 +1043,10 @@ func (q *Queries) PreviousLiveDeploymentForCluster(ctx context.Context, arg Prev
 		&i.SourceDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
+		&i.ActorName,
+		&i.ActorEmail,
+		&i.ActorTokenType,
+		&i.ActedAsOperator,
 		&i.Method,
 		&i.CanceledByType,
 		&i.CanceledByID,
@@ -1013,7 +1066,7 @@ func (q *Queries) PreviousLiveDeploymentForCluster(ctx context.Context, arg Prev
 }
 
 const previousRunningDeploymentForCluster = `-- name: PreviousRunningDeploymentForCluster :one
-SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.traceparent, previous.ready, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.actor_name, previous.actor_email, previous.actor_token_type, previous.acted_as_operator, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.traceparent, previous.ready, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id
 JOIN deployments current ON current.id = $1
 WHERE dp.cluster_id = $2
@@ -1047,6 +1100,10 @@ func (q *Queries) PreviousRunningDeploymentForCluster(ctx context.Context, arg P
 		&i.SourceDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
+		&i.ActorName,
+		&i.ActorEmail,
+		&i.ActorTokenType,
+		&i.ActedAsOperator,
 		&i.Method,
 		&i.CanceledByType,
 		&i.CanceledByID,

@@ -21,7 +21,6 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
@@ -877,7 +876,7 @@ func (*AgentServer) applyPlacementReport(
 			return fmt.Errorf("change placement problem: %w", changeErr)
 		}
 		if changed > 0 {
-			message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
+			message := problemReportMessage(status.GetProblem())
 			kind := events.ResourceDegraded
 			if reason == "" {
 				kind = events.ResourceRecovered
@@ -1065,9 +1064,13 @@ func recordDeploymentEvent(
 	}
 	events.AddCreator(data, d.CreatorID, d.CreatorEmail, d.CreatorName)
 	if err := events.Record(ctx, qtx, events.Event{
-		Type:          kind,
-		ActorType:     string(d.ActorType),
-		ActorID:       &d.ActorID,
+		Type:      kind,
+		ActorType: string(d.ActorType),
+		ActorID:   &d.ActorID,
+		ActorSnapshot: &events.ActorSnapshot{
+			Name: d.ActorName, Email: d.ActorEmail, TokenType: d.ActorTokenType,
+			ActedAsOperator: d.ActedAsOperator,
+		},
 		ResourceID:    &d.ResourceID,
 		EnvironmentID: &d.EnvironmentID,
 		SubjectType:   events.SubjectDeployment,

@@ -1,9 +1,9 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id, method, traceparent)
+                    api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id, method, traceparent, actor_name, actor_email, actor_token_type, acted_as_operator)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
         sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform), sqlc.narg(origin_environment_id), sqlc.arg(method),
-        sqlc.narg(traceparent))
+        sqlc.narg(traceparent), sqlc.narg(actor_name), sqlc.narg(actor_email), sqlc.narg(actor_token_type), sqlc.arg(acted_as_operator))
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -73,6 +73,7 @@ RETURNING id, cluster_id, source_key, origin_environment_id;
 -- name: GetBuildCreator :one
 -- creator_* is NULL when the creating user no longer exists.
 SELECT b.created_by, b.api_token_id, b.origin_environment_id, r.name AS resource_name,
+       b.actor_name, b.actor_email, b.actor_token_type, b.acted_as_operator,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
 FROM builds b
 JOIN resources r ON r.id = b.resource_id

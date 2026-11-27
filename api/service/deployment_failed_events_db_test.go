@@ -9,6 +9,7 @@ import (
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -285,6 +286,90 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 				if got := event.GetData().GetFields()[key].GetStringValue(); got != want {
 					t.Errorf("%s = %q, want %q", key, got, want)
 				}
+			}
+		})
+	}
+}
+
+func TestDeploymentOutcomePreservesInitiatingActor(t *testing.T) {
+	for _, kind := range []genDb.DeploymentActorType{genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken} {
+		t.Run(string(kind), func(t *testing.T) {
+			t.Parallel()
+			f := newDeployFixture(t)
+			f.nameUser(t)
+			otherAdmin, createErr := f.queries.CreateUser(t.Context(), genDb.CreateUserParams{
+				Email: "other-admin@example.test",
+			})
+			if createErr != nil {
+				t.Fatal(createErr)
+			}
+			if roleErr := authz.ApplyRoles(t.Context(), f.queries, otherAdmin.ID,
+				authz.OrgRoleScopes(f.tenant.orgID, genDb.OrgRoleAdmin), nil); roleErr != nil {
+				t.Fatal(roleErr)
+			}
+			actorID := f.userID
+			wantName, wantEmail, wantTokenType := failedDeployUser, deployFixtureEmail, ""
+			if kind == genDb.DeploymentActorTypeApiToken {
+				actorID = f.apiToken(t)
+				wantName, wantEmail, wantTokenType = "ci", "", string(genDb.EntityTypeResource)
+			}
+			id := f.deployAs(t, kind, actorID)
+			if err := f.queries.RemoveOrgMember(t.Context(), genDb.RemoveOrgMemberParams{
+				UserID: f.userID, OrgID: f.tenant.orgID,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if kind == genDb.DeploymentActorTypeApiToken {
+				if _, err := f.pool.Exec(t.Context(), "DELETE FROM api_tokens WHERE id = $1", actorID); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := f.pool.Exec(
+					t.Context(),
+					"UPDATE users SET name = 'Renamed', email = 'renamed@example.test' WHERE id = $1",
+					actorID,
+				); err != nil {
+					t.Fatal(err)
+				}
+			}
+			placement := f.placement(t, f.clusterID)
+			for range 3 {
+				f.agentServer().recordApplied(t.Context(), f.clusterID, &agentv1.Applied{
+					PlacementId: placement.ID.String(), Revision: placement.DesiredRevision, Error: failedDeployMessage,
+				})
+			}
+			rows, err := events.ListAudit(
+				t.Context(),
+				f.pool,
+				events.AuditQuery{ResourceID: &f.resourceID, Types: []string{events.DeploymentFailed}, Limit: 10},
+			)
+			if err != nil || len(rows) != 1 {
+				t.Fatalf("deployment %s failure = %v, %v", id, rows, err)
+			}
+			ev := rows[0]
+			name, email, tokenType := derefString(
+				ev.ActorName,
+			), derefString(
+				ev.ActorEmail,
+			), derefString(
+				ev.ActorTokenType,
+			)
+			t.Logf(
+				"outcome after membership removal and identity change: actor=%s name=%q email=%q tokenType=%q operator=%v",
+				kind,
+				name,
+				email,
+				tokenType,
+				ev.ActedAsOperator,
+			)
+			if name != wantName {
+				t.Errorf("outcome actor name = %q, want %q", name, wantName)
+			}
+			if email != wantEmail || tokenType != wantTokenType {
+				t.Errorf("outcome actor email/type = %q/%q, want %q/%q", email, tokenType, wantEmail, wantTokenType)
+			}
+			if ev.ActedAsOperator {
+				t.Error("member's deployment outcome was marked as an operator's action")
 			}
 		})
 	}
