@@ -248,7 +248,7 @@ export function SpecDialogContent({
 					variant="button"
 					aria-label="Wrap lines"
 					title="Wrap lines"
-					className="absolute top-1.5 right-[38px] size-6 min-w-0 border-0 bg-panel px-0 text-fg3 hover:text-foreground aria-pressed:bg-panel2"
+					className="absolute top-1.5 right-[38px] z-10 size-6 min-w-0 border-0 bg-panel px-0 text-fg3 hover:text-foreground aria-pressed:bg-panel2"
 					pressed={wrap}
 					onPressedChange={setWrap}
 				>
@@ -257,7 +257,7 @@ export function SpecDialogContent({
 				<Button
 					variant="ghost"
 					size="icon-xs"
-					className="absolute top-1.5 right-1.5 bg-panel text-fg3"
+					className="absolute top-1.5 right-1.5 z-10 bg-panel text-fg3"
 					aria-label={copiedKey === a.id ? "Copied" : "Copy spec"}
 					title="Copy"
 					onClick={() => {

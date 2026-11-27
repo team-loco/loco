@@ -61,7 +61,7 @@ function CodeBlock({
 			aria-label={copied ? "Copied" : copyLabel}
 			title={copied ? "Copied" : copyLabel}
 			className={cn(
-				"absolute top-1.5 right-1.5 bg-code-bg/85 backdrop-blur-xs",
+				"absolute top-1.5 right-1.5 z-10 bg-code-bg/85 backdrop-blur-xs",
 				!isJson &&
 					"opacity-0 group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
 				copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
@@ -87,7 +87,7 @@ function CodeBlock({
 					variant="button"
 					aria-label="Wrap lines"
 					title="Wrap lines"
-					className="absolute top-1.5 right-[38px] size-6 min-w-0 border-0 bg-code-bg/85 px-0 text-fg3 backdrop-blur-xs hover:text-foreground aria-pressed:bg-panel2"
+					className="absolute top-1.5 right-[38px] z-10 size-6 min-w-0 border-0 bg-code-bg/85 px-0 text-fg3 backdrop-blur-xs hover:text-foreground aria-pressed:bg-panel2"
 					pressed={wrapJson}
 					onPressedChange={(next) => {
 						setWrapJson(next);
