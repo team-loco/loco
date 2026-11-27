@@ -17,6 +17,7 @@ import (
 
 const (
 	allocationKindResource = "resource"
+	allocationKindBuild    = "build"
 	allocationKindSystem   = "system"
 )
 
@@ -59,17 +60,8 @@ func (s *AgentServer) recordNodeCapacity(
 	}
 	allocations := make([]genDb.InsertNodeAllocationsParams, 0, len(report.GetAllocations()))
 	for _, a := range report.GetAllocations() {
-		if a.GetKind() == allocationKindSystem {
-			if a.GetWorkspaceId() != "" || a.GetResourceId() != "" {
-				return errCapacityReport
-			}
-		} else {
-			if _, err = uuid.Parse(a.GetWorkspaceId()); err != nil {
-				return errCapacityReport
-			}
-			if _, err = uuid.Parse(a.GetResourceId()); err != nil {
-				return errCapacityReport
-			}
+		if !validAllocationIdentity(a) {
+			return errCapacityReport
 		}
 		allocations = append(
 			allocations,
@@ -82,6 +74,7 @@ func (s *AgentServer) recordNodeCapacity(
 				CpuMillicores: a.GetCpuMillicores(),
 				MemoryBytes:   a.GetMemoryBytes(),
 				Pods:          a.GetPods(),
+				EnvironmentID: a.GetEnvironmentId(), BuildID: a.GetBuildId(),
 			},
 		)
 	}
@@ -150,4 +143,28 @@ func (s *AgentServer) recordNodeCapacity(
 		}
 		return q.PublishNodeCapacity(ctx, id)
 	})
+}
+
+func validAllocationIdentity(a *agentv1.NodeAllocation) bool {
+	if a.GetKind() == allocationKindSystem {
+		tenantEmpty := a.GetWorkspaceId() == "" && a.GetResourceId() == ""
+		runtimeEmpty := a.GetEnvironmentId() == "" && a.GetBuildId() == ""
+		return tenantEmpty && runtimeEmpty
+	}
+	if !allocationUUID(a.GetWorkspaceId()) || !allocationUUID(a.GetResourceId()) {
+		return false
+	}
+	switch a.GetKind() {
+	case allocationKindResource:
+		return allocationUUID(a.GetEnvironmentId()) && a.GetBuildId() == ""
+	case allocationKindBuild:
+		return allocationUUID(a.GetBuildId()) && a.GetEnvironmentId() == ""
+	default:
+		return false
+	}
+}
+
+func allocationUUID(raw string) bool {
+	id, err := uuid.Parse(raw)
+	return err == nil && id != uuid.Nil
 }

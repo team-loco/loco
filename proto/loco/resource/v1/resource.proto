@@ -36,6 +36,7 @@ enum ResourceStatus {
 
 // ResourceService manages resource lifecycle and operations.
 service ResourceService {
+  rpc ListResourceAllocations(ListResourceAllocationsRequest) returns (ListResourceAllocationsResponse);
   // CreateResource creates a new resource.
   rpc CreateResource(CreateResourceRequest) returns (CreateResourceResponse);
   // GetResource retrieves a resource by ID or slug.
@@ -575,3 +576,52 @@ message RestartResourceRequest {
 
 // RestartResourceResponse is the response after scheduling a rolling restart.
 message RestartResourceResponse {}
+
+// Assigned non-terminal pod reservations, distinct from desired per-replica size.
+message ListResourceAllocationsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  string query = 3 [(buf.validate.field).string.max_len = 200];
+  int32 page = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool memory = 5;
+  bool ascending = 6;
+  // Restrict to these resources, still subject to the caller's resource grants.
+  repeated string resource_ids = 7 [(buf.validate.field).repeated = {
+    max_items: 200
+    items: {
+      string: {uuid: true}
+    }
+  }];
+}
+message ResourceReservation {
+  string resource_id = 1;
+  string name = 2;
+  // Includes runtime pods and builds whose actual origin matches the requested environment.
+  // Without an environment filter, includes all runtime pods and builds.
+  int64 cpu_millicores = 3;
+  int64 memory_bytes = 4;
+  int64 build_cpu_millicores = 5;
+  int64 build_memory_bytes = 6;
+  // Builds without an origin environment belong to the workspace. They are excluded
+  // from environment-scoped totals, and shown separately so the difference is explicit.
+  int64 unscoped_build_cpu_millicores = 7;
+  int64 unscoped_build_memory_bytes = 8;
+  // Coverage of clusters with a placement, active build, or observed allocation for this resource.
+  int32 reporting_clusters = 9;
+  int32 stale_clusters = 10;
+  int32 missing_clusters = 11;
+  google.protobuf.Timestamp oldest_reported_at = 12;
+}
+message ListResourceAllocationsResponse {
+  repeated ResourceReservation resources = 1;
+  int32 total_count = 2;
+  string workspace_id = 3;
+  string environment_id = 4;
+  bool memory = 5;
+}

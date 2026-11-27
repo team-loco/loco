@@ -11,6 +11,7 @@ import (
 	podresource "k8s.io/component-helpers/resource"
 
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -137,6 +138,24 @@ func TestNodeAllocationsReachOperators(t *testing.T) {
 						cpu,
 						memory,
 					)
+				}
+				allocations, err := p.User.Resource.ListResourceAllocations(
+					ctx,
+					&resourcev1.ListResourceAllocationsRequest{
+						WorkspaceId:   w.ID,
+						EnvironmentId: w.EnvironmentID,
+						ResourceIds:   []string{id},
+					},
+				)
+				if err != nil {
+					return err
+				}
+				if len(allocations.GetResources()) != 1 {
+					return fmt.Errorf("resource reservation missing: %v", allocations)
+				}
+				actual := allocations.GetResources()[0]
+				if actual.GetCpuMillicores() != cpu || actual.GetMemoryBytes() != memory {
+					return fmt.Errorf("environment reservation differs from pod requests: %v", actual)
 				}
 				t.Logf(
 					"resource %s on %s: actual pod requests reached operator API: %dm CPU, %d bytes",

@@ -234,6 +234,8 @@ type InsertNodeAllocationsParams struct {
 	CpuMillicores int64     `json:"cpuMillicores"`
 	MemoryBytes   int64     `json:"memoryBytes"`
 	Pods          int32     `json:"pods"`
+	EnvironmentID string    `json:"environmentId"`
+	BuildID       string    `json:"buildId"`
 }
 
 type InsertNodeCapacityParams struct {

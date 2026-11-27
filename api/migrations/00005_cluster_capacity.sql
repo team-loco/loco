@@ -39,11 +39,13 @@ CREATE TABLE node_allocations (
     node TEXT NOT NULL,
     workspace_id TEXT NOT NULL,
     resource_id TEXT NOT NULL,
+    environment_id TEXT NOT NULL,
+    build_id TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('resource', 'build', 'system')),
     cpu_millicores BIGINT NOT NULL CHECK (cpu_millicores >= 0),
     memory_bytes BIGINT NOT NULL CHECK (memory_bytes >= 0),
     pods INTEGER NOT NULL CHECK (pods > 0),
-    PRIMARY KEY (report_id, node, workspace_id, resource_id, kind),
+    PRIMARY KEY (report_id, node, workspace_id, resource_id, kind, environment_id, build_id),
     FOREIGN KEY (report_id, node) REFERENCES node_capacity(report_id, name) ON DELETE CASCADE
 );
 CREATE INDEX node_allocations_workspace ON node_allocations(workspace_id, report_id);

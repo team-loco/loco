@@ -6220,6 +6220,67 @@
         }
       }
     },
+    "/loco.resource.v1.ResourceService/ListResourceAllocations": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "ListResourceAllocations",
+        "operationId": "loco.resource.v1.ResourceService.ListResourceAllocations",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.ListResourceAllocationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.ListResourceAllocationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.resource.v1.ResourceService/ListResourceOutputs": {
       "post": {
         "tags": [
@@ -9637,6 +9698,18 @@
             "type": "integer",
             "title": "pods",
             "format": "int32"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "maxLength": 36,
+            "description": "Actual runtime pod label; empty for builds and system workloads."
+          },
+          "buildId": {
+            "type": "string",
+            "title": "build_id",
+            "maxLength": 36,
+            "description": "Actual build pod label; the API owns the build's origin environment."
           }
         },
         "title": "NodeAllocation",
@@ -17079,6 +17152,85 @@
         "additionalProperties": false,
         "description": "ListRegionsResponse contains the regions the environment's clusters serve."
       },
+      "loco.resource.v1.ListResourceAllocationsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200
+          },
+          "page": {
+            "type": "integer",
+            "title": "page",
+            "maximum": 1000000,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          },
+          "ascending": {
+            "type": "boolean",
+            "title": "ascending"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 200,
+            "description": "Restrict to these resources, still subject to the caller's resource grants."
+          }
+        },
+        "title": "ListResourceAllocationsRequest",
+        "additionalProperties": false,
+        "description": "Assigned non-terminal pod reservations, distinct from desired per-replica size."
+      },
+      "loco.resource.v1.ListResourceAllocationsResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceReservation"
+            },
+            "title": "resources"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "memory"
+          }
+        },
+        "title": "ListResourceAllocationsResponse",
+        "additionalProperties": false
+      },
       "loco.resource.v1.ListResourceOutputsRequest": {
         "type": "object",
         "properties": {
@@ -17687,6 +17839,73 @@
           }
         },
         "title": "ResourceRegionCount",
+        "additionalProperties": false
+      },
+      "loco.resource.v1.ResourceReservation": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64",
+            "description": "Includes runtime pods and builds whose actual origin matches the requested environment.\n Without an environment filter, includes all runtime pods and builds."
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "buildCpuMillicores": {
+            "type": "string",
+            "title": "build_cpu_millicores",
+            "format": "int64"
+          },
+          "buildMemoryBytes": {
+            "type": "string",
+            "title": "build_memory_bytes",
+            "format": "int64"
+          },
+          "unscopedBuildCpuMillicores": {
+            "type": "string",
+            "title": "unscoped_build_cpu_millicores",
+            "format": "int64",
+            "description": "Builds without an origin environment belong to the workspace. They are excluded\n from environment-scoped totals, and shown separately so the difference is explicit."
+          },
+          "unscopedBuildMemoryBytes": {
+            "type": "string",
+            "title": "unscoped_build_memory_bytes",
+            "format": "int64"
+          },
+          "reportingClusters": {
+            "type": "integer",
+            "title": "reporting_clusters",
+            "format": "int32",
+            "description": "Coverage of clusters with a placement, active build, or observed allocation for this resource."
+          },
+          "staleClusters": {
+            "type": "integer",
+            "title": "stale_clusters",
+            "format": "int32"
+          },
+          "missingClusters": {
+            "type": "integer",
+            "title": "missing_clusters",
+            "format": "int32"
+          },
+          "oldestReportedAt": {
+            "title": "oldest_reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ResourceReservation",
         "additionalProperties": false
       },
       "loco.resource.v1.ResourceSpec": {

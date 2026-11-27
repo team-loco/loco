@@ -21,8 +21,8 @@ INSERT INTO node_capacity (report_id, name, ready, unschedulable, cpu_allocatabl
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: InsertNodeAllocations :copyfrom
-INSERT INTO node_allocations (report_id, node, workspace_id, resource_id, kind, cpu_millicores, memory_bytes, pods)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+INSERT INTO node_allocations (report_id, node, workspace_id, resource_id, kind, cpu_millicores, memory_bytes, pods, environment_id, build_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 
 -- name: ValidateNodeCapacity :one
 SELECT

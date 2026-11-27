@@ -922,6 +922,8 @@ type NodeAllocation struct {
 	Node          string    `json:"node"`
 	WorkspaceID   string    `json:"workspaceId"`
 	ResourceID    string    `json:"resourceId"`
+	EnvironmentID string    `json:"environmentId"`
+	BuildID       string    `json:"buildId"`
 	Kind          string    `json:"kind"`
 	CpuMillicores int64     `json:"cpuMillicores"`
 	MemoryBytes   int64     `json:"memoryBytes"`

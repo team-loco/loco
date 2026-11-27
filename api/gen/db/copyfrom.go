@@ -37,6 +37,8 @@ func (r iteratorForInsertNodeAllocations) Values() ([]interface{}, error) {
 		r.rows[0].CpuMillicores,
 		r.rows[0].MemoryBytes,
 		r.rows[0].Pods,
+		r.rows[0].EnvironmentID,
+		r.rows[0].BuildID,
 	}, nil
 }
 
@@ -45,7 +47,7 @@ func (r iteratorForInsertNodeAllocations) Err() error {
 }
 
 func (q *Queries) InsertNodeAllocations(ctx context.Context, arg []InsertNodeAllocationsParams) (int64, error) {
-	return q.db.CopyFrom(ctx, []string{"node_allocations"}, []string{"report_id", "node", "workspace_id", "resource_id", "kind", "cpu_millicores", "memory_bytes", "pods"}, &iteratorForInsertNodeAllocations{rows: arg})
+	return q.db.CopyFrom(ctx, []string{"node_allocations"}, []string{"report_id", "node", "workspace_id", "resource_id", "kind", "cpu_millicores", "memory_bytes", "pods", "environment_id", "build_id"}, &iteratorForInsertNodeAllocations{rows: arg})
 }
 
 // iteratorForInsertNodeCapacity implements pgx.CopyFromSource.

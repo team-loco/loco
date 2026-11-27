@@ -2022,6 +2022,10 @@ type NodeAllocation struct {
 	CpuMillicores int64  `protobuf:"varint,5,opt,name=cpu_millicores,json=cpuMillicores,proto3" json:"cpu_millicores,omitempty"`
 	MemoryBytes   int64  `protobuf:"varint,6,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
 	Pods          int32  `protobuf:"varint,7,opt,name=pods,proto3" json:"pods,omitempty"`
+	// Actual runtime pod label; empty for builds and system workloads.
+	EnvironmentId string `protobuf:"bytes,8,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// Actual build pod label; the API owns the build's origin environment.
+	BuildId       string `protobuf:"bytes,9,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2103,6 +2107,20 @@ func (x *NodeAllocation) GetPods() int32 {
 		return x.Pods
 	}
 	return 0
+}
+
+func (x *NodeAllocation) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *NodeAllocation) GetBuildId() string {
+	if x != nil {
+		return x.BuildId
+	}
+	return ""
 }
 
 var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
@@ -2273,7 +2291,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10allocation_count\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x0fallocationCount\x12>\n" +
 	"\x05nodes\x18\x05 \x03(\v2\x1d.loco.cluster.v1.NodeCapacityB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x05nodes\x12J\n" +
 	"\vallocations\x18\x06 \x03(\v2\x1d.loco.agent.v1.NodeAllocationB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\vallocations\x12\x1a\n" +
-	"\bcomplete\x18\a \x01(\bR\bcomplete\"\xb3\x02\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\"\x87\x03\n" +
 	"\x0eNodeAllocation\x12\x1e\n" +
 	"\x04node\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xfd\x01R\x04node\x12*\n" +
@@ -2283,7 +2301,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x04kind\x18\x04 \x01(\tB\x1e\xbaH\x1br\x19R\bresourceR\x05buildR\x06systemR\x04kind\x12.\n" +
 	"\x0ecpu_millicores\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\rcpuMillicores\x12*\n" +
 	"\fmemory_bytes\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\vmemoryBytes\x12\x1b\n" +
-	"\x04pods\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\x04pods*\xa8\x01\n" +
+	"\x04pods\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\x04pods\x12.\n" +
+	"\x0eenvironment_id\x18\b \x01(\tB\a\xbaH\x04r\x02\x18$R\renvironmentId\x12\"\n" +
+	"\bbuild_id\x18\t \x01(\tB\a\xbaH\x04r\x02\x18$R\abuildId*\xa8\x01\n" +
 	"\n" +
 	"BuildPhase\x12\x1b\n" +
 	"\x17BUILD_PHASE_UNSPECIFIED\x10\x00\x12\x17\n" +

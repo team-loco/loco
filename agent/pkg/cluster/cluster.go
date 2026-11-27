@@ -114,14 +114,19 @@ func (i *Inspector) CapacityReport(ctx context.Context) (*agentv1.AgentCapacity,
 		capacity.MemoryBytesRequested += requests.Memory().Value()
 		n.CpuMillicoresRequested += requests.Cpu().MilliValue()
 		n.MemoryBytesRequested += requests.Memory().Value()
-		key := podAllocation(pod)
+		key, err := podAllocation(pod)
+		if err != nil {
+			return nil, nil, err
+		}
 		allocation := allocations[key]
 		if allocation == nil {
 			allocation = &agentv1.NodeAllocation{
-				Node:        key.node,
-				WorkspaceId: key.workspace,
-				ResourceId:  key.resource,
-				Kind:        key.kind,
+				Node:          key.node,
+				WorkspaceId:   key.workspace,
+				ResourceId:    key.resource,
+				Kind:          key.kind,
+				EnvironmentId: key.environment,
+				BuildId:       key.build,
 			}
 			allocations[key] = allocation
 		}
@@ -176,25 +181,35 @@ func (i *Inspector) Key(ctx context.Context) (string, error) {
 	return string(namespace.UID), nil
 }
 
-type allocationKey struct{ node, workspace, resource, kind string }
+type allocationKey struct{ node, workspace, resource, kind, environment, build string }
 
-func podAllocation(pod *corev1.Pod) allocationKey {
+func podAllocation(pod *corev1.Pod) (allocationKey, error) {
 	key := allocationKey{node: pod.Spec.NodeName, kind: "system"}
 	if pod.Labels[locolabels.LabelManagedBy] != locolabels.ControllerManagedBy {
-		return key
+		return key, nil
 	}
-	workspace, resource := pod.Labels[locolabels.LabelWorkspaceID], pod.Labels[locolabels.LabelResourceID]
-	if _, err := uuid.Parse(workspace); err != nil {
-		return key
-	}
-	if _, err := uuid.Parse(resource); err != nil {
-		return key
-	}
-	key.workspace, key.resource, key.kind = workspace, resource, "resource"
-	if pod.Labels[locolabels.LabelBuildID] != "" {
+	key.workspace, key.resource = pod.Labels[locolabels.LabelWorkspaceID], pod.Labels[locolabels.LabelResourceID]
+	identities := []string{key.workspace, key.resource}
+	key.build = pod.Labels[locolabels.LabelBuildID]
+	if key.build != "" {
 		key.kind = "build"
+		identities = append(identities, key.build)
+	} else {
+		key.kind = "resource"
+		key.environment = pod.Labels[locolabels.LabelEnvironmentID]
+		identities = append(identities, key.environment)
 	}
-	return key
+	for _, raw := range identities {
+		id, err := uuid.Parse(raw)
+		if err != nil || id == uuid.Nil {
+			return allocationKey{}, fmt.Errorf(
+				"managed pod %s/%s has an invalid allocation identity",
+				pod.Namespace,
+				pod.Name,
+			)
+		}
+	}
+	return key, nil
 }
 
 // Each entry has bounded names/IDs and at most 1000 entries fit well below the

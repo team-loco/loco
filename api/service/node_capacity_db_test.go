@@ -193,6 +193,7 @@ func TestNodeAllocationRankingAndExactRemainder(t *testing.T) {
 				WorkspaceId:   w.String(),
 				ResourceId:    r.String(),
 				Kind:          allocationKindResource,
+				EnvironmentId: f.envID.String(),
 				CpuMillicores: int64(index),
 				MemoryBytes:   int64(31 - index),
 				Pods:          2,

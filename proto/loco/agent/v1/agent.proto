@@ -296,4 +296,8 @@ message NodeAllocation {
   int64 cpu_millicores = 5 [(buf.validate.field).int64.gte = 0];
   int64 memory_bytes = 6 [(buf.validate.field).int64.gte = 0];
   int32 pods = 7 [(buf.validate.field).int32.gt = 0];
+  // Actual runtime pod label; empty for builds and system workloads.
+  string environment_id = 8 [(buf.validate.field).string.max_len = 36];
+  // Actual build pod label; the API owns the build's origin environment.
+  string build_id = 9 [(buf.validate.field).string.max_len = 36];
 }

@@ -177,9 +177,10 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 	waiting.Spec.NodeName = ""
 	workspace, resourceID := uuid.NewString(), uuid.NewString()
 	running.Labels = map[string]string{
-		locolabels.LabelManagedBy:   locolabels.ControllerManagedBy,
-		locolabels.LabelWorkspaceID: workspace,
-		locolabels.LabelResourceID:  resourceID,
+		locolabels.LabelManagedBy:     locolabels.ControllerManagedBy,
+		locolabels.LabelWorkspaceID:   workspace,
+		locolabels.LabelResourceID:    resourceID,
+		locolabels.LabelEnvironmentID: uuid.NewString(),
 	}
 	// Recreate the client after setting labels; fake clients copy their inputs.
 	client := fake.NewClientset(node("a", "4", "8Gi", "110"), running, assigned, waiting)
@@ -220,20 +221,24 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 func TestCapacityChunksStayBoundedWith100000ResourcesOnOneNode(t *testing.T) {
 	t.Parallel()
 	const selectedNode = "node"
-	nodes := map[string]*clusterv1.NodeCapacity{selectedNode: {Name: selectedNode}}
+	nodes := map[string]*clusterv1.NodeCapacity{
+		selectedNode: {Name: selectedNode, CpuMillicoresRequested: 100000, MemoryBytesRequested: 100000},
+	}
 	allocations := make(map[allocationKey]*agentv1.NodeAllocation, 100000)
 	for range 100000 {
 		key := allocationKey{
-			node:      selectedNode,
-			workspace: uuid.NewString(),
-			resource:  uuid.NewString(),
-			kind:      "resource",
+			node:        selectedNode,
+			workspace:   uuid.NewString(),
+			resource:    uuid.NewString(),
+			kind:        "resource",
+			environment: uuid.NewString(),
 		}
 		allocations[key] = &agentv1.NodeAllocation{
 			Node:          key.node,
 			WorkspaceId:   key.workspace,
 			ResourceId:    key.resource,
 			Kind:          key.kind,
+			EnvironmentId: key.environment,
 			CpuMillicores: 1,
 			MemoryBytes:   1,
 			Pods:          1,
@@ -295,5 +300,48 @@ func TestCapacitySeparatesBuildAndSystemRequests(t *testing.T) {
 	).CapacityReport(t.Context())
 	if err == nil {
 		t.Fatal("pod assigned to missing node silently omitted")
+	}
+}
+
+func TestCapacityPreservesEnvironmentIdentity(t *testing.T) {
+	t.Parallel()
+	production := pod("production", corev1.PodRunning, "200m", "128Mi")
+	production.Labels = map[string]string{
+		locolabels.LabelManagedBy:     locolabels.ControllerManagedBy,
+		locolabels.LabelWorkspaceID:   uuid.NewString(),
+		locolabels.LabelResourceID:    uuid.NewString(),
+		locolabels.LabelEnvironmentID: uuid.NewString(),
+	}
+	staging := production.DeepCopy()
+	staging.Name = "staging"
+	staging.Labels[locolabels.LabelEnvironmentID] = uuid.NewString()
+	staging.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = resource.MustParse("700m")
+	inspector := NewInspector(
+		fake.NewClientset(node("a", "4", "8Gi", "110"), production, staging),
+		"loco-system",
+		"loco-controller",
+	)
+	_, chunks, err := inspector.CapacityReport(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests := map[string]int64{}
+	for _, chunk := range chunks {
+		for _, a := range chunk.GetAllocations() {
+			requests[a.GetEnvironmentId()] += a.GetCpuMillicores()
+		}
+	}
+	if requests[production.Labels[locolabels.LabelEnvironmentID]] != 200 ||
+		requests[staging.Labels[locolabels.LabelEnvironmentID]] != 700 {
+		t.Fatalf("environment identity collapsed: %v", requests)
+	}
+	staging.Labels[locolabels.LabelEnvironmentID] = ""
+	_, _, err = NewInspector(
+		fake.NewClientset(node("a", "4", "8Gi", "110"), staging),
+		"loco-system",
+		"loco-controller",
+	).CapacityReport(t.Context())
+	if err == nil {
+		t.Fatal("invalid managed identity silently classified as system")
 	}
 }
