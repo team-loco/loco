@@ -139,6 +139,8 @@ with session(repo / "tests/ui/out/system") as browser:
     # A system admin switches in and out, and sees the clusters with their actions.
     context, page, errors = system_page(browser, user="admin", state=state)
     page.goto(ui + "/dashboard")
+    # Capture the settled dashboard route, after its workspace redirect.
+    expect(page).to_have_url(re.compile(r"/org/[^/]+/wks/[^/?]+(?:\?|$)"))
     open_menu(page)
     switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
     expect(switch).to_have_attribute("aria-checked", "false")
