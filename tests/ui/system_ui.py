@@ -71,9 +71,9 @@ with session(repo / "tests/ui/out/system") as browser:
         expect(actions).to_be_visible()
         expect(table.locator("[data-slot=skeleton]").first).to_be_visible()
         loading_box = actions.bounding_box()
-        context.unroute(pattern)
         for request in held:
             request.continue_()
+        context.unroute(pattern)
         expect(row(page, "us-ca-1")).to_be_visible()
         loaded_box = actions.bounding_box()
         assert abs(loaded_box["width"] - loading_box["width"]) <= 1, (
