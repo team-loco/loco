@@ -917,6 +917,39 @@ type LiveDeploymentPlacement struct {
 	Status        PlacementStatus `json:"status"`
 }
 
+type NodeAllocation struct {
+	ReportID      uuid.UUID `json:"reportId"`
+	Node          string    `json:"node"`
+	WorkspaceID   string    `json:"workspaceId"`
+	ResourceID    string    `json:"resourceId"`
+	Kind          string    `json:"kind"`
+	CpuMillicores int64     `json:"cpuMillicores"`
+	MemoryBytes   int64     `json:"memoryBytes"`
+	Pods          int32     `json:"pods"`
+}
+
+type NodeCapacity struct {
+	ReportID          uuid.UUID `json:"reportId"`
+	Name              string    `json:"name"`
+	Ready             bool      `json:"ready"`
+	Unschedulable     bool      `json:"unschedulable"`
+	CpuAllocatable    int64     `json:"cpuAllocatable"`
+	MemoryAllocatable int64     `json:"memoryAllocatable"`
+	CpuRequested      int64     `json:"cpuRequested"`
+	MemoryRequested   int64     `json:"memoryRequested"`
+}
+
+type NodeCapacityReport struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	Generation      int64     `json:"generation"`
+	Sequence        int32     `json:"sequence"`
+	NodeCount       int32     `json:"nodeCount"`
+	AllocationCount int32     `json:"allocationCount"`
+	ReportedAt      time.Time `json:"reportedAt"`
+	Complete        bool      `json:"complete"`
+}
+
 type ObservedPlacementRollout struct {
 	PlacementID          uuid.UUID `json:"placementId"`
 	ResourceID           uuid.UUID `json:"resourceId"`

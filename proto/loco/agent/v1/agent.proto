@@ -59,6 +59,7 @@ message SyncRequest {
     PlacementStatus status = 3;
     BuildStatus build_status = 4;
     Heartbeat heartbeat = 5;
+    CapacityReport capacity_report = 6;
   }
 }
 
@@ -264,4 +265,35 @@ message AgentHealth {
   bool kubernetes_healthy = 1;
   bool controller_healthy = 2;
   string message = 3;
+}
+
+// A complete sample is split into ordered chunks on one sync stream. The API publishes
+// it only after the final chunk and matching counts. Partial samples never replace it.
+message CapacityReport {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  uint32 sequence = 2;
+  int32 node_count = 3 [(buf.validate.field).int32.gte = 0];
+  int32 allocation_count = 4 [(buf.validate.field).int32.gte = 0];
+  repeated loco.cluster.v1.NodeCapacity nodes = 5 [(buf.validate.field).repeated.max_items = 1000];
+  repeated NodeAllocation allocations = 6 [(buf.validate.field).repeated.max_items = 1000];
+  bool complete = 7;
+}
+
+message NodeAllocation {
+  string node = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 253
+  }];
+  // Empty for workloads outside Loco.
+  string workspace_id = 2 [(buf.validate.field).string.max_len = 36];
+  string resource_id = 3 [(buf.validate.field).string.max_len = 36];
+  // resource, build, or system; system includes workloads outside Loco.
+  string kind = 4 [
+    (buf.validate.field).string.in = "resource",
+    (buf.validate.field).string.in = "build",
+    (buf.validate.field).string.in = "system"
+  ];
+  int64 cpu_millicores = 5 [(buf.validate.field).int64.gte = 0];
+  int64 memory_bytes = 6 [(buf.validate.field).int64.gte = 0];
+  int32 pods = 7 [(buf.validate.field).int32.gt = 0];
 }

@@ -94,9 +94,19 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 		})
 	}()
 
-	for range testHeartbeatCount {
+	received := 0
+	reports := 0
+	for received < testHeartbeatCount {
 		select {
 		case msg := <-sent:
+			if report := msg.GetCapacityReport(); report != nil {
+				if !report.GetComplete() {
+					t.Fatal("empty cluster sample is incomplete")
+				}
+				reports++
+				continue
+			}
+			received++
 			if msg.GetHeartbeat().GetRole() != clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS {
 				t.Fatalf("sent %v, want a heartbeat that reports the builds role", msg)
 			}
@@ -108,6 +118,9 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 		}
 	}
 
+	if reports != testHeartbeatCount-1 {
+		t.Fatalf("capacity reports=%d, want one between heartbeats", reports)
+	}
 	cancel()
 	select {
 	case <-stopped:

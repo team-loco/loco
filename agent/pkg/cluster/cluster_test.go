@@ -5,6 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
+	"google.golang.org/protobuf/proto"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -169,8 +175,15 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 	assigned := pod("starting", corev1.PodPending, "250m", "64Mi")
 	waiting := pod("unassigned", corev1.PodPending, "10", "10Gi")
 	waiting.Spec.NodeName = ""
+	workspace, resourceID := uuid.NewString(), uuid.NewString()
+	running.Labels = map[string]string{
+		locolabels.LabelManagedBy:   locolabels.ControllerManagedBy,
+		locolabels.LabelWorkspaceID: workspace,
+		locolabels.LabelResourceID:  resourceID,
+	}
+	// Recreate the client after setting labels; fake clients copy their inputs.
 	client := fake.NewClientset(node("a", "4", "8Gi", "110"), running, assigned, waiting)
-	capacity, err := NewInspector(client, "loco-system", "loco-controller").Capacity(t.Context())
+	capacity, chunks, err := NewInspector(client, "loco-system", "loco-controller").CapacityReport(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +194,106 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 			capacity.GetMemoryBytesRequested(),
 		)
 	}
+	var tenantCPU, systemCPU int64
+	for _, chunk := range chunks {
+		for _, n := range chunk.GetNodes() {
+			if n.GetCpuMillicoresRequested() != 1150 {
+				t.Fatalf("node request lost init/overhead: %v", n)
+			}
+		}
+		for _, a := range chunk.GetAllocations() {
+			if a.GetKind() == "resource" {
+				tenantCPU += a.GetCpuMillicores()
+			} else {
+				systemCPU += a.GetCpuMillicores()
+			}
+		}
+	}
+	if tenantCPU != 900 || systemCPU != 250 {
+		t.Fatalf("node attribution: tenant=%d system=%d", tenantCPU, systemCPU)
+	}
 	if capacity.GetPodsAssigned() != 2 || capacity.GetPodsRunning() != 1 {
 		t.Fatalf("assigned/running = %d/%d, want 2/1", capacity.GetPodsAssigned(), capacity.GetPodsRunning())
+	}
+}
+
+func TestCapacityChunksStayBoundedWith100000ResourcesOnOneNode(t *testing.T) {
+	t.Parallel()
+	const selectedNode = "node"
+	nodes := map[string]*clusterv1.NodeCapacity{selectedNode: {Name: selectedNode}}
+	allocations := make(map[allocationKey]*agentv1.NodeAllocation, 100000)
+	for range 100000 {
+		key := allocationKey{
+			node:      selectedNode,
+			workspace: uuid.NewString(),
+			resource:  uuid.NewString(),
+			kind:      "resource",
+		}
+		allocations[key] = &agentv1.NodeAllocation{
+			Node:          key.node,
+			WorkspaceId:   key.workspace,
+			ResourceId:    key.resource,
+			Kind:          key.kind,
+			CpuMillicores: 1,
+			MemoryBytes:   1,
+			Pods:          1,
+		}
+	}
+	chunks := capacityChunks(nodes, allocations)
+	var count int
+	for index, chunk := range chunks {
+		if proto.Size(chunk) > 4<<20 || len(chunk.GetAllocations()) > 1000 || chunk.GetSequence() != uint32(index) {
+			t.Fatalf("unbounded/out-of-order chunk %d: %d bytes", index, proto.Size(chunk))
+		}
+		if chunk.GetComplete() != (index == len(chunks)-1) {
+			t.Fatal("completion marker before final chunk")
+		}
+		count += len(chunk.GetAllocations())
+	}
+	if count != 100000 || len(chunks) != 101 {
+		t.Fatalf("lost allocations: %d over %d chunks", count, len(chunks))
+	}
+	t.Logf(
+		"100000 resources on one node -> %d chunks; largest allocation chunk %d bytes",
+		len(chunks),
+		proto.Size(chunks[1]),
+	)
+}
+
+func TestCapacitySeparatesBuildAndSystemRequests(t *testing.T) {
+	t.Parallel()
+	build := pod("build", corev1.PodRunning, "1", "1Gi")
+	build.Labels = map[string]string{
+		locolabels.LabelManagedBy:   locolabels.ControllerManagedBy,
+		locolabels.LabelWorkspaceID: uuid.NewString(),
+		locolabels.LabelResourceID:  uuid.NewString(),
+		locolabels.LabelBuildID:     uuid.NewString(),
+	}
+	system := pod("system", corev1.PodRunning, "100m", "128Mi")
+	_, chunks, err := NewInspector(
+		fake.NewClientset(node("a", "4", "8Gi", "110"), build, system),
+		"loco-system",
+		"loco-controller",
+	).CapacityReport(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int64{}
+	for _, chunk := range chunks {
+		for _, a := range chunk.GetAllocations() {
+			got[a.GetKind()] += a.GetCpuMillicores()
+		}
+	}
+	if got["build"] != 1000 || got["system"] != 100 || got["resource"] != 0 {
+		t.Fatalf("attribution: %v", got)
+	}
+	build.Spec.NodeName = "vanished"
+	_, _, err = NewInspector(
+		fake.NewClientset(node("a", "4", "8Gi", "110"), build),
+		"loco-system",
+		"loco-controller",
+	).CapacityReport(t.Context())
+	if err == nil {
+		t.Fatal("pod assigned to missing node silently omitted")
 	}
 }

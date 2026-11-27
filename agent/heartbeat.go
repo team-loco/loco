@@ -12,8 +12,15 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 	ticker := time.NewTicker(a.heartbeatInterval)
 	defer ticker.Stop()
 	for {
-		heartbeat := a.heartbeat(ctx)
+		capacity, chunks, err := a.inspector.CapacityReport(ctx)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to read node capacity", "error", err)
+		}
+		heartbeat := a.heartbeat(ctx, capacity)
 		enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: heartbeat}})
+		for _, chunk := range chunks {
+			enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_CapacityReport{CapacityReport: chunk}})
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -22,8 +29,7 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 	}
 }
 
-func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
-	capacity := a.getCapacity(ctx)
+func (a *Agent) heartbeat(ctx context.Context, capacity *agentv1.AgentCapacity) *agentv1.Heartbeat {
 	health := a.getHealth(ctx)
 	return &agentv1.Heartbeat{
 		Capacity: capacity,

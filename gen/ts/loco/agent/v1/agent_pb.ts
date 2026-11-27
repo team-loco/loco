@@ -7,7 +7,7 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Duration, DurationJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { ClusterRole, ClusterRoleJson } from "../../cluster/v1/cluster_pb";
+import type { ClusterRole, ClusterRoleJson, NodeCapacity, NodeCapacityJson } from "../../cluster/v1/cluster_pb";
 import { file_loco_cluster_v1_cluster } from "../../cluster/v1/cluster_pb";
 import type { FailurePolicy, FailurePolicyJson, Replica, ReplicaJson, ReplicaRestart, ReplicaRestartJson } from "../../deployment/v1/deployment_pb";
 import { file_loco_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
@@ -17,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIrwCCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIuCghjYXBhY2l0eRgCIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KC2NsdXN0ZXJfa2V5GAQgASgJQgi6SAVyA7ABARItCgplbnJvbGxtZW50GAUgASgLMhkubG9jby5hZ2VudC52MS5FbnJvbGxtZW50Eh0KB2RvbWFpbnMYBiADKAlCDLpICZIBBiIEcgJoARIaChJyZWNvdmVyX2NsdXN0ZXJfaWQYCCABKAgSDgoGcmVnaW9uGAkgASgJSgQIBxAIUgtkbnNfcmVjb3JkcyJGCgpFbnJvbGxtZW50EhsKCmpvaW5fdG9rZW4YASABKAlCB7pIBHICEAESGwoKcHVibGljX2tleRgCIAEoDEIHukgEegJoICJdChBSZWdpc3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSNQoSaGVhcnRiZWF0X2ludGVydmFsGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIocCCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAEjIKDGJ1aWxkX3N0YXR1cxgEIAEoCzIaLmxvY28uYWdlbnQudjEuQnVpbGRTdGF0dXNIABItCgloZWFydGJlYXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdEgAQgkKB21lc3NhZ2UifwoJSW52ZW50b3J5Ei4KB2VudHJpZXMYASADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUVudHJ5Ei0KBmJ1aWxkcxgCIAMoCzIdLmxvY28uYWdlbnQudjEuSW52ZW50b3J5QnVpbGRKBAgDEARSDXdvcmtzcGFjZV9pZHMiVAoOSW52ZW50b3J5RW50cnkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhoKEmVudl9zZWNyZXRfcGVuZGluZxgDIAEoCCJgCg5JbnZlbnRvcnlCdWlsZBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESMgoFcGhhc2UYAiABKA4yGS5sb2NvLmFnZW50LnYxLkJ1aWxkUGhhc2VCCLpIBYIBAhABIqgCCgtCdWlsZFN0YXR1cxIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESNAoFcGhhc2UYAiABKA4yGS5sb2NvLmFnZW50LnYxLkJ1aWxkUGhhc2VCCrpIB4IBBBABIAASNQoMaW1hZ2VfZGlnZXN0GAMgASgJQh+6SBxyGjIYXihzaGEyNTY6W2EtZjAtOV17NjR9KT8kEjUKDGNhY2hlX2RpZ2VzdBgEIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBIZCgdtZXNzYWdlGAUgASgJQgi6SAVyAxiAIBINCgVzdGFnZRgGIAEoCRIvCgtzdGFnZV9zaW5jZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUgoHQXBwbGllZBIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSDQoFZXJyb3IYAyABKAkSEAoIcmV0cnlpbmcYBCABKAgixwMKD1BsYWNlbWVudFN0YXR1cxIUCgxwbGFjZW1lbnRfaWQYASABKAkSGQoRb2JzZXJ2ZWRfcmV2aXNpb24YAiABKAMSFgoOcmVhZHlfcmVwbGljYXMYBCABKAUSGAoQZGVzaXJlZF9yZXBsaWNhcxgJIAEoBRIRCglhdmFpbGFibGUYCiABKAgSLQoIcmVwbGljYXMYDCADKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYRItCgdwcm9ibGVtGA0gASgLMhwubG9jby5hZ2VudC52MS5Qcm9ibGVtUmVwb3J0EhUKDWRlcGxveW1lbnRfaWQYDiABKAkSDwoHaGVhbHRoeRgPIAEoCBIuCgpoZWFsdGh5X2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgdzdG9wcGVkGBEgASgLMh4ubG9jby5hZ2VudC52MS5TdG9wcGVkUmV2aXNpb24SOQoOZmFpbHVyZV9wb2xpY3kYEiABKAsyIS5sb2NvLmRlcGxveW1lbnQudjEuRmFpbHVyZVBvbGljeRIQCghkZXBsb3llZBgUIAEoCEoECAsQDEoECBMQFCL5AQoPU3RvcHBlZFJldmlzaW9uEhoKEnBsYWNlbWVudF9yZXZpc2lvbhgBIAEoAxIpCgZyZWFzb24YByABKA4yGS5sb2NvLmFnZW50LnYxLlN0b3BSZWFzb24SFAoMcmVwbGljYV9uYW1lGAIgASgJEhAKCHJlc3RhcnRzGAMgASgFEjgKDGxhc3RfcmVzdGFydBgEIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5SZXBsaWNhUmVzdGFydBImCgJhdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHcm9sbG91dBgGIAEoCEoECAgQCSJ6Cg1Qcm9ibGVtUmVwb3J0Eg4KBnJlYXNvbhgBIAEoCRIUCgxyZXBsaWNhX25hbWUYAiABKAkSGAoGZGV0YWlsGAMgASgJQgi6SAVyAxiACBIpCgVzaW5jZRgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAioQIKDFN5bmNSZXNwb25zZRIlCgVhcHBseRgBIAEoCzIULmxvY28uYWdlbnQudjEuQXBwbHlIABInCgZkZWxldGUYAiABKAsyFS5sb2NvLmFnZW50LnYxLkRlbGV0ZUgAEjAKC3N0YXJ0X2J1aWxkGAMgASgLMhkubG9jby5hZ2VudC52MS5TdGFydEJ1aWxkSAASMgoMY2FuY2VsX2J1aWxkGAQgASgLMhoubG9jby5hZ2VudC52MS5DYW5jZWxCdWlsZEgAEjgKD2tlZXBfd29ya3NwYWNlcxgGIAEoCzIdLmxvY28uYWdlbnQudjEuS2VlcFdvcmtzcGFjZXNIAEIJCgdtZXNzYWdlSgQIBRAGUhBkZWxldGVfd29ya3NwYWNlIjYKDktlZXBXb3Jrc3BhY2VzEiQKDXdvcmtzcGFjZV9pZHMYASADKAlCDbpICpIBByIFcgOwAQEipgEKBUFwcGx5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCRITCgthcHBsaWNhdGlvbhgEIAEoDBIsCgplbnZfc2VjcmV0GAUgASgLMhgubG9jby5hZ2VudC52MS5FbnZTZWNyZXQSHQoLdHJhY2VwYXJlbnQYBiABKAlCCLpIBXIDGIACInwKCUVudlNlY3JldBIQCghyZXZpc2lvbhgBIAEoAxIwCgRkYXRhGAIgAygLMiIubG9jby5hZ2VudC52MS5FbnZTZWNyZXQuRGF0YUVudHJ5GisKCURhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAw6AjgBIkUKBkRlbGV0ZRIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSEwoLcmVzb3VyY2VfaWQYAyABKAkijAMKClN0YXJ0QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEh4KDHdvcmtzcGFjZV9pZBgCIAEoCUIIukgFcgOwAQESHQoLcmVzb3VyY2VfaWQYAyABKAlCCLpIBXIDsAEBEhwKCnNvdXJjZV91cmwYBCABKAlCCLpIBXIDiAEBEiAKD2RvY2tlcmZpbGVfcGF0aBgFIAEoCUIHukgEcgIQARIhChBpbWFnZV9yZXBvc2l0b3J5GAYgASgJQge6SARyAhABEhEKCWNhY2hlX3JlZhgHIAEoCRIYCgdjb250ZXh0GAggASgJQge6SARyAhABEiQKD29yZ2FuaXphdGlvbl9pZBgJIAEoCUILukgI2AEBcgOwAQESGwoTcmVnaXN0cnlfY3JlZGVudGlhbBgKIAEoCRIxCghwbGF0Zm9ybRgLIAEoCUIfukgcchpSC2xpbnV4L2FtZDY0UgtsaW51eC9hcm02NBIdCgt0cmFjZXBhcmVudBgMIAEoCUIIukgFcgMYgAIiKQoLQ2FuY2VsQnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIugBCglIZWFydGJlYXQSLgoIY2FwYWNpdHkYASABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAIgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aBI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KB2RvbWFpbnMYBCADKAlCDLpICZIBBiIEcgJoAUoECAUQBkoECAYQB1ILZG5zX3JlY29yZHNSD3BsYXRmb3JtX2RvbWFpbiKCAgoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIgChhjcHVfbWlsbGljb3Jlc19yZXF1ZXN0ZWQYAiABKAMSGgoSbWVtb3J5X2J5dGVzX3RvdGFsGAMgASgDEh4KFm1lbW9yeV9ieXRlc19yZXF1ZXN0ZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUSNAoJcGxhdGZvcm1zGAcgAygJQiG6SB6SARsiGXIXMhVebGludXgvKGFtZDY0fGFybTY0KSQSFQoNcG9kc19hc3NpZ25lZBgIIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAkqqAEKCkJ1aWxkUGhhc2USGwoXQlVJTERfUEhBU0VfVU5TUEVDSUZJRUQQABIXChNCVUlMRF9QSEFTRV9QRU5ESU5HEAESFwoTQlVJTERfUEhBU0VfUlVOTklORxACEhkKFUJVSUxEX1BIQVNFX1NVQ0NFRURFRBADEhYKEkJVSUxEX1BIQVNFX0ZBSUxFRBAEEhgKFEJVSUxEX1BIQVNFX0NBTkNFTEVEEAUqjQEKClN0b3BSZWFzb24SGwoXU1RPUF9SRUFTT05fVU5TUEVDSUZJRUQQABIiCh5TVE9QX1JFQVNPTl9SRVNUQVJUU19FWEhBVVNURUQQARIeChpTVE9QX1JFQVNPTl9ERVBMT1lfVElNRU9VVBACEh4KGlNUT1BfUkVBU09OX1NUQVJUVVBfRkFJTEVEEAMyoAEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_cluster_v1_cluster, file_loco_deployment_v1_deployment]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIrwCCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIuCghjYXBhY2l0eRgCIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KC2NsdXN0ZXJfa2V5GAQgASgJQgi6SAVyA7ABARItCgplbnJvbGxtZW50GAUgASgLMhkubG9jby5hZ2VudC52MS5FbnJvbGxtZW50Eh0KB2RvbWFpbnMYBiADKAlCDLpICZIBBiIEcgJoARIaChJyZWNvdmVyX2NsdXN0ZXJfaWQYCCABKAgSDgoGcmVnaW9uGAkgASgJSgQIBxAIUgtkbnNfcmVjb3JkcyJGCgpFbnJvbGxtZW50EhsKCmpvaW5fdG9rZW4YASABKAlCB7pIBHICEAESGwoKcHVibGljX2tleRgCIAEoDEIHukgEegJoICJdChBSZWdpc3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSNQoSaGVhcnRiZWF0X2ludGVydmFsGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIsECCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAEjIKDGJ1aWxkX3N0YXR1cxgEIAEoCzIaLmxvY28uYWdlbnQudjEuQnVpbGRTdGF0dXNIABItCgloZWFydGJlYXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdEgAEjgKD2NhcGFjaXR5X3JlcG9ydBgGIAEoCzIdLmxvY28uYWdlbnQudjEuQ2FwYWNpdHlSZXBvcnRIAEIJCgdtZXNzYWdlIn8KCUludmVudG9yeRIuCgdlbnRyaWVzGAEgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlFbnRyeRItCgZidWlsZHMYAiADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUJ1aWxkSgQIAxAEUg13b3Jrc3BhY2VfaWRzIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASKoAgoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCASDQoFc3RhZ2UYBiABKAkSLwoLc3RhZ2Vfc2luY2UYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlIKB0FwcGxpZWQSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEg0KBWVycm9yGAMgASgJEhAKCHJldHJ5aW5nGAQgASgIIscDCg9QbGFjZW1lbnRTdGF0dXMSFAoMcGxhY2VtZW50X2lkGAEgASgJEhkKEW9ic2VydmVkX3JldmlzaW9uGAIgASgDEhYKDnJlYWR5X3JlcGxpY2FzGAQgASgFEhgKEGRlc2lyZWRfcmVwbGljYXMYCSABKAUSEQoJYXZhaWxhYmxlGAogASgIEi0KCHJlcGxpY2FzGAwgAygLMhsubG9jby5kZXBsb3ltZW50LnYxLlJlcGxpY2ESLQoHcHJvYmxlbRgNIAEoCzIcLmxvY28uYWdlbnQudjEuUHJvYmxlbVJlcG9ydBIVCg1kZXBsb3ltZW50X2lkGA4gASgJEg8KB2hlYWx0aHkYDyABKAgSLgoKaGVhbHRoeV9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoHc3RvcHBlZBgRIAEoCzIeLmxvY28uYWdlbnQudjEuU3RvcHBlZFJldmlzaW9uEjkKDmZhaWx1cmVfcG9saWN5GBIgASgLMiEubG9jby5kZXBsb3ltZW50LnYxLkZhaWx1cmVQb2xpY3kSEAoIZGVwbG95ZWQYFCABKAhKBAgLEAxKBAgTEBQi+QEKD1N0b3BwZWRSZXZpc2lvbhIaChJwbGFjZW1lbnRfcmV2aXNpb24YASABKAMSKQoGcmVhc29uGAcgASgOMhkubG9jby5hZ2VudC52MS5TdG9wUmVhc29uEhQKDHJlcGxpY2FfbmFtZRgCIAEoCRIQCghyZXN0YXJ0cxgDIAEoBRI4CgxsYXN0X3Jlc3RhcnQYBCABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYVJlc3RhcnQSJgoCYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3JvbGxvdXQYBiABKAhKBAgIEAkiegoNUHJvYmxlbVJlcG9ydBIOCgZyZWFzb24YASABKAkSFAoMcmVwbGljYV9uYW1lGAIgASgJEhgKBmRldGFpbBgDIAEoCUIIukgFcgMYgAgSKQoFc2luY2UYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqECCgxTeW5jUmVzcG9uc2USJQoFYXBwbHkYASABKAsyFC5sb2NvLmFnZW50LnYxLkFwcGx5SAASJwoGZGVsZXRlGAIgASgLMhUubG9jby5hZ2VudC52MS5EZWxldGVIABIwCgtzdGFydF9idWlsZBgDIAEoCzIZLmxvY28uYWdlbnQudjEuU3RhcnRCdWlsZEgAEjIKDGNhbmNlbF9idWlsZBgEIAEoCzIaLmxvY28uYWdlbnQudjEuQ2FuY2VsQnVpbGRIABI4Cg9rZWVwX3dvcmtzcGFjZXMYBiABKAsyHS5sb2NvLmFnZW50LnYxLktlZXBXb3Jrc3BhY2VzSABCCQoHbWVzc2FnZUoECAUQBlIQZGVsZXRlX3dvcmtzcGFjZSI2Cg5LZWVwV29ya3NwYWNlcxIkCg13b3Jrc3BhY2VfaWRzGAEgAygJQg26SAqSAQciBXIDsAEBIqYBCgVBcHBseRIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSEwoLcmVzb3VyY2VfaWQYAyABKAkSEwoLYXBwbGljYXRpb24YBCABKAwSLAoKZW52X3NlY3JldBgFIAEoCzIYLmxvY28uYWdlbnQudjEuRW52U2VjcmV0Eh0KC3RyYWNlcGFyZW50GAYgASgJQgi6SAVyAxiAAiJ8CglFbnZTZWNyZXQSEAoIcmV2aXNpb24YASABKAMSMAoEZGF0YRgCIAMoCzIiLmxvY28uYWdlbnQudjEuRW52U2VjcmV0LkRhdGFFbnRyeRorCglEYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgMOgI4ASJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIowDCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkSGAoHY29udGV4dBgIIAEoCUIHukgEcgIQARIkCg9vcmdhbml6YXRpb25faWQYCSABKAlCC7pICNgBAXIDsAEBEhsKE3JlZ2lzdHJ5X2NyZWRlbnRpYWwYCiABKAkSMQoIcGxhdGZvcm0YCyABKAlCH7pIHHIaUgtsaW51eC9hbWQ2NFILbGludXgvYXJtNjQSHQoLdHJhY2VwYXJlbnQYDCABKAlCCLpIBXIDGIACIikKC0NhbmNlbEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASLoAQoJSGVhcnRiZWF0Ei4KCGNhcGFjaXR5GAEgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgCIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgSNgoEcm9sZRgDIAEoDjIcLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyUm9sZUIKukgHggEEEAEgABIdCgdkb21haW5zGAQgAygJQgy6SAmSAQYiBHICaAFKBAgFEAZKBAgGEAdSC2Ruc19yZWNvcmRzUg9wbGF0Zm9ybV9kb21haW4iggIKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSIAoYY3B1X21pbGxpY29yZXNfcmVxdWVzdGVkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIeChZtZW1vcnlfYnl0ZXNfcmVxdWVzdGVkGAQgASgDEhIKCnBvZHNfdG90YWwYBSABKAUSFAoMcG9kc19ydW5uaW5nGAYgASgFEjQKCXBsYXRmb3JtcxgHIAMoCUIhukgekgEbIhlyFzIVXmxpbnV4LyhhbWQ2NHxhcm02NCkkEhUKDXBvZHNfYXNzaWduZWQYCCABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJIoICCg5DYXBhY2l0eVJlcG9ydBIUCgJpZBgBIAEoCUIIukgFcgOwAQESEAoIc2VxdWVuY2UYAiABKA0SGwoKbm9kZV9jb3VudBgDIAEoBUIHukgEGgIoABIhChBhbGxvY2F0aW9uX2NvdW50GAQgASgFQge6SAQaAigAEjcKBW5vZGVzGAUgAygLMh0ubG9jby5jbHVzdGVyLnYxLk5vZGVDYXBhY2l0eUIJukgGkgEDEOgHEj0KC2FsbG9jYXRpb25zGAYgAygLMh0ubG9jby5hZ2VudC52MS5Ob2RlQWxsb2NhdGlvbkIJukgGkgEDEOgHEhAKCGNvbXBsZXRlGAcgASgIIuwBCg5Ob2RlQWxsb2NhdGlvbhIYCgRub2RlGAEgASgJQgq6SAdyBRABGP0BEh0KDHdvcmtzcGFjZV9pZBgCIAEoCUIHukgEcgIYJBIcCgtyZXNvdXJjZV9pZBgDIAEoCUIHukgEcgIYJBIsCgRraW5kGAQgASgJQh66SBtyGVIIcmVzb3VyY2VSBWJ1aWxkUgZzeXN0ZW0SHwoOY3B1X21pbGxpY29yZXMYBSABKANCB7pIBCICKAASHQoMbWVtb3J5X2J5dGVzGAYgASgDQge6SAQiAigAEhUKBHBvZHMYByABKAVCB7pIBBoCIAAqqAEKCkJ1aWxkUGhhc2USGwoXQlVJTERfUEhBU0VfVU5TUEVDSUZJRUQQABIXChNCVUlMRF9QSEFTRV9QRU5ESU5HEAESFwoTQlVJTERfUEhBU0VfUlVOTklORxACEhkKFUJVSUxEX1BIQVNFX1NVQ0NFRURFRBADEhYKEkJVSUxEX1BIQVNFX0ZBSUxFRBAEEhgKFEJVSUxEX1BIQVNFX0NBTkNFTEVEEAUqjQEKClN0b3BSZWFzb24SGwoXU1RPUF9SRUFTT05fVU5TUEVDSUZJRUQQABIiCh5TVE9QX1JFQVNPTl9SRVNUQVJUU19FWEhBVVNURUQQARIeChpTVE9QX1JFQVNPTl9ERVBMT1lfVElNRU9VVBACEh4KGlNUT1BfUkVBU09OX1NUQVJUVVBfRkFJTEVEEAMyoAEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_cluster_v1_cluster, file_loco_deployment_v1_deployment]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -253,6 +253,12 @@ export type SyncRequest = Message<"loco.agent.v1.SyncRequest"> & {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.CapacityReport capacity_report = 6;
+     */
+    value: CapacityReport;
+    case: "capacityReport";
   } | { case: undefined; value?: undefined };
 };
 
@@ -284,6 +290,11 @@ export type SyncRequestJson = {
    * @generated from field: loco.agent.v1.Heartbeat heartbeat = 5;
    */
   heartbeat?: HeartbeatJson;
+
+  /**
+   * @generated from field: loco.agent.v1.CapacityReport capacity_report = 6;
+   */
+  capacityReport?: CapacityReportJson;
 };
 
 /**
@@ -1560,6 +1571,194 @@ export type AgentHealthJson = {
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 21);
+
+/**
+ * A complete sample is split into ordered chunks on one sync stream. The API publishes
+ * it only after the final chunk and matching counts. Partial samples never replace it.
+ *
+ * @generated from message loco.agent.v1.CapacityReport
+ */
+export type CapacityReport = Message<"loco.agent.v1.CapacityReport"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: uint32 sequence = 2;
+   */
+  sequence: number;
+
+  /**
+   * @generated from field: int32 node_count = 3;
+   */
+  nodeCount: number;
+
+  /**
+   * @generated from field: int32 allocation_count = 4;
+   */
+  allocationCount: number;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.NodeCapacity nodes = 5;
+   */
+  nodes: NodeCapacity[];
+
+  /**
+   * @generated from field: repeated loco.agent.v1.NodeAllocation allocations = 6;
+   */
+  allocations: NodeAllocation[];
+
+  /**
+   * @generated from field: bool complete = 7;
+   */
+  complete: boolean;
+};
+
+/**
+ * A complete sample is split into ordered chunks on one sync stream. The API publishes
+ * it only after the final chunk and matching counts. Partial samples never replace it.
+ *
+ * @generated from message loco.agent.v1.CapacityReport
+ */
+export type CapacityReportJson = {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: uint32 sequence = 2;
+   */
+  sequence?: number;
+
+  /**
+   * @generated from field: int32 node_count = 3;
+   */
+  nodeCount?: number;
+
+  /**
+   * @generated from field: int32 allocation_count = 4;
+   */
+  allocationCount?: number;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.NodeCapacity nodes = 5;
+   */
+  nodes?: NodeCapacityJson[];
+
+  /**
+   * @generated from field: repeated loco.agent.v1.NodeAllocation allocations = 6;
+   */
+  allocations?: NodeAllocationJson[];
+
+  /**
+   * @generated from field: bool complete = 7;
+   */
+  complete?: boolean;
+};
+
+/**
+ * Describes the message loco.agent.v1.CapacityReport.
+ * Use `create(CapacityReportSchema)` to create a new message.
+ */
+export const CapacityReportSchema: GenMessage<CapacityReport, {jsonType: CapacityReportJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 22);
+
+/**
+ * @generated from message loco.agent.v1.NodeAllocation
+ */
+export type NodeAllocation = Message<"loco.agent.v1.NodeAllocation"> & {
+  /**
+   * @generated from field: string node = 1;
+   */
+  node: string;
+
+  /**
+   * Empty for workloads outside Loco.
+   *
+   * @generated from field: string workspace_id = 2;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId: string;
+
+  /**
+   * resource, build, or system; system includes workloads outside Loco.
+   *
+   * @generated from field: string kind = 4;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 5;
+   */
+  cpuMillicores: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes = 6;
+   */
+  memoryBytes: bigint;
+
+  /**
+   * @generated from field: int32 pods = 7;
+   */
+  pods: number;
+};
+
+/**
+ * @generated from message loco.agent.v1.NodeAllocation
+ */
+export type NodeAllocationJson = {
+  /**
+   * @generated from field: string node = 1;
+   */
+  node?: string;
+
+  /**
+   * Empty for workloads outside Loco.
+   *
+   * @generated from field: string workspace_id = 2;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId?: string;
+
+  /**
+   * resource, build, or system; system includes workloads outside Loco.
+   *
+   * @generated from field: string kind = 4;
+   */
+  kind?: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 5;
+   */
+  cpuMillicores?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes = 6;
+   */
+  memoryBytes?: string;
+
+  /**
+   * @generated from field: int32 pods = 7;
+   */
+  pods?: number;
+};
+
+/**
+ * Describes the message loco.agent.v1.NodeAllocation.
+ * Use `create(NodeAllocationSchema)` to create a new message.
+ */
+export const NodeAllocationSchema: GenMessage<NodeAllocation, {jsonType: NodeAllocationJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 23);
 
 /**
  * @generated from enum loco.agent.v1.BuildPhase

@@ -13,6 +13,9 @@ service ClusterAdminService {
   rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
+  rpc ListClusterNodes(ListClusterNodesRequest) returns (ListClusterNodesResponse);
+  rpc GetNodeAllocations(GetNodeAllocationsRequest) returns (GetNodeAllocationsResponse);
+  rpc ListWorkspaceAllocations(ListWorkspaceAllocationsRequest) returns (ListWorkspaceAllocationsResponse);
   rpc GetClusterOperations(GetClusterOperationsRequest) returns (GetClusterOperationsResponse);
   rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
   rpc ResumeCluster(ResumeClusterRequest) returns (ResumeClusterResponse);
@@ -210,4 +213,117 @@ message ClusterWorkloadAttention {
   string status = 9;
   string message = 10;
   google.protobuf.Timestamp updated_at = 11;
+}
+
+// NodeCapacity is the agent's reservation sample for one Kubernetes node.
+message NodeCapacity {
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 253
+  }];
+  bool ready = 2;
+  int64 cpu_millicores_allocatable = 3 [(buf.validate.field).int64.gte = 0];
+  int64 memory_bytes_allocatable = 4 [(buf.validate.field).int64.gte = 0];
+  int64 cpu_millicores_requested = 5 [(buf.validate.field).int64.gte = 0];
+  int64 memory_bytes_requested = 6 [(buf.validate.field).int64.gte = 0];
+  int32 resource_count = 7;
+  bool unschedulable = 8;
+}
+
+// AllocationSample is absent until a complete sample arrives. Failed collection retains
+// the last sample; stale follows the same silence threshold as cluster capacity.
+message AllocationSample {
+  string id = 1;
+  google.protobuf.Timestamp reported_at = 2;
+  bool stale = 3;
+}
+
+message ListClusterNodesRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  string query = 2 [(buf.validate.field).string.max_len = 200];
+  int32 page = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool memory = 4;
+}
+message ListClusterNodesResponse {
+  AllocationSample sample = 1;
+  repeated NodeCapacity nodes = 2;
+  int32 total_count = 3;
+  int32 resource_count = 4;
+}
+
+message AllocationConsumer {
+  // Workspace ID in workspace scope; resource ID in resource scope. System/Other use literal IDs.
+  string id = 1;
+  string name = 2;
+  string org_id = 3;
+  string org_name = 4;
+  string workspace_id = 5;
+  // workspace, resource, system, or other. Resource reservations include its active builds.
+  string kind = 6;
+  int64 cpu_millicores = 7;
+  int64 memory_bytes = 8;
+  int32 resource_count = 9;
+  int32 pods = 10;
+}
+message GetNodeAllocationsRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  string node = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 253
+  }];
+  string workspace_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  bool memory = 4;
+  string query = 5 [(buf.validate.field).string.max_len = 200];
+  int32 page = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool remainder_only = 7;
+  // Pins the node list and inspector to the same sample. A replaced sample returns Aborted.
+  string sample_id = 8 [(buf.validate.field).string.uuid = true];
+}
+message GetNodeAllocationsResponse {
+  AllocationSample sample = 1;
+  NodeCapacity node = 2;
+  repeated AllocationConsumer top = 3;
+  AllocationConsumer remainder = 4;
+  AllocationConsumer system = 5;
+  repeated AllocationConsumer consumers = 6;
+  int32 total_count = 7;
+  bool memory = 8;
+  string workspace_id = 9;
+  string workspace_name = 10;
+}
+message ListWorkspaceAllocationsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string query = 2 [(buf.validate.field).string.max_len = 200];
+  int32 page = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool memory = 4;
+  bool ascending = 5;
+}
+message WorkspaceAllocation {
+  string workspace_id = 1;
+  string name = 2;
+  string org_id = 3;
+  int32 resource_count = 4;
+  int64 cpu_millicores = 5;
+  int64 memory_bytes = 6;
+  // Zero allocations are only meaningful alongside reporting coverage.
+  int32 reporting_clusters = 7;
+  int32 stale_clusters = 8;
+  int32 missing_clusters = 9;
+  google.protobuf.Timestamp oldest_reported_at = 10;
+}
+message ListWorkspaceAllocationsResponse {
+  repeated WorkspaceAllocation workspaces = 1;
+  int32 total_count = 2;
 }

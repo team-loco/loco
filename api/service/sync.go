@@ -486,6 +486,8 @@ func (ss *syncSession) recordHeartbeat(ctx context.Context, heartbeat *agentv1.H
 // apply records a report and returns what it changes in the session.
 func (ss *syncSession) apply(ctx context.Context, msg *agentv1.SyncRequest) (settleFunc, error) {
 	switch m := msg.GetMessage().(type) {
+	case *agentv1.SyncRequest_CapacityReport:
+		return nil, ss.server.recordNodeCapacity(ctx, ss.clusterID, ss.generation, m.CapacityReport)
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil, nil

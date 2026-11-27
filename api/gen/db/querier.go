@@ -14,10 +14,12 @@ import (
 type Querier interface {
 	AddSystemRoleEntries(ctx context.Context, arg AddSystemRoleEntriesParams) error
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
+	AdvanceNodeCapacity(ctx context.Context, arg AdvanceNodeCapacityParams) (uuid.UUID, error)
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	BeginNodeCapacity(ctx context.Context, arg BeginNodeCapacityParams) error
 	BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsedByOtherDeploymentsParams) (bool, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
@@ -35,6 +37,7 @@ type Querier interface {
 	CountDeployments(ctx context.Context, arg CountDeploymentsParams) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountEntityAPITokens(ctx context.Context, arg CountEntityAPITokensParams) (int64, error)
+	CountNodeResources(ctx context.Context, reportID uuid.UUID) (int32, error)
 	CountOpenOrgInvitations(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int64, error)
 	CountOrgPeopleByWorkspace(ctx context.Context, orgID uuid.UUID) ([]CountOrgPeopleByWorkspaceRow, error)
@@ -88,6 +91,7 @@ type Querier interface {
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
 	DeleteClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) error
 	DeleteClusterRegistryCredentials(ctx context.Context, clusterID uuid.UUID) error
+	DeleteCompleteCapacity(ctx context.Context, clusterID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteEventsBefore(ctx context.Context, arg DeleteEventsBeforeParams) (int64, error)
 	DeleteExpiredAPITokenByName(ctx context.Context, arg DeleteExpiredAPITokenByNameParams) error
@@ -102,6 +106,7 @@ type Querier interface {
 	DeleteExpiredUsedRefreshTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
+	DeletePartialCapacity(ctx context.Context, clusterID uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
@@ -149,6 +154,10 @@ type Querier interface {
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
 	GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDeploymentForRegionParams) (GetLiveDeploymentForRegionRow, error)
+	GetNodeCapacity(ctx context.Context, arg GetNodeCapacityParams) (GetNodeCapacityRow, error)
+	GetNodeCapacityReport(ctx context.Context, clusterID uuid.UUID) (GetNodeCapacityReportRow, error)
+	GetNodeRemainder(ctx context.Context, arg GetNodeRemainderParams) (GetNodeRemainderRow, error)
+	GetNodeSystemAllocation(ctx context.Context, arg GetNodeSystemAllocationParams) (GetNodeSystemAllocationRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
@@ -187,6 +196,8 @@ type Querier interface {
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
+	InsertNodeAllocations(ctx context.Context, arg []InsertNodeAllocationsParams) (int64, error)
+	InsertNodeCapacity(ctx context.Context, arg []InsertNodeCapacityParams) (int64, error)
 	IsBuildDigestLive(ctx context.Context, arg IsBuildDigestLiveParams) (bool, error)
 	IsLiveRegion(ctx context.Context, region string) (bool, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
@@ -241,6 +252,8 @@ type Querier interface {
 	ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error)
 	ListLiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]ListLiveDeploymentsForResourceRow, error)
 	ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberWorkspaceScopesParams) ([]ListMemberWorkspaceScopesRow, error)
+	ListNodeCapacity(ctx context.Context, arg ListNodeCapacityParams) ([]ListNodeCapacityRow, error)
+	ListNodeConsumers(ctx context.Context, arg ListNodeConsumersParams) ([]ListNodeConsumersRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
 	ListOrgAdmins(ctx context.Context, orgIds []uuid.UUID) ([]ListOrgAdminsRow, error)
 	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error)
@@ -270,6 +283,7 @@ type Querier interface {
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
+	ListWorkspaceAllocations(ctx context.Context, arg ListWorkspaceAllocationsParams) ([]ListWorkspaceAllocationsRow, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspaceResourceSlugs(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceSlugsRow, error)
@@ -285,6 +299,7 @@ type Querier interface {
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error)
 	LockBuildResource(ctx context.Context, id uuid.UUID) error
 	LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error
+	LockCapacityReporter(ctx context.Context, arg LockCapacityReporterParams) (uuid.UUID, error)
 	LockClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) (LockClusterHeartbeatRow, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
@@ -358,6 +373,7 @@ type Querier interface {
 	// ones and those a region still runs or reports.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
 	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
+	PublishNodeCapacity(ctx context.Context, id uuid.UUID) error
 	// Splits [since, until) into bucket_count equal buckets by creation time, in exact numeric arithmetic.
 	QueryDeploymentBuckets(ctx context.Context, arg QueryDeploymentBucketsParams) ([]QueryDeploymentBucketsRow, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
@@ -441,6 +457,7 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
+	ValidateNodeCapacity(ctx context.Context, reportID uuid.UUID) (*bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

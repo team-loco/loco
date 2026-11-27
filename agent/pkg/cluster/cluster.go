@@ -6,7 +6,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/uuid"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/workloadplatform"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,12 +38,22 @@ func NewInspector(client kubernetes.Interface, controllerNamespace, controllerDe
 }
 
 func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error) {
+	capacity, _, err := i.CapacityReport(ctx)
+	return capacity, err
+}
+
+// CapacityReport collects one set of node and pod observations for totals and attribution.
+// Kubernetes does not offer an atomic cross-kind read; pods assigned to vanished nodes
+// invalidate this sample rather than silently disappearing from its totals.
+func (i *Inspector) CapacityReport(ctx context.Context) (*agentv1.AgentCapacity, []*agentv1.CapacityReport, error) {
 	nodes, err := i.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("list nodes: %w", err)
+		return nil, nil, fmt.Errorf("list nodes: %w", err)
 	}
 
 	capacity := &agentv1.AgentCapacity{}
+	byNode := make(map[string]*clusterv1.NodeCapacity, len(nodes.Items))
+	allocations := make(map[allocationKey]*agentv1.NodeAllocation)
 	for idx := range nodes.Items {
 		node := &nodes.Items[idx]
 		if platform, parseErr := workloadplatform.Parse(
@@ -49,6 +62,20 @@ func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error
 			capacity.Platforms = append(capacity.Platforms, string(platform))
 		}
 		allocatable := node.Status.Allocatable
+		ready := false
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == corev1.NodeReady {
+				ready = condition.Status == corev1.ConditionTrue
+			}
+		}
+		byNode[node.Name] = &clusterv1.NodeCapacity{
+			Name:          node.Name,
+			Ready:         ready,
+			Unschedulable: node.Spec.Unschedulable,
+			CpuMillicoresAllocatable: allocatable.Cpu().
+				MilliValue(),
+			MemoryBytesAllocatable: allocatable.Memory().Value(),
+		}
 		capacity.CpuMillicoresTotal += allocatable.Cpu().MilliValue()
 		capacity.MemoryBytesTotal += allocatable.Memory().Value()
 		capacity.PodsTotal += int32(allocatable.Pods().Value())
@@ -61,13 +88,22 @@ func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error
 		FieldSelector: activePodsSelector,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("list pods: %w", err)
+		return nil, nil, fmt.Errorf("list pods: %w", err)
 	}
 
 	for idx := range pods.Items {
 		pod := &pods.Items[idx]
 		if pod.Spec.NodeName == "" {
 			continue
+		}
+		n, exists := byNode[pod.Spec.NodeName]
+		if !exists {
+			return nil, nil, fmt.Errorf(
+				"pod %s/%s is assigned to an unobserved node %s",
+				pod.Namespace,
+				pod.Name,
+				pod.Spec.NodeName,
+			)
 		}
 		capacity.PodsAssigned++
 		if pod.Status.Phase == corev1.PodRunning {
@@ -76,9 +112,25 @@ func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error
 		requests := podresource.PodRequests(pod, podresource.PodResourcesOptions{})
 		capacity.CpuMillicoresRequested += requests.Cpu().MilliValue()
 		capacity.MemoryBytesRequested += requests.Memory().Value()
+		n.CpuMillicoresRequested += requests.Cpu().MilliValue()
+		n.MemoryBytesRequested += requests.Memory().Value()
+		key := podAllocation(pod)
+		allocation := allocations[key]
+		if allocation == nil {
+			allocation = &agentv1.NodeAllocation{
+				Node:        key.node,
+				WorkspaceId: key.workspace,
+				ResourceId:  key.resource,
+				Kind:        key.kind,
+			}
+			allocations[key] = allocation
+		}
+		allocation.CpuMillicores += requests.Cpu().MilliValue()
+		allocation.MemoryBytes += requests.Memory().Value()
+		allocation.Pods++
 	}
 
-	return capacity, nil
+	return capacity, capacityChunks(byNode, allocations), nil
 }
 
 func (i *Inspector) Health(ctx context.Context) *agentv1.AgentHealth {
@@ -122,4 +174,70 @@ func (i *Inspector) Key(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("read cluster identity: %w", err)
 	}
 	return string(namespace.UID), nil
+}
+
+type allocationKey struct{ node, workspace, resource, kind string }
+
+func podAllocation(pod *corev1.Pod) allocationKey {
+	key := allocationKey{node: pod.Spec.NodeName, kind: "system"}
+	if pod.Labels[locolabels.LabelManagedBy] != locolabels.ControllerManagedBy {
+		return key
+	}
+	workspace, resource := pod.Labels[locolabels.LabelWorkspaceID], pod.Labels[locolabels.LabelResourceID]
+	if _, err := uuid.Parse(workspace); err != nil {
+		return key
+	}
+	if _, err := uuid.Parse(resource); err != nil {
+		return key
+	}
+	key.workspace, key.resource, key.kind = workspace, resource, "resource"
+	if pod.Labels[locolabels.LabelBuildID] != "" {
+		key.kind = "build"
+	}
+	return key
+}
+
+// Each entry has bounded names/IDs and at most 1000 entries fit well below the
+// transport's 4 MiB limit, even when every resource shares one node.
+const capacityChunkEntries = 1000
+
+func capacityChunks(
+	nodes map[string]*clusterv1.NodeCapacity,
+	allocations map[allocationKey]*agentv1.NodeAllocation,
+) []*agentv1.CapacityReport {
+	id := uuid.NewString()
+	chunks := []*agentv1.CapacityReport{}
+	chunk := &agentv1.CapacityReport{}
+	flush := func() {
+		chunk.Id, chunk.Sequence = id, uint32(len(chunks))
+		chunk.NodeCount, chunk.AllocationCount = int32(len(nodes)), int32(len(allocations))
+		chunks = append(chunks, chunk)
+		chunk = &agentv1.CapacityReport{}
+	}
+	// Nodes precede allocations because allocation rows refer to their node.
+	names := make([]string, 0, len(nodes))
+	for name := range nodes {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		chunk.Nodes = append(chunk.Nodes, nodes[name])
+		if len(chunk.GetNodes()) == capacityChunkEntries {
+			flush()
+		}
+	}
+	if len(chunk.GetNodes()) > 0 {
+		flush()
+	}
+	for _, allocation := range allocations {
+		chunk.Allocations = append(chunk.Allocations, allocation)
+		if len(chunk.GetAllocations()) == capacityChunkEntries {
+			flush()
+		}
+	}
+	if len(chunk.GetAllocations()) > 0 || len(chunks) == 0 {
+		flush()
+	}
+	chunks[len(chunks)-1].Complete = true
+	return chunks
 }

@@ -35,6 +35,15 @@ const (
 	// ClusterAdminServiceListClustersProcedure is the procedure name of the ClusterAdminService's
 	// ListClusters RPC.
 	ClusterAdminServiceListClustersProcedure = "/loco.cluster.v1.ClusterAdminService/ListClusters"
+	// ClusterAdminServiceListClusterNodesProcedure is the procedure name of the ClusterAdminService's
+	// ListClusterNodes RPC.
+	ClusterAdminServiceListClusterNodesProcedure = "/loco.cluster.v1.ClusterAdminService/ListClusterNodes"
+	// ClusterAdminServiceGetNodeAllocationsProcedure is the procedure name of the ClusterAdminService's
+	// GetNodeAllocations RPC.
+	ClusterAdminServiceGetNodeAllocationsProcedure = "/loco.cluster.v1.ClusterAdminService/GetNodeAllocations"
+	// ClusterAdminServiceListWorkspaceAllocationsProcedure is the procedure name of the
+	// ClusterAdminService's ListWorkspaceAllocations RPC.
+	ClusterAdminServiceListWorkspaceAllocationsProcedure = "/loco.cluster.v1.ClusterAdminService/ListWorkspaceAllocations"
 	// ClusterAdminServiceGetClusterOperationsProcedure is the procedure name of the
 	// ClusterAdminService's GetClusterOperations RPC.
 	ClusterAdminServiceGetClusterOperationsProcedure = "/loco.cluster.v1.ClusterAdminService/GetClusterOperations"
@@ -75,6 +84,27 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("ListClusters"),
 			Procedure:  ClusterAdminServiceListClustersProcedure,
+		}
+	})
+	clusterAdminServiceListClusterNodesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("ListClusterNodes"),
+			Procedure:  ClusterAdminServiceListClusterNodesProcedure,
+		}
+	})
+	clusterAdminServiceGetNodeAllocationsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("GetNodeAllocations"),
+			Procedure:  ClusterAdminServiceGetNodeAllocationsProcedure,
+		}
+	})
+	clusterAdminServiceListWorkspaceAllocationsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("ListWorkspaceAllocations"),
+			Procedure:  ClusterAdminServiceListWorkspaceAllocationsProcedure,
 		}
 	})
 	clusterAdminServiceGetClusterOperationsSpec = sync.OnceValue(func() connect.Spec {
@@ -119,6 +149,9 @@ type ClusterAdminServiceClient interface {
 	CreateCluster(context.Context, *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error)
 	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
+	ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error)
+	GetNodeAllocations(context.Context, *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error)
+	ListWorkspaceAllocations(context.Context, *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error)
 	GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error)
 	PauseCluster(context.Context, *v1.PauseClusterRequest) (*v1.PauseClusterResponse, error)
 	ResumeCluster(context.Context, *v1.ResumeClusterRequest) (*v1.ResumeClusterResponse, error)
@@ -138,6 +171,9 @@ type ClusterAdminServiceHandler interface {
 	CreateCluster(context.Context, *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error)
 	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
+	ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error)
+	GetNodeAllocations(context.Context, *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error)
+	ListWorkspaceAllocations(context.Context, *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error)
 	GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error)
 	PauseCluster(context.Context, *v1.PauseClusterRequest) (*v1.PauseClusterResponse, error)
 	ResumeCluster(context.Context, *v1.ResumeClusterRequest) (*v1.ResumeClusterResponse, error)
@@ -153,6 +189,9 @@ func RegisterClusterAdminServiceHandler(server *connect.Server, svc ClusterAdmin
 		connect.Method{Spec: clusterAdminServiceCreateClusterSpec(), Handler: adapter.createCluster},
 		connect.Method{Spec: clusterAdminServiceIssueJoinTokenSpec(), Handler: adapter.issueJoinToken},
 		connect.Method{Spec: clusterAdminServiceListClustersSpec(), Handler: adapter.listClusters},
+		connect.Method{Spec: clusterAdminServiceListClusterNodesSpec(), Handler: adapter.listClusterNodes},
+		connect.Method{Spec: clusterAdminServiceGetNodeAllocationsSpec(), Handler: adapter.getNodeAllocations},
+		connect.Method{Spec: clusterAdminServiceListWorkspaceAllocationsSpec(), Handler: adapter.listWorkspaceAllocations},
 		connect.Method{Spec: clusterAdminServiceGetClusterOperationsSpec(), Handler: adapter.getClusterOperations},
 		connect.Method{Spec: clusterAdminServicePauseClusterSpec(), Handler: adapter.pauseCluster},
 		connect.Method{Spec: clusterAdminServiceResumeClusterSpec(), Handler: adapter.resumeCluster},
@@ -174,6 +213,18 @@ func (UnimplementedClusterAdminServiceHandler) IssueJoinToken(context.Context, *
 
 func (UnimplementedClusterAdminServiceHandler) ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.ListClusters is not implemented")
+}
+
+func (UnimplementedClusterAdminServiceHandler) ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.ListClusterNodes is not implemented")
+}
+
+func (UnimplementedClusterAdminServiceHandler) GetNodeAllocations(context.Context, *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.GetNodeAllocations is not implemented")
+}
+
+func (UnimplementedClusterAdminServiceHandler) ListWorkspaceAllocations(context.Context, *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations is not implemented")
 }
 
 func (UnimplementedClusterAdminServiceHandler) GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error) {
@@ -219,6 +270,30 @@ func (c *clusterAdminServiceClient) IssueJoinToken(ctx context.Context, req *v1.
 func (c *clusterAdminServiceClient) ListClusters(ctx context.Context, req *v1.ListClustersRequest) (*v1.ListClustersResponse, error) {
 	var res v1.ListClustersResponse
 	if err := c.client.CallUnary(ctx, clusterAdminServiceListClustersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *clusterAdminServiceClient) ListClusterNodes(ctx context.Context, req *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error) {
+	var res v1.ListClusterNodesResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceListClusterNodesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *clusterAdminServiceClient) GetNodeAllocations(ctx context.Context, req *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error) {
+	var res v1.GetNodeAllocationsResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceGetNodeAllocationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *clusterAdminServiceClient) ListWorkspaceAllocations(ctx context.Context, req *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error) {
+	var res v1.ListWorkspaceAllocationsResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceListWorkspaceAllocationsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -296,6 +371,42 @@ func (h clusterAdminServiceHandler) listClusters(ctx context.Context, _ connect.
 		return err
 	}
 	res, err := h.svc.ListClusters(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h clusterAdminServiceHandler) listClusterNodes(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListClusterNodesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListClusterNodes(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h clusterAdminServiceHandler) getNodeAllocations(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetNodeAllocationsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetNodeAllocations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h clusterAdminServiceHandler) listWorkspaceAllocations(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListWorkspaceAllocationsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListWorkspaceAllocations(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/internal/locofile"
+	podresource "k8s.io/component-helpers/resource"
+
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 	corev1 "k8s.io/api/core/v1"
@@ -60,5 +64,100 @@ func TestClusterCapacityReachesOperators(t *testing.T) {
 		return fmt.Errorf("cluster %s is not listed", p.ClusterID)
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNodeAllocationsReachOperators(t *testing.T) {
+	t.Parallel()
+	w := p.NewTenant(t)
+	dir := t.TempDir()
+	const resource = "node-allocation"
+	platform.WriteLocoFile(
+		t,
+		dir,
+		locofile.File{
+			Partial:  resource,
+			Services: map[string]locofile.Service{resource: platform.ImageService(p.PublicImage)},
+		},
+	)
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
+	id := w.ResourceID(t, resource)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
+	err := platform.Poll(ctx, func(ctx context.Context) error {
+		nodes, err := p.Admin.ClusterAdmin.ListClusterNodes(
+			ctx,
+			&clusterv1.ListClusterNodesRequest{ClusterId: p.ClusterID},
+		)
+		if err != nil {
+			return err
+		}
+		if nodes.GetSample() == nil || nodes.GetSample().GetStale() {
+			return fmt.Errorf("no fresh node capacity: %v", nodes)
+		}
+		for _, node := range nodes.GetNodes() {
+			out, err := p.Admin.ClusterAdmin.GetNodeAllocations(
+				ctx,
+				&clusterv1.GetNodeAllocationsRequest{
+					ClusterId:   p.ClusterID,
+					Node:        node.GetName(),
+					SampleId:    nodes.GetSample().GetId(),
+					WorkspaceId: w.ID,
+				},
+			)
+			if err != nil {
+				return err
+			}
+			for _, consumer := range out.GetConsumers() {
+				if consumer.GetId() != id {
+					continue
+				}
+				if consumer.GetCpuMillicores() <= 0 || consumer.GetMemoryBytes() <= 0 ||
+					consumer.GetResourceCount() != 1 {
+					return fmt.Errorf("resource allocation incomplete: %v", consumer)
+				}
+				var pods corev1.PodList
+				p.MustGet(t, &pods, "-n", w.Namespace, "pods", "-l", "loco.io/resource-id="+id)
+				var cpu, memory int64
+				for index := range pods.Items {
+					pod := &pods.Items[index]
+					if pod.Spec.NodeName != node.GetName() || pod.Status.Phase == corev1.PodSucceeded ||
+						pod.Status.Phase == corev1.PodFailed {
+						continue
+					}
+					requests := podresource.PodRequests(pod, podresource.PodResourcesOptions{})
+					cpu += requests.Cpu().MilliValue()
+					memory += requests.Memory().Value()
+				}
+				if consumer.GetCpuMillicores() != cpu || consumer.GetMemoryBytes() != memory {
+					return fmt.Errorf(
+						"reported %dm/%d bytes differs from actual node pod requests %dm/%d bytes",
+						consumer.GetCpuMillicores(),
+						consumer.GetMemoryBytes(),
+						cpu,
+						memory,
+					)
+				}
+				t.Logf(
+					"resource %s on %s: actual pod requests reached operator API: %dm CPU, %d bytes",
+					id,
+					node.GetName(),
+					cpu,
+					memory,
+				)
+				return nil
+			}
+		}
+		return fmt.Errorf("resource %s not yet reported", id)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.User.ClusterAdmin.ListClusterNodes(
+		t.Context(),
+		&clusterv1.ListClusterNodesRequest{ClusterId: p.ClusterID},
+	)
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("tenant reads system capacity: %v", err)
 	}
 }

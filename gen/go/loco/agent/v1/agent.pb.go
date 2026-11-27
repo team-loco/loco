@@ -361,6 +361,7 @@ type SyncRequest struct {
 	//	*SyncRequest_Status
 	//	*SyncRequest_BuildStatus
 	//	*SyncRequest_Heartbeat
+	//	*SyncRequest_CapacityReport
 	Message       isSyncRequest_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -448,6 +449,15 @@ func (x *SyncRequest) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *SyncRequest) GetCapacityReport() *CapacityReport {
+	if x != nil {
+		if x, ok := x.Message.(*SyncRequest_CapacityReport); ok {
+			return x.CapacityReport
+		}
+	}
+	return nil
+}
+
 type isSyncRequest_Message interface {
 	isSyncRequest_Message()
 }
@@ -472,6 +482,10 @@ type SyncRequest_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,5,opt,name=heartbeat,proto3,oneof"`
 }
 
+type SyncRequest_CapacityReport struct {
+	CapacityReport *CapacityReport `protobuf:"bytes,6,opt,name=capacity_report,json=capacityReport,proto3,oneof"`
+}
+
 func (*SyncRequest_Inventory) isSyncRequest_Message() {}
 
 func (*SyncRequest_Applied) isSyncRequest_Message() {}
@@ -481,6 +495,8 @@ func (*SyncRequest_Status) isSyncRequest_Message() {}
 func (*SyncRequest_BuildStatus) isSyncRequest_Message() {}
 
 func (*SyncRequest_Heartbeat) isSyncRequest_Message() {}
+
+func (*SyncRequest_CapacityReport) isSyncRequest_Message() {}
 
 type Inventory struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1901,6 +1917,194 @@ func (x *AgentHealth) GetMessage() string {
 	return ""
 }
 
+// A complete sample is split into ordered chunks on one sync stream. The API publishes
+// it only after the final chunk and matching counts. Partial samples never replace it.
+type CapacityReport struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Sequence        uint32                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	NodeCount       int32                  `protobuf:"varint,3,opt,name=node_count,json=nodeCount,proto3" json:"node_count,omitempty"`
+	AllocationCount int32                  `protobuf:"varint,4,opt,name=allocation_count,json=allocationCount,proto3" json:"allocation_count,omitempty"`
+	Nodes           []*v1.NodeCapacity     `protobuf:"bytes,5,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Allocations     []*NodeAllocation      `protobuf:"bytes,6,rep,name=allocations,proto3" json:"allocations,omitempty"`
+	Complete        bool                   `protobuf:"varint,7,opt,name=complete,proto3" json:"complete,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CapacityReport) Reset() {
+	*x = CapacityReport{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CapacityReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CapacityReport) ProtoMessage() {}
+
+func (x *CapacityReport) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CapacityReport.ProtoReflect.Descriptor instead.
+func (*CapacityReport) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CapacityReport) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CapacityReport) GetSequence() uint32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *CapacityReport) GetNodeCount() int32 {
+	if x != nil {
+		return x.NodeCount
+	}
+	return 0
+}
+
+func (x *CapacityReport) GetAllocationCount() int32 {
+	if x != nil {
+		return x.AllocationCount
+	}
+	return 0
+}
+
+func (x *CapacityReport) GetNodes() []*v1.NodeCapacity {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *CapacityReport) GetAllocations() []*NodeAllocation {
+	if x != nil {
+		return x.Allocations
+	}
+	return nil
+}
+
+func (x *CapacityReport) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+type NodeAllocation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Node  string                 `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	// Empty for workloads outside Loco.
+	WorkspaceId string `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId  string `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// resource, build, or system; system includes workloads outside Loco.
+	Kind          string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	CpuMillicores int64  `protobuf:"varint,5,opt,name=cpu_millicores,json=cpuMillicores,proto3" json:"cpu_millicores,omitempty"`
+	MemoryBytes   int64  `protobuf:"varint,6,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	Pods          int32  `protobuf:"varint,7,opt,name=pods,proto3" json:"pods,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeAllocation) Reset() {
+	*x = NodeAllocation{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeAllocation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeAllocation) ProtoMessage() {}
+
+func (x *NodeAllocation) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeAllocation.ProtoReflect.Descriptor instead.
+func (*NodeAllocation) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *NodeAllocation) GetNode() string {
+	if x != nil {
+		return x.Node
+	}
+	return ""
+}
+
+func (x *NodeAllocation) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *NodeAllocation) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *NodeAllocation) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *NodeAllocation) GetCpuMillicores() int64 {
+	if x != nil {
+		return x.CpuMillicores
+	}
+	return 0
+}
+
+func (x *NodeAllocation) GetMemoryBytes() int64 {
+	if x != nil {
+		return x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *NodeAllocation) GetPods() int32 {
+	if x != nil {
+		return x.Pods
+	}
+	return 0
+}
+
 var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
@@ -1928,13 +2132,14 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12H\n" +
-	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\xbb\x02\n" +
+	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\x85\x03\n" +
 	"\vSyncRequest\x128\n" +
 	"\tinventory\x18\x01 \x01(\v2\x18.loco.agent.v1.InventoryH\x00R\tinventory\x122\n" +
 	"\aapplied\x18\x02 \x01(\v2\x16.loco.agent.v1.AppliedH\x00R\aapplied\x128\n" +
 	"\x06status\x18\x03 \x01(\v2\x1e.loco.agent.v1.PlacementStatusH\x00R\x06status\x12?\n" +
 	"\fbuild_status\x18\x04 \x01(\v2\x1a.loco.agent.v1.BuildStatusH\x00R\vbuildStatus\x128\n" +
-	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
+	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeat\x12H\n" +
+	"\x0fcapacity_report\x18\x06 \x01(\v2\x1d.loco.agent.v1.CapacityReportH\x00R\x0ecapacityReportB\t\n" +
 	"\amessage\"\x90\x01\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
@@ -2059,7 +2264,26 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xa8\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xca\x02\n" +
+	"\x0eCapacityReport\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\rR\bsequence\x12&\n" +
+	"\n" +
+	"node_count\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\tnodeCount\x122\n" +
+	"\x10allocation_count\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x0fallocationCount\x12>\n" +
+	"\x05nodes\x18\x05 \x03(\v2\x1d.loco.cluster.v1.NodeCapacityB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x05nodes\x12J\n" +
+	"\vallocations\x18\x06 \x03(\v2\x1d.loco.agent.v1.NodeAllocationB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\vallocations\x12\x1a\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\"\xb3\x02\n" +
+	"\x0eNodeAllocation\x12\x1e\n" +
+	"\x04node\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xfd\x01R\x04node\x12*\n" +
+	"\fworkspace_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18$R\vworkspaceId\x12(\n" +
+	"\vresource_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18$R\n" +
+	"resourceId\x122\n" +
+	"\x04kind\x18\x04 \x01(\tB\x1e\xbaH\x1br\x19R\bresourceR\x05buildR\x06systemR\x04kind\x12.\n" +
+	"\x0ecpu_millicores\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\rcpuMillicores\x12*\n" +
+	"\fmemory_bytes\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\vmemoryBytes\x12\x1b\n" +
+	"\x04pods\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\x04pods*\xa8\x01\n" +
 	"\n" +
 	"BuildPhase\x12\x1b\n" +
 	"\x17BUILD_PHASE_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -2091,7 +2315,7 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(BuildPhase)(0),               // 0: loco.agent.v1.BuildPhase
 	(StopReason)(0),               // 1: loco.agent.v1.StopReason
@@ -2117,57 +2341,63 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*Heartbeat)(nil),             // 21: loco.agent.v1.Heartbeat
 	(*AgentCapacity)(nil),         // 22: loco.agent.v1.AgentCapacity
 	(*AgentHealth)(nil),           // 23: loco.agent.v1.AgentHealth
-	nil,                           // 24: loco.agent.v1.EnvSecret.DataEntry
-	(v1.ClusterRole)(0),           // 25: loco.cluster.v1.ClusterRole
-	(*durationpb.Duration)(nil),   // 26: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
-	(*v11.Replica)(nil),           // 28: loco.deployment.v1.Replica
-	(*v11.FailurePolicy)(nil),     // 29: loco.deployment.v1.FailurePolicy
-	(*v11.ReplicaRestart)(nil),    // 30: loco.deployment.v1.ReplicaRestart
+	(*CapacityReport)(nil),        // 24: loco.agent.v1.CapacityReport
+	(*NodeAllocation)(nil),        // 25: loco.agent.v1.NodeAllocation
+	nil,                           // 26: loco.agent.v1.EnvSecret.DataEntry
+	(v1.ClusterRole)(0),           // 27: loco.cluster.v1.ClusterRole
+	(*durationpb.Duration)(nil),   // 28: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 29: google.protobuf.Timestamp
+	(*v11.Replica)(nil),           // 30: loco.deployment.v1.Replica
+	(*v11.FailurePolicy)(nil),     // 31: loco.deployment.v1.FailurePolicy
+	(*v11.ReplicaRestart)(nil),    // 32: loco.deployment.v1.ReplicaRestart
+	(*v1.NodeCapacity)(nil),       // 33: loco.cluster.v1.NodeCapacity
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	22, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	25, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
+	27, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
 	3,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
-	26, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
+	28, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
 	6,  // 4: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
 	10, // 5: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
 	11, // 6: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
 	9,  // 7: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
 	21, // 8: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
-	7,  // 9: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
-	8,  // 10: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
-	0,  // 11: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
-	0,  // 12: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
-	27, // 13: loco.agent.v1.BuildStatus.stage_since:type_name -> google.protobuf.Timestamp
-	28, // 14: loco.agent.v1.PlacementStatus.replicas:type_name -> loco.deployment.v1.Replica
-	13, // 15: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
-	27, // 16: loco.agent.v1.PlacementStatus.healthy_at:type_name -> google.protobuf.Timestamp
-	12, // 17: loco.agent.v1.PlacementStatus.stopped:type_name -> loco.agent.v1.StoppedRevision
-	29, // 18: loco.agent.v1.PlacementStatus.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
-	1,  // 19: loco.agent.v1.StoppedRevision.reason:type_name -> loco.agent.v1.StopReason
-	30, // 20: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
-	27, // 21: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
-	27, // 22: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
-	16, // 23: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	18, // 24: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	19, // 25: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	20, // 26: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	15, // 27: loco.agent.v1.SyncResponse.keep_workspaces:type_name -> loco.agent.v1.KeepWorkspaces
-	17, // 28: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	24, // 29: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	22, // 30: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	23, // 31: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	25, // 32: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	2,  // 33: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	5,  // 34: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	4,  // 35: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	14, // 36: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	35, // [35:37] is the sub-list for method output_type
-	33, // [33:35] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	24, // 9: loco.agent.v1.SyncRequest.capacity_report:type_name -> loco.agent.v1.CapacityReport
+	7,  // 10: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
+	8,  // 11: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
+	0,  // 12: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
+	0,  // 13: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
+	29, // 14: loco.agent.v1.BuildStatus.stage_since:type_name -> google.protobuf.Timestamp
+	30, // 15: loco.agent.v1.PlacementStatus.replicas:type_name -> loco.deployment.v1.Replica
+	13, // 16: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
+	29, // 17: loco.agent.v1.PlacementStatus.healthy_at:type_name -> google.protobuf.Timestamp
+	12, // 18: loco.agent.v1.PlacementStatus.stopped:type_name -> loco.agent.v1.StoppedRevision
+	31, // 19: loco.agent.v1.PlacementStatus.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	1,  // 20: loco.agent.v1.StoppedRevision.reason:type_name -> loco.agent.v1.StopReason
+	32, // 21: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
+	29, // 22: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
+	29, // 23: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
+	16, // 24: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	18, // 25: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	19, // 26: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	20, // 27: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	15, // 28: loco.agent.v1.SyncResponse.keep_workspaces:type_name -> loco.agent.v1.KeepWorkspaces
+	17, // 29: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	26, // 30: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	22, // 31: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	23, // 32: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	27, // 33: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	33, // 34: loco.agent.v1.CapacityReport.nodes:type_name -> loco.cluster.v1.NodeCapacity
+	25, // 35: loco.agent.v1.CapacityReport.allocations:type_name -> loco.agent.v1.NodeAllocation
+	2,  // 36: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	5,  // 37: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	4,  // 38: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	14, // 39: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	38, // [38:40] is the sub-list for method output_type
+	36, // [36:38] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -2181,6 +2411,7 @@ func file_loco_agent_v1_agent_proto_init() {
 		(*SyncRequest_Status)(nil),
 		(*SyncRequest_BuildStatus)(nil),
 		(*SyncRequest_Heartbeat)(nil),
+		(*SyncRequest_CapacityReport)(nil),
 	}
 	file_loco_agent_v1_agent_proto_msgTypes[12].OneofWrappers = []any{
 		(*SyncResponse_Apply)(nil),
@@ -2195,7 +2426,7 @@ func file_loco_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
