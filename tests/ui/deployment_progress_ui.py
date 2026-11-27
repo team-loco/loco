@@ -140,6 +140,12 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         if status == "running" or new_ready
         else "Waiting for readiness",
     }
+    if status == "failed":
+        replica["last_exit"] = {
+            "reason": "Error",
+            "exit_code": 1,
+            "finished_at": {"seconds": str(now - 6 * 60 * 60)},
+        }
     previous = [
         {
             "uid": name,
@@ -349,6 +355,15 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             "Failing", exact=True
         )
     ).to_be_visible()
+    # An exited replica opens its historical failure, rather than recent logs.
+    page.get_by_role("button", name="1, Failing", exact=True).click()
+    replica_link = page.get_by_role("link", name="Replica logs", exact=True)
+    replica_params = parse_qs(urlparse(replica_link.get_attribute("href")).query)
+    assert replica_params["q"] == ["@replica:progress-new-1"], replica_params
+    assert (
+        abs(int(replica_params["at"][0]) - (time.time() - 6 * 60 * 60) * 1000) < 30_000
+    ), replica_params
+    page.keyboard.press("Escape")
     # The incident card shows once no deploy card does.
     sql(
         state,

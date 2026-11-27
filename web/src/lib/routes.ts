@@ -160,11 +160,11 @@ export function buildLogsPath(
 	const finished = maybeTsMs(build?.finishedAt);
 	return observabilityPath(orgId, workspaceId, "logs", {
 		q: `@build:${buildId}`,
-		...(from === undefined
+		...(from === undefined || finished === undefined
 			? { range: DAY_MS }
 			: {
 					from: from - AROUND_MS,
-					to: Math.min(Date.now(), (finished ?? Date.now()) + AROUND_MS),
+					to: Math.min(Date.now(), finished + AROUND_MS),
 				}),
 	});
 }

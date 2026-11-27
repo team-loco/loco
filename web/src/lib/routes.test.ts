@@ -91,3 +91,11 @@ test("incident links replace stale time bounds and preserve the replica and envi
 	expect(logsAtHref(undefined, at)).toBeUndefined();
 	expect(logsAtHref("/logs?range=15m", undefined)).toBe("/logs?range=15m");
 });
+
+test("running builds keep a relative window so their logs can stream", () => {
+	const url = new URL(
+		buildLogsPath("o", "w", "running", { createdAt: timestampFromMs(Date.now() - 600_000), finishedAt: undefined }),
+		"https://loco.test",
+	);
+	expect(toWindow(createLoader(WINDOW_PARSERS)(url), DAY_MS)).toEqual({ kind: "relative", spanMs: DAY_MS });
+});
