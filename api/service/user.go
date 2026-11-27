@@ -313,6 +313,14 @@ func (s *UserServer) SetUserStatus(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest)
 	}
 
+	caller, callerErr := principalFrom(ctx)
+	if callerErr != nil {
+		return nil, callerErr
+	}
+	if caller.UserID == userID {
+		return nil, connect.NewError(connect.CodePermissionDenied, "you cannot change your own account status")
+	}
+
 	status, eventType := genDb.UserStatusActive, events.UserReinstated
 	if req.GetStatus() == userv1.UserStatus_USER_STATUS_SUSPENDED {
 		status, eventType = genDb.UserStatusSuspended, events.UserSuspended

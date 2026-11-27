@@ -118,6 +118,43 @@ func TestSetUserStatusRejectsInvalidRequests(t *testing.T) {
 	}
 }
 
+func TestSetUserStatusRejectsSelf(t *testing.T) {
+	t.Parallel()
+	a := newMembershipAPI(t)
+	admin := a.signUp(t, "selfadmin")
+	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: admin.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	statuses := []userv1.UserStatus{
+		userv1.UserStatus_USER_STATUS_SUSPENDED, userv1.UserStatus_USER_STATUS_ACTIVE,
+	}
+	for _, status := range statuses {
+		for _, byEmail := range []bool{false, true} {
+			req := &userv1.SetUserStatusRequest{
+				Key:    &userv1.SetUserStatusRequest_UserId{UserId: admin.id.String()},
+				Status: status,
+			}
+			if byEmail {
+				req.Key = &userv1.SetUserStatusRequest_Email{Email: "selfadmin@acme.test"}
+			}
+			_, err := admin.clients.User.SetUserStatus(t.Context(), req)
+			if connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("status %s, byEmail %t: got %v, want permission denied", status, byEmail, err)
+			}
+		}
+	}
+	if _, err := admin.clients.User.WhoAmI(t.Context(), &userv1.WhoAmIRequest{}); err != nil {
+		t.Fatalf("admin remains active: %v", err)
+	}
+	for _, event := range []string{events.UserSuspended, events.UserReinstated} {
+		if n := a.countEvents(t, event, admin.id); n != 0 {
+			t.Fatalf("%s events = %d, want 0", event, n)
+		}
+	}
+}
+
 func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
 	t.Parallel()
 	o := newMembershipOrg(t)
