@@ -107,11 +107,37 @@ func TestEventSubscriptionsMatchListedScope(t *testing.T) {
 	}
 }
 
+type heldEventQuery struct {
+	genDb.DBTX
+	hold                       atomic.Bool
+	entered, release, canceled chan struct{}
+}
+
+func (q *heldEventQuery) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	if q.hold.CompareAndSwap(true, false) {
+		close(q.entered)
+		select {
+		case <-q.release:
+		case <-ctx.Done():
+			close(q.canceled)
+			return nil, ctx.Err()
+		}
+	}
+	return q.DBTX.Query(ctx, sql, args...)
+}
+
 func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 	t.Parallel()
 	f := newScopedAuditFixture(t)
 	f.events.poll = time.Millisecond
 	publishEvents(t, f.pool)
+	held := &heldEventQuery{
+		DBTX:     f.pool,
+		entered:  make(chan struct{}),
+		release:  make(chan struct{}),
+		canceled: make(chan struct{}),
+	}
+	f.events.db = held
 	var removed atomic.Bool
 	checked := make(chan struct{}, 2)
 	scopes := func() []genDb.EntityScope {
@@ -156,14 +182,24 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 	if len(first.GetEvents()) != 10 {
 		t.Fatalf("initial subscription = %v", first)
 	}
+	held.hold.Store(true)
+	select {
+	case <-held.entered:
+	case <-ctx.Done():
+		t.Fatal("poll did not reach the database")
+	}
 	removed.Store(true)
-	// The second sequential validation read proves the first authorization update completed.
-	for range 2 {
-		select {
-		case <-checked:
-		case <-ctx.Done():
-			t.Fatal("access was not rechecked")
-		}
+	select {
+	case <-checked:
+	case <-ctx.Done():
+		t.Fatal("access was not rechecked")
+	}
+	// A second read proves the first recheck completed; cancellation can end it sooner.
+	select {
+	case <-checked:
+	case <-held.canceled:
+	case <-ctx.Done():
+		t.Fatal("recheck did not finish")
 	}
 	for _, resource := range []uuid.UUID{f.otherResourceID, f.resourceID} {
 		if recordErr := events.Record(
@@ -175,12 +211,70 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 		}
 	}
 	publishEvents(t, f.pool)
-	next, err := stream.Receive()
+	close(held.release)
+	if next, receiveErr := stream.Receive(); connect.CodeOf(receiveErr) != connect.CodeAborted {
+		t.Fatalf("subscription after partial revocation = %v, error = %v", next, receiveErr)
+	}
+	resumed, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{
+		OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: true, Cursor: first.GetCursor(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resumed.Close()
+	next, err := resumed.Receive()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetResourceId() != f.resourceID.String() {
-		t.Fatalf("events after partial revocation = %v", next)
+		t.Fatalf("events after reconnect with remaining grant = %v", next)
+	}
+}
+
+func TestReadableEventSubscriptionIncludesNewResources(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	f.events.poll = time.Millisecond
+	publishEvents(t, f.pool)
+	caller := auditScope(t, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeRead)
+	principal, _ := reqctx.PrincipalFrom(caller)
+	server := connect.NewServer(scopeInjector(func() []genDb.EntityScope { return principal.Scopes }).Interceptor)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	client := eventv1connect.NewEventServiceClient(connect.NewClient(connectinprocess.New(server)))
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	stream, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{
+		OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err = stream.Receive(); err != nil {
+		t.Fatal(err)
+	}
+	owner, _ := reqctx.PrincipalFrom(f.owner)
+	resourceID, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
+		WorkspaceID: f.workspaceID, CreatedBy: owner.UserID, Slug: "stream-added", Name: "stream-added",
+		Type: genDb.ResourceTypeService, Spec: []byte(`{}`), SpecVersion: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = events.Record(
+		f.owner,
+		f.queries,
+		events.Event{Type: events.ResourceUpdated, ResourceID: &resourceID},
+	); err != nil {
+		t.Fatal(err)
+	}
+	publishEvents(t, f.pool)
+	next, err := stream.Receive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetResourceId() != resourceID.String() {
+		t.Fatalf("new resource subscription = %v", next)
 	}
 }
 

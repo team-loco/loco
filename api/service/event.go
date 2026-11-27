@@ -397,6 +397,9 @@ func (s *EventServer) StreamEvents(
 		if checkErr != nil {
 			return checkErr
 		}
+		if lostEventResourceAccess(access.Load().resourceIDs, current.resourceIDs) {
+			return connect.NewError(connect.CodeAborted, "event subscription access changed")
+		}
 		access.Store(&current)
 		return nil
 	})
@@ -458,6 +461,29 @@ func (s *EventServer) StreamEvents(
 		case <-ticker.C:
 		}
 	}
+}
+
+// A nil resource set grants every resource; an empty non-nil set grants none.
+func lostEventResourceAccess(previous, current []uuid.UUID) bool {
+	if current == nil {
+		return false
+	}
+	if previous == nil {
+		return true
+	}
+	if slices.Equal(previous, current) {
+		return false
+	}
+	allowed := make(map[uuid.UUID]bool, len(current))
+	for _, id := range current {
+		allowed[id] = true
+	}
+	for _, id := range previous {
+		if !allowed[id] {
+			return true
+		}
+	}
+	return false
 }
 
 func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {

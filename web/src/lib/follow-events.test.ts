@@ -7,7 +7,7 @@ import { followEvents } from "@/lib/follow-events";
 
 const event = (id: string) => create(EventSchema, { id, type: "resource.degraded" });
 
-test("a dropped stream or expired session resumes from the last cursor, so no event arrives twice", async () => {
+test("a dropped stream, expired session or changed access resumes from the last cursor", async () => {
 	const abort = new AbortController();
 	const cursors: string[] = [];
 	const seen: string[] = [];
@@ -23,6 +23,10 @@ test("a dropped stream or expired session resumes from the last cursor, so no ev
 				yield { events: [event("e2")], cursor: "c2" };
 				throw new ConnectError("session expired", Code.Unauthenticated);
 			}
+			if (cursors.length === 3) {
+				yield { events: [event("e3")], cursor: "c3" };
+				throw new ConnectError("subscription access changed", Code.Aborted);
+			}
 			abort.abort();
 		},
 		(events: Event[]) => {
@@ -31,8 +35,8 @@ test("a dropped stream or expired session resumes from the last cursor, so no ev
 		abort.signal,
 		{ retryMs: 0 },
 	);
-	expect(cursors).toEqual(["", "c1", "c2"]);
-	expect(seen).toEqual(["e1", "e2"]);
+	expect(cursors).toEqual(["", "c1", "c2", "c3"]);
+	expect(seen).toEqual(["e1", "e2", "e3"]);
 });
 
 test("a refused stream stops", async () => {
