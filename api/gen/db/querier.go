@@ -144,6 +144,7 @@ type Querier interface {
 	GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetEnrolledClusterByKeyRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
+	GetEventStreamPosition(ctx context.Context) (int64, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetIdentityForUser(ctx context.Context, userID uuid.UUID) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
@@ -232,7 +233,6 @@ type Querier interface {
 	// Every resource of the workspace with what references to it read in the environment: its latest
 	// deployment there that was not canceled, and its primary domain there.
 	ListEnvironmentTargets(ctx context.Context, arg ListEnvironmentTargetsParams) ([]ListEnvironmentTargetsRow, error)
-	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebhookIDsRow, error)
 	ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error)

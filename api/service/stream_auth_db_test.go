@@ -97,7 +97,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 				}
 			} else {
 				scopes = []genDb.EntityScope{
-					{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
+					{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeAdmin},
 				}
 			}
 			token := issueStreamCredential(t, f, userID, workspaceID, tc.credential, scopes)
@@ -323,7 +323,7 @@ func TestOwnedEventStreamSurvivesIssuerDeletionUntilRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	token := issueStreamCredential(t, f, userID, workspaceID, streamOwned, []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeAdmin},
 	})
 	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()

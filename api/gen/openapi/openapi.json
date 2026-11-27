@@ -13457,6 +13457,12 @@
             "title": "resource_ids",
             "maxItems": 100,
             "description": "With workspace_id and no resource_id: only the events of these resources. With\n readable_resources, only those of them the caller can list."
+          },
+          "afterCursor": {
+            "type": "string",
+            "title": "after_cursor",
+            "maxLength": 64,
+            "description": "Only published events after this StreamEvents cursor, for counting new arrivals."
           }
         },
         "title": "ListEventsRequest",
@@ -13491,6 +13497,11 @@
             },
             "title": "facets",
             "description": "Set when include_facets is: counts per value of each facet key over the newest 10,001 events the\n scope, time range and types match, ignoring query and page_token."
+          },
+          "streamCursor": {
+            "type": "string",
+            "title": "stream_cursor",
+            "description": "Publication boundary captured before reading history. Resume StreamEvents or count arrivals\n with after_cursor from here; transactions published after this boundary cannot be skipped."
           }
         },
         "title": "ListEventsResponse",
@@ -13537,6 +13548,32 @@
             "type": "string",
             "title": "query",
             "description": "Audit query: free text matched against the actor, target, event type, title, reason, region,\n message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,\n @reason and @resource fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
+          },
+          "installationOnly": {
+            "type": "boolean",
+            "title": "installation_only",
+            "description": "Uses the same scope, authorization and type filters as ListEvents."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "types",
+            "maxItems": 100
+          },
+          "readableResources": {
+            "type": "boolean",
+            "title": "readable_resources"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 100
           }
         },
         "title": "StreamEventsRequest",

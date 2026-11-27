@@ -606,3 +606,54 @@ def test_ui_serves_the_issuer_sign_in_page(tmp_path):
             assert response.headers["Content-Type"] == "text/html"
             assert "<h1>Sign in</h1>" in response.read().decode()
         server.shutdown()
+
+
+def test_capture_url_response_accepts_framed_stream_request(tmp_path):
+    from playwright.sync_api import sync_playwright
+
+    html = """<div id="ready" hidden></div><script>
+    const body = new TextEncoder().encode('{"orgId":"synthetic"}');
+    const frame = new Uint8Array(body.length + 5);
+    new DataView(frame.buffer).setUint32(1, body.length);
+    frame.set(body, 5);
+    fetch('/StreamEvents', {method: 'POST', headers: {'Content-Type': 'application/connect+json'}, body: frame})
+      .then(response => response.json()).then(response => {
+        const ready = document.getElementById('ready');
+        ready.textContent = response.message;
+        ready.hidden = false;
+      });
+    </script>"""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        new_context = browser.new_context
+
+        def context(**options):
+            result = new_context(**options)
+            result.route(
+                "http://evidence.test/",
+                lambda route: route.fulfill(body=html, content_type="text/html"),
+            )
+            return result
+
+        browser.new_context = context
+        target = tmp_path / "stream.png"
+        evidence.capture(
+            browser,
+            {"users": {}, "ui_url": "http://evidence.test"},
+            {
+                "name": "stream",
+                "path": "/",
+                "ready_selector": "text=Stream fixture answered",
+                "respond": [
+                    {
+                        "url": "**/StreamEvents",
+                        "json": {"message": "Stream fixture answered"},
+                    }
+                ],
+            },
+            "light",
+            False,
+            target,
+        )
+        assert target.exists()
+        browser.close()

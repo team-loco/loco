@@ -6,7 +6,10 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     copied_text,
+    event_stream_input,
+    expect_rpc,
     load_state,
+    observe_event_batches,
     open_page,
     repo,
     session,
@@ -43,9 +46,16 @@ ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','messag
 FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind)
 ORDER BY n DESC;""",
 )
+# A resource grant can list its events without workspace read access.
+reader = state["users"]["reader"]["id"]
+sql(
+    state,
+    f"INSERT INTO user_scopes(user_id,entity_type,entity_id,scope) VALUES('{reader}','resource','{resource}','read') ON CONFLICT DO NOTHING",
+)
 out = Path(args.out)
 with session(out) as browser:
-    context, page, errors = open_page(browser, state=state)
+    context, page, errors = open_page(browser, state=state, now=time.time())
+    observe_event_batches(page)
     now_ms = int(time.time() * 1000)
     page.goto(
         state["ui_url"]
@@ -198,6 +208,236 @@ with session(out) as browser:
     live = page.locator("[data-live-button]")
     expect(live).to_have_attribute("aria-pressed", "true")
     expect(live).to_have_text("Pause")
+    stream_url = "**/loco.event.v1.EventService/StreamEvents"
+    page.route(
+        stream_url,
+        lambda route: route.fulfill(
+            status=403,
+            json={"code": "permission_denied", "message": "Event stream refused"},
+        ),
+    )
+    page.reload()
+    notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
+    expect(notice).to_contain_text("HTTP 403")
+    expect(
+        events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
+    ).to_be_visible()
+    page.unroute(stream_url)
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        notice.get_by_role("button", name="Reconnect", exact=True).click()
+    expect(notice).to_have_count(0)
+    # A normal event updates broader counts even while the table shows only errors.
+    events.get_by_role("button", name=re.compile(r"^Errors")).click()
+    all_events = events.get_by_role("button", name=re.compile(r"^All"))
+    expect(all_events).to_contain_text(re.compile(r"\d+"))
+    before_count = int(re.search(r"\d+", all_events.inner_text()).group())
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,subject_type,subject_id,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system','resource','{resource}',
+jsonb_build_object('region','us-ca-2','message','Recovered after reconnect'));""",
+    )
+    expect(all_events).to_contain_text(str(before_count + 1), timeout=15000)
+    expect(
+        events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
+    ).to_have_count(0)
+    all_events.click()
+    expect(
+        events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
+    ).to_be_visible(timeout=15000)
+    # Mount directly on an older page: published history is already viewed, not new.
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+SELECT 'resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','history','message','Published history '||n),NOW()-INTERVAL '3 minutes'
+FROM generate_series(1,30) n;""",
+    )
+    deadline = time.monotonic() + 10
+    while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
+        assert time.monotonic() < deadline, "fixture events were not published"
+        time.sleep(0.1)
+    page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
+    events.get_by_role("button", name="Next page", exact=True).click()
+    expect(events.get_by_text("Page 2", exact=True)).to_be_visible()
+    older_url = page.url.replace("&live=0", "")
+    with expect_rpc(
+        page, "ListEvents", lambda body: bool(body.get("afterCursor"))
+    ) as unread:
+        page.goto(older_url)
+    assert unread.value.json().get("totalCount", 0) == 0, unread.value.json()
+    expect(
+        events.get_by_role("button", name=re.compile(r"^\d+ new events?$"))
+    ).to_have_count(0)
+    # An event whose transaction timestamp predates mount still counts after publication.
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','late-commit','message','Late transaction'),NOW()-INTERVAL '2 minutes');""",
+    )
+    events.get_by_role("button", name="1 new event", exact=True).click(timeout=15000)
+    expect(
+        events.get_by_role("row", name="Recovered in late-commit", exact=True)
+    ).to_be_visible()
+    page_change_id = sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','page-change','message','Delivered before paging')) RETURNING id;""",
+    ).strip()
+    page.wait_for_function(
+        "id => Object.hasOwn(window.__eventStreamCursorById, id)", arg=page_change_id
+    )
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    events.get_by_role("button", name="Next page", exact=True).click()
+    events.get_by_role("button", name="1 new event", exact=True).click(timeout=15000)
+    expect(
+        events.get_by_role("row", name="Recovered in page-change", exact=True)
+    ).to_be_visible(timeout=15000)
+    # Finish the prior case's reads before establishing a new connection baseline.
+    live = page.locator("[data-live-button]")
+    live.click()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    prior_requests = page.requests()
+    for request in prior_requests:
+        if request.url.endswith("/ListEvents") and request.timing["responseEnd"] < 0:
+            response = request.response()
+            if response is not None:
+                response.finished()
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("pageSize") == 25 and not body.get("pageToken"),
+    ) as resumed_history:
+        live.click()
+    assert resumed_history.value.request not in prior_requests
+    resumed_history.value.finished()
+    paused_id = sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','paused-update','message','Paused update')) RETURNING id;""",
+    ).strip()
+    page.wait_for_function(
+        "id => Object.hasOwn(window.__eventStreamCursorById, id)", arg=paused_id
+    )
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    paused_cursor = page.evaluate("id => window.__eventStreamCursorById[id]", paused_id)
+    paused_row = events.get_by_role(
+        "row", name="Recovered in paused-update", exact=True
+    )
+    expect(paused_row).to_have_count(0)
+    live.click()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    page.clock.run_for(31_000)
+    expect(
+        events.get_by_role("row", name="Recovered in paused-update", exact=True)
+    ).to_have_count(0)
+    with page.expect_request(
+        lambda request: request.url.endswith("/StreamEvents")
+    ) as resumed:
+        live.click()
+    assert event_stream_input(resumed.value).get("cursor") == paused_cursor
+    expect(
+        events.get_by_role("row", name="Recovered in paused-update", exact=True)
+    ).to_be_visible(timeout=15000)
+    # A historical range constrains both its stream and its unread-count request.
+    history_end = int(time.time() * 1000) - 60_000
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?view=events&from={history_end - 600_000}&to={history_end}"
+    )
+    with expect_rpc(
+        page, "ListEvents", lambda body: bool(body.get("pageToken"))
+    ) as cached_history:
+        events.get_by_role("button", name="Next page", exact=True).click()
+    cached_input = cached_history.value.request.post_data_json
+    expect(events.get_by_text("Page 2", exact=True)).to_be_visible()
+    cached_history_url = page.url
+    # Leave through the router so the successfully loaded older page remains cached.
+    page.get_by_role("link", name="Logs", exact=True).click()
+    expect(page).to_have_url(re.compile(r"view=logs"))
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','before-remount','message','Published before remount'),NOW()-INTERVAL '2 minutes');""",
+    )
+    deadline = time.monotonic() + 10
+    while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
+        assert time.monotonic() < deadline, "pre-remount event was not published"
+        time.sleep(0.1)
+    held_history = []
+    bootstrap_requests = []
+
+    def watch_bootstrap(request):
+        if request.url.endswith("/StreamEvents") or (
+            request.url.endswith("/ListEvents")
+            and request.post_data_json.get("afterCursor")
+        ):
+            bootstrap_requests.append(request.url)
+
+    page.on("request", watch_bootstrap)
+
+    def hold_history(route):
+        if route.request.post_data_json.get("pageToken"):
+            held_history.append(route)
+        else:
+            route.continue_()
+
+    history_rpc = "**/loco.event.v1.EventService/ListEvents"
+    page.route(history_rpc, hold_history)
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/ListEvents")
+            and bool(request.post_data_json.get("pageToken"))
+        )
+    ):
+        page.go_back()
+    expect(page).to_have_url(cached_history_url)
+    # The fresh history response is held: these rows can only come from the cache.
+    expect(
+        events.get_by_role("row", name="Recovered in history", exact=True).first
+    ).to_be_visible()
+    assert held_history, "fresh history request was not held"
+    assert held_history[0].request.post_data_json == cached_input
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    assert not bootstrap_requests, bootstrap_requests
+    with expect_rpc(
+        page, "ListEvents", lambda body: bool(body.get("afterCursor"))
+    ) as historical_unread:
+        for route in held_history:
+            route.continue_()
+        page.unroute(history_rpc, hold_history)
+    page.remove_listener("request", watch_bootstrap)
+    count_input = historical_unread.value.request.post_data_json
+    assert "endTime" in count_input, count_input
+    assert historical_unread.value.json().get("totalCount", 0) == 0
+    batches = page.evaluate("window.__eventStreamBatches")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','outside-range','message','Outside historical range'));""",
+    )
+    deadline = time.monotonic() + 10
+    while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
+        assert time.monotonic() < deadline, "out-of-range event was not published"
+        time.sleep(0.1)
+    # Let the subscription process the actual out-of-range publication.
+    page.wait_for_timeout(2500)
+    assert page.evaluate("window.__eventStreamBatches") == batches
+    expect(
+        events.get_by_role("button", name=re.compile(r"^\d+ new events?$"))
+    ).to_have_count(0)
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, state=state, now=time.time())
@@ -210,7 +450,19 @@ with session(out) as browser:
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     failed = page.get_by_role("alert").filter(has_text="Couldn’t load events")
     expect(failed).to_be_visible()
-    # The history window moves every 15 minutes; hold the next window's requests.
+    # Advancing the display clock cannot fetch history, even after a failed load.
+    requests = []
+    page.on(
+        "request",
+        lambda request: (
+            requests.append(request.url)
+            if request.url.endswith("/ListEvents")
+            else None
+        ),
+    )
+    page.clock.run_for(31_000)
+    assert not requests, requests
+    # An explicit retry preserves the reported error while history is loading.
     page.route("**/loco.event.v1.EventService/ListEvents", lambda route: None)
     with page.expect_request(
         lambda request: (
@@ -218,18 +470,32 @@ with session(out) as browser:
             and "startTime" in (request.post_data_json or {})
         )
     ):
-        page.clock.run_for(15 * 60_000)
+        failed.get_by_role("button", name="Retry", exact=True).click()
     assert failed.is_visible()
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, user="reader", state=state)
-    page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
+    page.goto(
+        state["ui_url"] + base + "/observability?view=events&live=0&q=@region:us-ca-1"
+    )
     page.get_by_role("region", name="Events", exact=True).get_by_role(
         "row", name="Degraded in us-ca-1", exact=True
     ).first.click()
     drawer = page.get_by_role("dialog", name="Degraded in us-ca-1", exact=True)
     expect(drawer).to_be_visible()
     expect(drawer.get_by_role("link", name="Subscribe", exact=True)).to_have_count(0)
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        page.goto(state["ui_url"] + base + "/observability?view=events")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,subject_type,subject_id,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system','resource','{resource}',
+jsonb_build_object('region','us-ca-3','message','Recovered for resource reader'));""",
+    )
+    expect(
+        page.get_by_role("row", name="Recovered in us-ca-3", exact=True)
+    ).to_be_visible(timeout=15000)
+    expect(page.get_by_text("Live updates disconnected", exact=True)).to_have_count(0)
     assert not errors, errors
     context.close()
 print(

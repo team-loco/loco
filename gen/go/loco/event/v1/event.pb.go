@@ -286,7 +286,9 @@ type ListEventsRequest struct {
 	ReadableResources bool `protobuf:"varint,17,opt,name=readable_resources,json=readableResources,proto3" json:"readable_resources,omitempty"`
 	// With workspace_id and no resource_id: only the events of these resources. With
 	// readable_resources, only those of them the caller can list.
-	ResourceIds   []string `protobuf:"bytes,18,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	ResourceIds []string `protobuf:"bytes,18,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	// Only published events after this StreamEvents cursor, for counting new arrivals.
+	AfterCursor   string `protobuf:"bytes,20,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -426,6 +428,13 @@ func (x *ListEventsRequest) GetResourceIds() []string {
 	return nil
 }
 
+func (x *ListEventsRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
 // EventFacet counts the events per value of one key.
 type EventFacet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -543,7 +552,10 @@ type ListEventsResponse struct {
 	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	// Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
 	// scope, time range and types match, ignoring query and page_token.
-	Facets        []*EventFacet `protobuf:"bytes,4,rep,name=facets,proto3" json:"facets,omitempty"`
+	Facets []*EventFacet `protobuf:"bytes,4,rep,name=facets,proto3" json:"facets,omitempty"`
+	// Publication boundary captured before reading history. Resume StreamEvents or count arrivals
+	// with after_cursor from here; transactions published after this boundary cannot be skipped.
+	StreamCursor  string `protobuf:"bytes,5,opt,name=stream_cursor,json=streamCursor,proto3" json:"stream_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -606,6 +618,13 @@ func (x *ListEventsResponse) GetFacets() []*EventFacet {
 	return nil
 }
 
+func (x *ListEventsResponse) GetStreamCursor() string {
+	if x != nil {
+		return x.StreamCursor
+	}
+	return ""
+}
+
 type StreamEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
@@ -620,9 +639,14 @@ type StreamEventsRequest struct {
 	// message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
 	// @reason and @resource fields, AND, OR, - and parentheses.
 	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
-	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Query string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
+	// Uses the same scope, authorization and type filters as ListEvents.
+	InstallationOnly  bool     `protobuf:"varint,19,opt,name=installation_only,json=installationOnly,proto3" json:"installation_only,omitempty"`
+	Types             []string `protobuf:"bytes,15,rep,name=types,proto3" json:"types,omitempty"`
+	ReadableResources bool     `protobuf:"varint,17,opt,name=readable_resources,json=readableResources,proto3" json:"readable_resources,omitempty"`
+	ResourceIds       []string `protobuf:"bytes,18,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StreamEventsRequest) Reset() {
@@ -709,6 +733,34 @@ func (x *StreamEventsRequest) GetQuery() string {
 		return x.Query
 	}
 	return ""
+}
+
+func (x *StreamEventsRequest) GetInstallationOnly() bool {
+	if x != nil {
+		return x.InstallationOnly
+	}
+	return false
+}
+
+func (x *StreamEventsRequest) GetTypes() []string {
+	if x != nil {
+		return x.Types
+	}
+	return nil
+}
+
+func (x *StreamEventsRequest) GetReadableResources() bool {
+	if x != nil {
+		return x.ReadableResources
+	}
+	return false
+}
+
+func (x *StreamEventsRequest) GetResourceIds() []string {
+	if x != nil {
+		return x.ResourceIds
+	}
+	return nil
 }
 
 type StreamEventsResponse struct {
@@ -799,7 +851,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
 	"\x06region\x18\x15 \x01(\tR\x06region\x12*\n" +
 	"\x11acted_as_operator\x18\x16 \x01(\bR\x0factedAsOperator\x12\x19\n" +
-	"\borg_name\x18\x17 \x01(\tR\aorgName\"\xb3\x05\n" +
+	"\borg_name\x18\x17 \x01(\tR\aorgName\"\xdf\x05\n" +
 	"\x11ListEventsRequest\x12\"\n" +
 	"\x06org_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12+\n" +
 	"\x11installation_only\x18\x13 \x01(\bR\x10installationOnly\x12&\n" +
@@ -819,20 +871,22 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x05types\x18\x0f \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x05types\x12%\n" +
 	"\x0einclude_facets\x18\x10 \x01(\bR\rincludeFacets\x12-\n" +
 	"\x12readable_resources\x18\x11 \x01(\bR\x11readableResources\x122\n" +
-	"\fresource_ids\x18\x12 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\"V\n" +
+	"\fresource_ids\x18\x12 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12*\n" +
+	"\fafter_cursor\x18\x14 \x01(\tB\a\xbaH\x04r\x02\x18@R\vafterCursor\"V\n" +
 	"\n" +
 	"EventFacet\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
 	"\x06values\x18\x02 \x03(\v2\x1e.loco.event.v1.EventFacetValueR\x06values\"=\n" +
 	"\x0fEventFacetValue\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\xbe\x01\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xe3\x01\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
 	"totalCount\x121\n" +
-	"\x06facets\x18\x04 \x03(\v2\x19.loco.event.v1.EventFacetR\x06facets\"\xfe\x02\n" +
+	"\x06facets\x18\x04 \x03(\v2\x19.loco.event.v1.EventFacetR\x06facets\x12#\n" +
+	"\rstream_cursor\x18\x05 \x01(\tR\fstreamCursor\"\xae\x04\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
 	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12\"\n" +
 	"\x06org_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12.\n" +
@@ -843,7 +897,11 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
-	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"\\\n" +
+	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12+\n" +
+	"\x11installation_only\x18\x13 \x01(\bR\x10installationOnly\x12\x1e\n" +
+	"\x05types\x18\x0f \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x05types\x12-\n" +
+	"\x12readable_resources\x18\x11 \x01(\bR\x11readableResources\x122\n" +
+	"\fresource_ids\x18\x12 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\"\\\n" +
 	"\x14StreamEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xbc\x01\n" +

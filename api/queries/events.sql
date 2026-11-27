@@ -6,13 +6,6 @@ FROM (SELECT 1) one
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq;
 
--- name: ListEventsAfter :many
-SELECT *
-FROM events
-WHERE stream_position > sqlc.arg('after_position')::bigint
-ORDER BY stream_position
-LIMIT sqlc.arg('max_rows');
-
 -- name: DeleteEventsBefore :execrows
 DELETE FROM events
 WHERE seq IN (
@@ -20,6 +13,9 @@ WHERE seq IN (
     WHERE e.created_at < sqlc.arg('cutoff') AND e.stream_position IS NOT NULL
     LIMIT sqlc.arg('batch_size')
 );
+
+-- name: GetEventStreamPosition :one
+SELECT position FROM event_stream_counter WHERE singleton;
 
 -- name: LockEventStreamCounter :one
 SELECT position FROM event_stream_counter WHERE singleton FOR UPDATE;

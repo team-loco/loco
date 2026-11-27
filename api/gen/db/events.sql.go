@@ -34,6 +34,17 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, arg DeleteEventsBefore
 	return result.RowsAffected(), nil
 }
 
+const getEventStreamPosition = `-- name: GetEventStreamPosition :one
+SELECT position FROM event_stream_counter WHERE singleton
+`
+
+func (q *Queries) GetEventStreamPosition(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getEventStreamPosition)
+	var position int64
+	err := row.Scan(&position)
+	return position, err
+}
+
 const insertEvent = `-- name: InsertEvent :one
 INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
                     actor_token_name, actor_token_type, acted_as_operator)
@@ -80,60 +91,6 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 	var seq int64
 	err := row.Scan(&seq)
 	return seq, err
-}
-
-const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, actor_token_name, actor_token_type, acted_as_operator, subject_type, subject_id, request_id, traceparent, data, created_at
-FROM events
-WHERE stream_position > $1::bigint
-ORDER BY stream_position
-LIMIT $2
-`
-
-type ListEventsAfterParams struct {
-	AfterPosition int64 `json:"afterPosition"`
-	MaxRows       int32 `json:"maxRows"`
-}
-
-func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEventsAfter, arg.AfterPosition, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Event
-	for rows.Next() {
-		var i Event
-		if err := rows.Scan(
-			&i.Seq,
-			&i.StreamPosition,
-			&i.ID,
-			&i.Type,
-			&i.OrgID,
-			&i.WorkspaceID,
-			&i.ResourceID,
-			&i.EnvironmentID,
-			&i.DeploymentID,
-			&i.ActorType,
-			&i.ActorID,
-			&i.ActorTokenName,
-			&i.ActorTokenType,
-			&i.ActedAsOperator,
-			&i.SubjectType,
-			&i.SubjectID,
-			&i.RequestID,
-			&i.Traceparent,
-			&i.Data,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const lockEventStreamCounter = `-- name: LockEventStreamCounter :one

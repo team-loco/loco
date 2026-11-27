@@ -1,11 +1,10 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@connectrpc/connect";
-import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useState } from "react";
+import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { EventService, type ListEventsRequest, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
+import { type ListEventsRequest, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { PlusIcon } from "lucide-react";
@@ -17,9 +16,9 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Pager } from "@/components/design/Pager";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useMyScopes } from "@/hooks/useMyScopes";
+import { useEventSubscription } from "@/hooks/useEventSubscription";
+import { EventStreamNotice } from "@/components/design/EventStreamNotice";
 import { useNow } from "@/hooks/useNow";
-import { eventTypesQuery } from "@/lib/audit-query";
 import { useHeldError } from "@/hooks/useHeldError";
 import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
@@ -31,7 +30,7 @@ import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib
 import { useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { eventItem, type EventItem, type Severity } from "./events";
-import { coalesced } from "./coalesce";
+import { useCoalescedRefresh } from "@/hooks/useCoalescedRefresh";
 import { eventsQuery } from "./eventsQuery";
 import { ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { LevelBadge } from "./format";
@@ -50,9 +49,6 @@ const EVENTS_PARAMS = {
 	event: parseAsString,
 };
 const NOW_TICK_MS = 30_000;
-// Live mode without the event stream polls the page this often, and the counts on a slower clock.
-const POLL_MS = 10_000;
-const FACETS_MS = 60_000;
 // With the stream, a burst of new events refreshes the page and the counts at most this often.
 const PAGE_REFRESH_MS = 2_000;
 const COUNT_REFRESH_MS = 10_000;
@@ -74,7 +70,10 @@ export function EventsView() {
 	const now = useNow(NOW_TICK_MS);
 	const nowMs = now.getTime();
 
-	const span = resolveWindow(range, nowMs);
+	const windowKey = JSON.stringify([orgId, workspaceId, environment?.id, range]);
+	const [window, setWindow] = useState({ key: windowKey, end: openedAt });
+	if (window.key !== windowKey) setWindow({ key: windowKey, end: Math.max(window.end, nowMs) });
+	const span = resolveWindow(range, window.end);
 	const base = {
 		orgId,
 		workspaceId,
@@ -88,33 +87,33 @@ export function EventsView() {
 	const chips = EVENT_KEYS.flatMap((key) => liveTokens("events", tokens, key));
 	const resourceChips = chips.filter((t) => t.key === "resource");
 	const query = eventsQuery(chips, text);
-	const canStream = useMyScopes().resourceGrants(orgId, workspaceId) === "workspace";
+	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
+		enabled,
+		placeholderData: keepPreviousData,
+	});
+	const freshHistory = page.query.isSuccess && page.query.isFetchedAfterMount;
+	const historyReady = freshHistory && !page.query.isPlaceholderData;
+	const initialCursor = historyReady ? (page.query.data?.streamCursor ?? "") : "";
 	const stream = useEventStream({
 		orgId,
 		workspaceId,
-		openedAt,
-		on: live && canStream && enabled,
+		startTime: span.from,
+		endTime: range.kind === "absolute" ? span.to : undefined,
+		initialCursor,
+		on: live && enabled,
 		environmentId: environment?.id ?? "",
 		query,
 		onFirstPage: params.page.length === 0,
-	});
-	const streamFailed = stream.failed;
-	const poll = live && (!canStream || streamFailed) ? POLL_MS : false;
-	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
-		enabled,
-		refetchInterval: poll,
-		placeholderData: keepPreviousData,
 	});
 	const facets = useQuery(
 		listEvents,
 		{ ...base, pageSize: 1, includeFacets: true },
 		{
 			enabled,
-			refetchInterval: poll === false ? false : FACETS_MS,
 			placeholderData: keepPreviousData,
 		},
 	);
-	const counted = { base, resourceChips, enabled, live: poll !== false };
+	const counted = { base, resourceChips, enabled };
 	const allCount = useSeverityCount(counted, null);
 	const warningCount = useSeverityCount(counted, "warning");
 	const errorCount = useSeverityCount(counted, "error");
@@ -164,17 +163,20 @@ export function EventsView() {
 	});
 
 	const header = (
-		<ViewHeader
-			actions={
-				<LiveButton
-					on={live}
-					title={live ? "Pause event stream" : "Stream new events"}
-					onToggle={() => {
-						void setParams({ live: live ? "0" : null });
-					}}
-				/>
-			}
-		/>
+		<>
+			<ViewHeader
+				actions={
+					<LiveButton
+						on={live}
+						title={live ? "Pause event stream" : "Stream new events"}
+						onToggle={() => {
+							void setParams({ live: live ? "0" : null });
+						}}
+					/>
+				}
+			/>
+			<EventStreamNotice error={stream.error} onRetry={stream.retry} />
+		</>
 	);
 
 	if (!loading && error !== null) {
@@ -300,7 +302,7 @@ export function EventsView() {
 }
 
 /**
- * Streams the environment's new events that query matches while on. On the first page a burst of events
+ * Streams the environment's new events while on. On the first page a burst of events
  * refetches the page at most once per PAGE_REFRESH_MS and the counts at most once per COUNT_REFRESH_MS,
  * one request at a time; on later pages it counts the new events instead of moving rows under the reader.
  */
@@ -309,7 +311,9 @@ function useEventStream({
 	workspaceId,
 	environmentId,
 	query,
-	openedAt,
+	startTime,
+	endTime,
+	initialCursor,
 	on,
 	onFirstPage,
 }: {
@@ -317,69 +321,71 @@ function useEventStream({
 	workspaceId: string;
 	environmentId: string;
 	query: string;
-	openedAt: number;
+	startTime: number;
+	endTime: number | undefined;
+	initialCursor: string;
 	on: boolean;
 	onFirstPage: boolean;
-}): { failed: boolean; newEvents: number } {
-	const transport = useTransport();
+}) {
 	const queryClient = useQueryClient();
-	const key = `${orgId}/${workspaceId}`;
-	const [failed, setFailed] = useState<string | null>(null);
-	const [unseen, setUnseen] = useState({ key, count: 0 });
-	if (onFirstPage && unseen.count > 0) setUnseen({ key, count: 0 });
-	const firstPageRef = useRef(onFirstPage);
-	useEffect(() => {
-		firstPageRef.current = onFirstPage;
-	}, [onFirstPage]);
-	useEffect(() => {
-		if (!on) return;
-		const abort = new AbortController();
-		// Refetches this view's listed pages, or its one-row count and facet requests.
-		const invalidate = (counts: boolean) => async () => {
-			await queryClient.invalidateQueries({
-				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
-				predicate: (q) => {
-					const input = (q.queryKey[1] as { input?: Partial<ListEventsRequest> } | undefined)?.input;
-					return input?.readableResources === true && (input.pageSize === 1) === counts;
-				},
-			});
-		};
-		const pageRefresh = coalesced(invalidate(false), PAGE_REFRESH_MS);
-		const countRefresh = coalesced(invalidate(true), COUNT_REFRESH_MS);
-		const consume = async () => {
-			try {
-				const client = createClient(EventService, transport);
-				for await (const message of client.streamEvents(
-					{
-						orgId,
-						workspaceId,
-						environmentId,
-						startTime: msToTimestamp(openedAt),
-						query: [eventTypesQuery(ENVIRONMENT_EVENT_TYPES), query === "" ? "" : `(${query})`].join(" ").trim(),
-					},
-					{ signal: abort.signal },
-				)) {
-					if (message.events.length === 0) continue;
-					countRefresh.poke();
-					if (firstPageRef.current) pageRefresh.poke();
-					else
-						setUnseen((u) => ({
-							key,
-							count: (u.key === key ? u.count : 0) + message.events.length,
-						}));
-				}
-			} catch {
-				if (!abort.signal.aborted) setFailed(key);
-			}
-		};
-		void consume();
-		return () => {
-			abort.abort();
-			pageRefresh.stop();
-			countRefresh.stop();
-		};
-	}, [on, orgId, workspaceId, environmentId, query, openedAt, transport, queryClient, key]);
-	return { failed: failed === key, newEvents: unseen.key === key ? unseen.count : 0 };
+	const scope = `${orgId}/${workspaceId}/${environmentId}/${startTime}/${endTime ?? ""}`;
+	const bounds = {
+		startTime: msToTimestamp(startTime),
+		...(endTime === undefined ? {} : { endTime: msToTimestamp(endTime) }),
+	};
+	const key = `${scope}/${query}`;
+	const [viewed, setViewed] = useState({ scope, cursor: "" });
+
+	const invalidate = (counts: boolean) => async () => {
+		await queryClient.invalidateQueries({
+			queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
+			predicate: (q) => {
+				const input = (q.queryKey[1] as { input?: Partial<ListEventsRequest> } | undefined)?.input;
+				return input?.readableResources === true && (input.pageSize === 1) === counts;
+			},
+		});
+	};
+	const refreshPage = useCoalescedRefresh(invalidate(false), PAGE_REFRESH_MS, on, key);
+	const refreshCounts = useCoalescedRefresh(invalidate(true), COUNT_REFRESH_MS, on, key);
+	const subscription = useEventSubscription(
+		{
+			orgId,
+			workspaceId,
+			environmentId,
+			types: ENVIRONMENT_EVENT_TYPES,
+			readableResources: true,
+			...bounds,
+		},
+		on,
+		initialCursor,
+		() => {
+			refreshCounts();
+			if (onFirstPage) refreshPage();
+		},
+	);
+	const historyReady = initialCursor !== "";
+	const firstPageAdvanced = onFirstPage && viewed.cursor !== initialCursor;
+	const newScope = viewed.scope !== scope || viewed.cursor === "";
+	if (historyReady && (firstPageAdvanced || newScope)) setViewed({ scope, cursor: initialCursor });
+	const hasBaseline = viewed.scope === scope && viewed.cursor !== "";
+	const countArrivals = on && !onFirstPage && hasBaseline;
+	const received = useQuery(
+		listEvents,
+		{
+			orgId,
+			workspaceId,
+			environmentId,
+			query,
+			types: ENVIRONMENT_EVENT_TYPES,
+			readableResources: true,
+			...bounds,
+			pageSize: 1,
+			includeTotalCount: true,
+			afterCursor: viewed.scope === scope ? viewed.cursor : "",
+		},
+		{ enabled: countArrivals },
+	);
+	return { ...subscription, newEvents: received.data?.totalCount ?? 0 };
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */
@@ -388,12 +394,10 @@ function useSeverityCount(
 		base,
 		resourceChips,
 		enabled,
-		live,
 	}: {
 		base: Omit<MessageInitShape<typeof ListEventsRequestSchema>, "$typeName">;
 		resourceChips: Token[];
 		enabled: boolean;
-		live: boolean;
 	},
 	severity: Exclude<Severity, "normal"> | null,
 ): number | undefined {
@@ -401,7 +405,7 @@ function useSeverityCount(
 	return useQuery(
 		listEvents,
 		{ ...base, query: eventsQuery(chips, ""), pageSize: 1, includeTotalCount: true },
-		{ enabled, refetchInterval: live ? FACETS_MS : false },
+		{ enabled },
 	).data?.totalCount;
 }
 

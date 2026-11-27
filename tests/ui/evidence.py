@@ -2129,7 +2129,7 @@ def capture(browser, state, shot, theme, narrow, target):
 
     def responder(response):
         def respond(route):
-            body = route.request.post_data_json or {}
+            body = (route.request.post_data_json or {}) if response.get("match") else {}
             if any(
                 body.get(key) != value
                 for key, value in response.get("match", {}).items()

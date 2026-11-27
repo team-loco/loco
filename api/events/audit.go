@@ -20,12 +20,14 @@ type AuditQuery struct {
 	WorkspaceID      *uuid.UUID
 	ResourceID       *uuid.UUID
 	// ResourceIDs, when set, keeps events of these resources.
-	ResourceIDs   []uuid.UUID
+	ResourceIDs []uuid.UUID
+	// ResourcesOnly keeps events of resources currently in the event's workspace.
+	ResourcesOnly bool
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
 	// BeforeSeq, when positive, selects events with a lower seq.
 	BeforeSeq     int64
-	AfterPosition int64
+	AfterPosition *int64
 	Stream        bool
 	// Types, when set, keeps events of these types.
 	Types  []string
@@ -107,9 +109,10 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 
 // CountAudit counts the events q selects, at most q.Limit of them.
 func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error) {
-	sql, args := auditSQL(q)
+	b := &binder{}
+	sql := "SELECT count(*) FROM (SELECT 1" + auditFrom + auditWhere(q, b) + " LIMIT " + b.bind(q.Limit) + ") capped"
 	var n int64
-	err := db.QueryRow(ctx, apiDb.Named("CountAuditEvents", "SELECT count(*) FROM ("+sql+") capped"), args...).Scan(&n)
+	err := db.QueryRow(ctx, apiDb.Named("CountAuditEvents", sql), b.args...).Scan(&n)
 	return n, err
 }
 
@@ -117,7 +120,7 @@ func auditSQL(q AuditQuery) (string, []any) {
 	b := &binder{}
 	sql := auditSelect + auditWhere(q, b)
 	if q.Stream {
-		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
+		sql += " ORDER BY e.stream_position"
 	} else {
 		sql += " ORDER BY e.seq DESC"
 	}
@@ -145,6 +148,9 @@ func auditWhere(q AuditQuery, b *binder) string {
 	if q.ResourceIDs != nil {
 		sql += " AND e.resource_id = ANY(" + b.bind(q.ResourceIDs) + ")"
 	}
+	if q.ResourcesOnly {
+		sql += " AND r.workspace_id = e.workspace_id"
+	}
 	if q.EnvironmentID != nil {
 		sql += " AND e.environment_id = " + b.bind(*q.EnvironmentID)
 	}
@@ -156,6 +162,13 @@ func auditWhere(q AuditQuery, b *binder) string {
 	}
 	if q.BeforeSeq > 0 {
 		sql += " AND e.seq < " + b.bind(q.BeforeSeq)
+	}
+	if q.Stream || q.AfterPosition != nil {
+		var position int64
+		if q.AfterPosition != nil {
+			position = *q.AfterPosition
+		}
+		sql += " AND e.stream_position > " + b.bind(position)
 	}
 	if q.Filter != nil {
 		sql += " AND " + querySQL(q.Filter, b)

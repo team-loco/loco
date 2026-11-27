@@ -119,7 +119,7 @@ func (s *EventServer) ListEvents(
 	}
 	before, err := decodeEventPosition(req.GetPageToken())
 	if err != nil {
-		return nil, fieldError(connect.CodeInvalidArgument, "page_token", publicInvalidPageToken, "")
+		return nil, fieldError("page_token", publicInvalidPageToken, "")
 	}
 	pageSize := req.GetPageSize()
 	if pageSize == 0 {
@@ -128,6 +128,10 @@ func (s *EventServer) ListEvents(
 	query, err := auditQuery(req, scope, filter)
 	if err != nil {
 		return nil, err
+	}
+	position, err := s.queries.GetEventStreamPosition(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read event publication boundary: %w", err)
 	}
 	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
 		counted := query
@@ -143,7 +147,11 @@ func (s *EventServer) ListEvents(
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
-	response := &eventv1.ListEventsResponse{Events: rows, TotalCount: total}
+	response := &eventv1.ListEventsResponse{
+		Events:       rows,
+		TotalCount:   total,
+		StreamCursor: eventPosition(position).encode(),
+	}
 	if req.GetIncludeFacets() {
 		faceted := query
 		faceted.BeforeSeq, faceted.Limit = 0, totalCountCap+1
@@ -188,25 +196,21 @@ type eventScope struct {
 	workspaceID uuid.UUID
 	resourceID  uuid.UUID
 	// resourceIDs, when set, narrows a workspace scope to the resources the caller can list.
-	resourceIDs []uuid.UUID
+	resourceIDs   []uuid.UUID
+	resourcesOnly bool
 }
 
-// readableResources are the workspace's resources whose events the caller can list, by the checks a
-// ListEvents for one resource makes. A caller without a scope on the workspace or its organization
-// reads a resource only through a grant on it, so only those resources are checked.
-func (s *EventServer) readableResources(
+// readableResourceGrants are the workspace resources readable through direct grants.
+func (s *EventServer) readableResourceGrants(
 	ctx context.Context,
-	orgID uuid.UUID,
 	workspaceID uuid.UUID,
 ) ([]uuid.UUID, error) {
 	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
 	granted := grantedResourceIDs(p.Scopes)
-	scoped := allWorkspaces || slices.Contains(workspaceIDs, workspaceID)
-	if !scoped && len(granted) == 0 {
+	if len(granted) == 0 {
 		return nil, nil
 	}
 	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, workspaceID)
@@ -215,7 +219,7 @@ func (s *EventServer) readableResources(
 	}
 	var readable []uuid.UUID
 	for _, row := range rows {
-		if !scoped && !slices.Contains(granted, row.ID) {
+		if !slices.Contains(granted, row.ID) {
 			continue
 		}
 		if authorize(ctx, s.authz, actions.ListResourceAuditEvents, row.ID) == nil ||
@@ -233,7 +237,7 @@ func narrowsBelowOrganization(req *eventv1.ListEventsRequest) bool {
 
 // authorizeListScope authorizes a ListEvents. A request without an organization lists every
 // organization's events and the installation's, which needs system read; so does the whole log
-// of one organization, for a caller who is not its admin. Streams and facets never reach it.
+// of one organization, for a caller who is not its admin. Streams use the same authorization.
 func (s *EventServer) authorizeListScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
 	if req.GetOrgId() == "" {
 		if narrowsBelowOrganization(req) {
@@ -312,22 +316,28 @@ func (s *EventServer) authorizeEventScope(
 		}
 		denied := authorize(ctx, s.authz, workspaceAction, workspaceID)
 		resources := requested
+		resourcesOnly := false
 		if denied != nil {
 			if !req.GetReadableResources() {
 				return eventScope{}, denied
 			}
-			readable, readErr := s.readableResources(ctx, orgID, workspaceID)
-			if readErr != nil {
-				return eventScope{}, readErr
-			}
-			if len(readable) == 0 {
-				return eventScope{}, denied
-			}
-			resources = readable
-			if requested != nil {
-				resources = slices.DeleteFunc(readable, func(id uuid.UUID) bool {
-					return !slices.Contains(requested, id)
-				})
+			resourcesOnly = true
+			workspaceReadable := authorize(ctx, s.authz, actions.ListResources, workspaceID) == nil
+			if !workspaceReadable {
+				readable, readErr := s.readableResourceGrants(ctx, workspaceID)
+				if readErr != nil {
+					return eventScope{}, readErr
+				}
+				if len(readable) == 0 {
+					return eventScope{}, denied
+				}
+				resources = readable
+				if requested != nil {
+					resources = slices.DeleteFunc(
+						readable,
+						func(id uuid.UUID) bool { return !slices.Contains(requested, id) },
+					)
+				}
 			}
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
@@ -341,7 +351,11 @@ func (s *EventServer) authorizeEventScope(
 			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
 		return eventScope{
-			kind: eventScopeWorkspace, orgID: orgID, workspaceID: workspaceID, resourceIDs: resources,
+			kind:          eventScopeWorkspace,
+			orgID:         orgID,
+			workspaceID:   workspaceID,
+			resourceIDs:   resources,
+			resourcesOnly: resourcesOnly,
 		}, nil
 	}
 	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
@@ -371,42 +385,33 @@ func (s *EventServer) StreamEvents(
 	req *eventv1.StreamEventsRequest,
 	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) (err error) {
-	var scoped *eventv1.ListEventsRequest
-	var scope eventScope
-	var filter logquery.Expr
-	if req.GetWorkspaceId() != "" {
-		scoped = &eventv1.ListEventsRequest{
-			OrgId:         req.GetOrgId(),
-			WorkspaceId:   req.GetWorkspaceId(),
-			ResourceId:    req.GetResourceId(),
-			EnvironmentId: req.GetEnvironmentId(),
-			StartTime:     req.GetStartTime(),
-			EndTime:       req.GetEndTime(),
-			Query:         req.GetQuery(),
-		}
-		filter, err = parseEventFilter(scoped)
-		if err != nil {
-			return err
-		}
-		if scope, err = s.authorizeStreamScope(ctx, scoped); err != nil {
-			return err
-		}
-	} else {
-		if req.GetOrgId() != "" || req.GetResourceId() != "" || req.GetEnvironmentId() != "" || req.GetQuery() != "" ||
-			req.GetStartTime() != nil ||
-			req.GetEndTime() != nil {
-			return connect.NewError(connect.CodeInvalidArgument, "workspace_id is required for event filters")
-		}
-		if authorizationErr := authorizeSystem(ctx, s.authz, actions.StreamEvents); authorizationErr != nil {
-			return authorizationErr
-		}
+	scoped := &eventv1.ListEventsRequest{
+		OrgId: req.GetOrgId(), WorkspaceId: req.GetWorkspaceId(), ResourceId: req.GetResourceId(),
+		EnvironmentId: req.GetEnvironmentId(), InstallationOnly: req.GetInstallationOnly(),
+		StartTime: req.GetStartTime(), EndTime: req.GetEndTime(), Query: req.GetQuery(),
+		Types: req.GetTypes(), ReadableResources: req.GetReadableResources(), ResourceIds: req.GetResourceIds(),
+	}
+	filter, err := parseEventFilter(scoped)
+	if err != nil {
+		return err
+	}
+	scope, err := s.authorizeListScope(ctx, scoped)
+	if err != nil {
+		return err
+	}
+	query, err := auditQuery(scoped, scope, filter)
+	if err != nil {
+		return err
 	}
 	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
-		if scoped == nil {
-			return authorizeSystem(check, s.authz, actions.StreamEvents)
+		current, checkErr := s.authorizeListScope(check, scoped)
+		if checkErr != nil {
+			return checkErr
 		}
-		_, checkErr := s.authorizeStreamScope(check, scoped)
-		return checkErr
+		if eventScopeNarrowed(scope, current) {
+			return connect.NewError(connect.CodeAborted, "event subscription access changed")
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -427,26 +432,10 @@ func (s *EventServer) StreamEvents(
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
 	for {
-		var rows []events.AuditEvent
 		pollCtx, span := tracing.StartLinked(ctx, eventStreamPollSpan)
-		if scoped == nil {
-			var all []genDb.Event
-			all, err = s.queries.ListEventsAfter(
-				pollCtx,
-				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
-			)
-			for _, row := range all {
-				rows = append(rows, events.AuditEvent{Event: row})
-			}
-		} else {
-			query, queryErr := auditQuery(scoped, scope, filter)
-			if queryErr != nil {
-				tracing.End(span, queryErr)
-				return queryErr
-			}
-			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
-			rows, err = events.ListAudit(pollCtx, s.db, query)
-		}
+		query.Stream, query.AfterPosition, query.Limit = true, new(int64(position)), streamBatch
+		rows, readErr := events.ListAudit(pollCtx, s.db, query)
+		err = readErr
 		tracing.EndLive(ctx, span, err)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -459,6 +448,8 @@ func (s *EventServer) StreamEvents(
 			for i, row := range rows {
 				batch[i] = eventToProto(row.Event)
 				batch[i].Title, batch[i].Severity, batch[i].Region = row.Title, row.Severity, row.Region
+				batch[i].ActorEmail, batch[i].ActorName = derefString(row.ActorEmail), derefString(row.ActorName)
+				batch[i].OrgName = row.OrgName
 			}
 			last := rows[len(rows)-1]
 			position = eventPosition(*last.StreamPosition)
@@ -481,15 +472,30 @@ func (s *EventServer) StreamEvents(
 	}
 }
 
-func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
-	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
-	if err != nil {
-		return eventScope{}, err
+// A nil resource set grants every resource; an empty non-nil set grants none.
+func eventScopeNarrowed(previous, current eventScope) bool {
+	if current.resourcesOnly && !previous.resourcesOnly {
+		return true
 	}
-	if err := authorize(ctx, s.authz, actions.StreamWorkspaceEvents, workspaceID); err != nil {
-		return eventScope{}, err
+	if current.resourceIDs == nil {
+		return false
 	}
-	return s.authorizeEventScope(ctx, req, actions.StreamWorkspaceEvents)
+	if previous.resourceIDs == nil {
+		return true
+	}
+	if slices.Equal(previous.resourceIDs, current.resourceIDs) {
+		return false
+	}
+	allowed := make(map[uuid.UUID]bool, len(current.resourceIDs))
+	for _, id := range current.resourceIDs {
+		allowed[id] = true
+	}
+	for _, id := range previous.resourceIDs {
+		if !allowed[id] {
+			return true
+		}
+	}
+	return false
 }
 
 func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
@@ -516,6 +522,17 @@ func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquer
 	query := events.AuditQuery{
 		OrgID: scope.orgID, InstallationOnly: req.GetInstallationOnly(), Filter: filter, Types: req.GetTypes(),
 	}
+	if req.GetAfterCursor() != "" {
+		position, err := decodeEventPosition(req.GetAfterCursor())
+		if err != nil || position < 0 {
+			return events.AuditQuery{}, fieldError(
+				"after_cursor",
+				"invalid event cursor",
+				"",
+			)
+		}
+		query.AfterPosition = new(int64(position))
+	}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID
 	}
@@ -523,6 +540,7 @@ func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquer
 		query.ResourceID = &scope.resourceID
 	}
 	query.ResourceIDs = scope.resourceIDs
+	query.ResourcesOnly = scope.resourcesOnly
 	if req.GetEnvironmentId() != "" {
 		id, err := parseID("environment_id", req.GetEnvironmentId())
 		if err != nil {
