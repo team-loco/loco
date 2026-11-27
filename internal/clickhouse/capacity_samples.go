@@ -46,9 +46,9 @@ func capacityCohorts(ctx context.Context, samples []CapacitySample) (context.Con
 // The source enforces a unique timestamp within its process identity. Repeated
 // OTLP delivery therefore repeats the same immutable pod/metric point.
 const capacityCohortFilter = `WorkspaceId=? AND bitAnd(Flags,1)=0
-AND ResourceAttributes['loco.cluster.id'] IN (SELECT Cluster FROM capacity_cohorts)
+AND ClusterId IN (SELECT Cluster FROM capacity_cohorts)
 AND TimeUnix IN (SELECT Captured FROM capacity_cohorts)
-AND (ResourceAttributes['loco.cluster.id'],Attributes['source_id'],TimeUnix)
+AND (ClusterId,Attributes['source_id'],TimeUnix)
  IN (SELECT Cluster,Source,Captured FROM capacity_cohorts)`
 
 func (c *Client) capacitySamples(ctx context.Context, clusters []string) ([]CapacitySample, error) {
@@ -96,13 +96,13 @@ func (c *Client) capacityCandidates(
 	clusters []string,
 	offset int,
 ) ([]capacityCandidate, map[string]int, error) {
-	rows, err := c.conn.Query(ctx, `SELECT ResourceAttributes['loco.cluster.id'],Attributes['source_id'],TimeUnix,
+	rows, err := c.conn.Query(ctx, `SELECT ClusterId,Attributes['source_id'],TimeUnix,
 max(Value),any(ResourceAttributes['loco.collection.interval'])
-FROM otel_metrics_gauge WHERE WorkspaceId=? AND has(?,ResourceAttributes['loco.cluster.id'])
+FROM otel_metrics_gauge WHERE WorkspaceId=? AND has(?,ClusterId)
 AND MetricName=? AND bitAnd(Flags,1)=0 AND TimeUnix>=?
-GROUP BY ResourceAttributes['loco.cluster.id'],Attributes['source_id'],TimeUnix
-ORDER BY ResourceAttributes['loco.cluster.id'],TimeUnix DESC,Attributes['source_id']
-LIMIT ?,? BY ResourceAttributes['loco.cluster.id']`,
+GROUP BY ClusterId,Attributes['source_id'],TimeUnix
+ORDER BY ClusterId,TimeUnix DESC,Attributes['source_id']
+LIMIT ?,? BY ClusterId`,
 		systemtenant.WorkspaceID, clusters, capacitymetrics.Pods, time.Now().Add(-CapacityLookback),
 		offset, capacityCandidatePage)
 	if err != nil {
@@ -158,11 +158,11 @@ func (c *Client) capacityMembership(
 	}
 	rows, err := c.conn.Query(
 		ctx,
-		`SELECT ResourceAttributes['loco.cluster.id'],Attributes['source_id'],TimeUnix,
+		`SELECT ClusterId,Attributes['source_id'],TimeUnix,
 uniqExactIf(Attributes['pod_uid'],MetricName=?),
 uniqExactIf(Attributes['pod_uid'],MetricName=?),uniqExact(Attributes['pod_uid'])
 FROM otel_metrics_gauge WHERE `+capacityCohortFilter+` AND MetricName IN (?,?)
-GROUP BY ResourceAttributes['loco.cluster.id'],Attributes['source_id'],TimeUnix`,
+GROUP BY ClusterId,Attributes['source_id'],TimeUnix`,
 		capacitymetrics.CPU,
 		capacitymetrics.Memory,
 		systemtenant.WorkspaceID,

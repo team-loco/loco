@@ -109,7 +109,7 @@ func (c *Client) capacityTotals(
 	// two amounts separately so callers cannot label build requests as environment usage.
 	args = append(args, scope.Environment, scope.Environment)
 	query := `WITH pods AS (
- SELECT ResourceAttributes['loco.cluster.id'] AS cluster,Attributes['pod_uid'] AS pod,any(Attributes['node']) AS node,
+ SELECT ClusterId AS cluster,Attributes['pod_uid'] AS pod,any(Attributes['node']) AS node,
 any(Attributes['organization_id']) AS organization,
  any(Attributes['workspace_id']) AS workspace,any(Attributes['resource_id']) AS resource,
  any(Attributes['environment_id']) AS environment,any(Attributes['build_id']) AS build,
@@ -169,13 +169,13 @@ func (c *Client) nodeCapacities(ctx context.Context, clusters []string) (map[str
 
 	rows, err := c.conn.Query(
 		ctx,
-		`SELECT ResourceAttributes['loco.cluster.id'],ResourceAttributes['k8s.node.name'],MetricName,
- argMax(Value,TimeUnix),max(TimeUnix),argMax(ResourceAttributes['loco.collection.interval'],TimeUnix)
- FROM otel_metrics_gauge WHERE WorkspaceId=? AND has(?,ResourceAttributes['loco.cluster.id'])
- AND ResourceAttributes['k8s.node.name']!=''
+		`SELECT ClusterId,NodeName,MetricName,
+ argMax(Value,TimeUnix),max(TimeUnix),argMax(CollectionInterval,TimeUnix)
+ FROM otel_metrics_gauge WHERE WorkspaceId=? AND has(?,ClusterId)
+ AND NodeName!=''
  AND MetricName IN ('k8s.node.allocatable_cpu','k8s.node.allocatable_memory','k8s.node.condition_ready')
  AND bitAnd(Flags,1)=0
-GROUP BY ResourceAttributes['loco.cluster.id'],ResourceAttributes['k8s.node.name'],MetricName
+GROUP BY ClusterId,NodeName,MetricName
 HAVING max(TimeUnix)>=?`,
 		systemtenant.WorkspaceID,
 		clusters,

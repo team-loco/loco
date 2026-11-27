@@ -114,7 +114,7 @@ func (c *Client) CapacityClusterAt(ctx context.Context, cluster, id string) (Cap
 	err = c.conn.QueryRow(
 		ctx,
 		`SELECT count(),max(Value),any(ResourceAttributes['loco.collection.interval'])
-FROM otel_metrics_gauge WHERE WorkspaceId=? AND ResourceAttributes['loco.cluster.id']=?
+FROM otel_metrics_gauge WHERE WorkspaceId=? AND ClusterId=?
 AND MetricName=? AND Attributes['source_id']=? AND TimeUnix=fromUnixTimestamp64Milli(?) AND bitAnd(Flags,1)=0`,
 		systemtenant.WorkspaceID,
 		cluster,
