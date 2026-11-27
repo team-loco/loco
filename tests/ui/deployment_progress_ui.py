@@ -379,7 +379,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
                 "entries": [
                     {
                         "timestamp": at.isoformat(),
-                        "level": "ERROR",
+                        "level": "LOG_LEVEL_ERROR",
                         "body": "Before failure" if older else "After failure",
                     }
                 ]
