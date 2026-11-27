@@ -25,11 +25,13 @@ import (
 )
 
 const (
-	originHeader       = "Origin"
-	contentType        = "Content-Type"
-	otherWorkspace     = "00000000-0000-7000-8000-999999999999"
-	queryWindow        = time.Hour
-	ingestTokenTimeout = time.Minute
+	originHeader        = "Origin"
+	contentType         = "Content-Type"
+	authorizationHeader = "Authorization"
+	protobufContentType = "application/x-protobuf"
+	otherWorkspace      = "00000000-0000-7000-8000-999999999999"
+	queryWindow         = time.Hour
+	ingestTokenTimeout  = time.Minute
 )
 
 // TestObservabilityProxy checks the observability reads and the OTLP ingest proxy: health, token
@@ -189,8 +191,8 @@ func TestObservabilityProxy(t *testing.T) {
 				rejected,
 			)
 		}
-		auth := map[string]string{"Authorization": "Bearer " + token}
-		protobuf := map[string]string{"Authorization": "Bearer " + token, contentType: "application/x-protobuf"}
+		auth := map[string]string{authorizationHeader: "Bearer " + token}
+		protobuf := map[string]string{authorizationHeader: "Bearer " + token, contentType: protobufContentType}
 		if status := httpStatus(
 			t,
 			http.MethodPost,
@@ -266,9 +268,9 @@ func forged(token string) string {
 func postLogs(t *testing.T, ctx context.Context, workspaceID, body, authorization string) (int, int64) {
 	t.Helper()
 	payload := platform.OTLPLogs(t, workspaceID, body)
-	headers := map[string]string{contentType: "application/x-protobuf"}
+	headers := map[string]string{contentType: protobufContentType}
 	if authorization != "" {
-		headers["Authorization"] = authorization
+		headers[authorizationHeader] = authorization
 	}
 	response := do(t, ctx, http.MethodPost, p.OTLPURL+"/v1/logs", headers, payload)
 	if response.status != http.StatusOK {

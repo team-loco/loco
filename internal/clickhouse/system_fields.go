@@ -8,17 +8,18 @@ import (
 )
 
 // systemFieldAttributes maps the names the system scope filters by to the resource attributes of
-// Loco's own telemetry: the component that sent it and the cluster it came from.
+// Loco's own telemetry, rather than log, span or data-point attributes of the same name.
 var systemFieldAttributes = map[string]string{
 	"component": "service.name",
 	"cluster":   "loco.cluster.id",
+	"node":      "k8s.node.name",
 }
 
 // resourceAttributePrefix marks a field key that names a resource attribute only; no parsed key
 // contains it.
 const resourceAttributePrefix = "\x00resource:"
 
-// SystemFields rewrites the component and cluster fields of a system-scope query to the resource
+// SystemFields rewrites the identity fields of a system-scope query to the resource
 // attributes of the sender, never a log or span attribute of the same name.
 func SystemFields(expr logquery.Expr) logquery.Expr {
 	switch expr := expr.(type) {
@@ -55,7 +56,7 @@ func systemTerms(terms []logquery.Expr) []logquery.Expr {
 }
 
 // metricAttribute is the column expression a metrics request's attribute key filters: the data
-// point's own attribute, or the sender's resource attribute for a system-scope component or cluster.
+// point's own attribute, or a resource identity attribute in the system scope.
 func metricAttribute(workspaceID, key string, b binder) string {
 	if attribute, ok := systemFieldAttributes[key]; ok && workspaceID == systemtenant.WorkspaceID {
 		return "ResourceAttributes[" + b.str(attribute) + "]"

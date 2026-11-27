@@ -127,7 +127,7 @@ func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest
 
 // parseQuery parses text and checks it with validate, authorizes the caller to read the workspace
 // or resources and returns the query with the workspace's resource names when it has a @resource
-// field. The system scope has no resources: it takes @component and @cluster instead.
+// field. The system scope has no resources: it takes @component, @cluster and @node instead.
 func (s *ObservabilityServer) parseQuery(
 	ctx context.Context,
 	text string,
