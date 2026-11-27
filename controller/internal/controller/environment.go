@@ -52,6 +52,15 @@ func (r *ApplicationReconciler) reconcileEnvironment(ctx context.Context, req ct
 		}
 		for i := range apps.Items {
 			app := &apps.Items[i]
+			if err := r.APIReader.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+				return ctrl.Result{}, err
+			}
+			if r.environmentNamespace(app) != req.Name {
+				continue
+			}
 			if !app.DeletionTimestamp.IsZero() {
 				continue
 			}

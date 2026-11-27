@@ -305,6 +305,59 @@ var _ = Describe("Environment infrastructure", func() {
 		}
 	})
 
+	It("does not recreate an environment from a removed or replaced cached Application", func() {
+		observed, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+		Expect(err).NotTo(HaveOccurred())
+		for _, removed := range []bool{true, false} {
+			name := "replaced-environment"
+			if removed {
+				name = "removed-environment"
+			}
+			app := isolationTestApplication("ws-"+name, name)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			snapshot := app.DeepCopy()
+			namespace := testEnvironmentNamespace(app)
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			if !removed {
+				app = isolationTestApplication("ws-replacement", name)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			cached := interceptor.NewClient(observed, interceptor.Funcs{List: func(
+				ctx context.Context, underlying client.WithWatch, list client.ObjectList, opts ...client.ListOption,
+			) error {
+				if apps, ok := list.(*loco.ApplicationList); ok {
+					apps.Items = []loco.Application{*snapshot.DeepCopy()}
+					return nil
+				}
+				return underlying.List(ctx, list, opts...)
+			}})
+			r := &ApplicationReconciler{
+				Client:                   cached,
+				APIReader:                k8sClient,
+				Scheme:                   k8sClient.Scheme(),
+				LocoNamespace:            testNamespace,
+				Gateway:                  testGateway,
+				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+				Telemetry:                testTelemetry(),
+			}
+			_, err = r.reconcileEnvironment(ctx, ctrl.Request{Name: namespace})
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "stale desired state recreated an abandoned namespace")
+			if !removed {
+				err = k8sClient.Get(ctx, client.ObjectKey{Name: testEnvironmentNamespace(app)}, &corev1.Namespace{})
+				Expect(
+					apierrors.IsNotFound(err),
+				).To(BeTrue(), "old environment work created resources for a replacement Application")
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+		}
+		fmt.Fprintln(
+			GinkgoWriter,
+			"synthetic stale Application list: removed and replaced sources did not recreate an abandoned environment",
+		)
+	})
+
 	It("does not create a workload when a prerequisite policy write fails", func() {
 		transport := &policyWriteTransport{failPolicyCreate: true}
 		observedConfig := rest.CopyConfig(cfg)
