@@ -137,6 +137,6 @@ app.kubernetes.io/name: loco-build-controller
     fieldRef:
       fieldPath: metadata.uid
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: "service.instance.id=$(LOCO_POD_UID)"
+  value: "service.instance.id=$(LOCO_POD_UID),k8s.namespace.name={{ .root.Release.Namespace }}"
 {{- end -}}
 {{- end -}}

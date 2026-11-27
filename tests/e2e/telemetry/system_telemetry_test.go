@@ -18,8 +18,10 @@ import (
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/systemtenant"
+	"github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -225,4 +227,73 @@ func TestSystemMetricsSelectNodeResourceIdentity(t *testing.T) {
 	if len(result.GetSeries()) != 0 {
 		t.Fatalf("point label selected unrelated node data: %v", result)
 	}
+}
+
+// TestControllerLogsLinkToTheirReconcile follows a real deployment's diagnostic through
+// the controller, cluster collector, ingest and the installation-scoped read API.
+func TestControllerLogsLinkToTheirReconcile(t *testing.T) {
+	t.Parallel()
+	w := p.NewTenant(t)
+	const name = "controller-logs"
+	dir := t.TempDir()
+	platform.WriteLocoFile(t, dir, locofile.File{
+		Partial:  name,
+		Services: map[string]locofile.Service{name: platform.ImageService(p.AlternatePortImage, w.Host(name))},
+	})
+	start := time.Now()
+	w.MustLoco(t, dir, "deploy", "--yes")
+	resourceID := w.ResourceID(t, name)
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"a controller diagnostic linked to this deployment's reconcile",
+		func(ctx context.Context) error {
+			logs, err := p.Admin.Observability.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
+				Installation: true, StartTime: timestamppb.New(start), EndTime: timestamppb.Now(),
+				Query: "@component:loco-controller @cluster:" + p.ClusterID, PageSize: 1000,
+			})
+			if err != nil {
+				return err
+			}
+			for _, entry := range logs.GetEntries() {
+				if entry.GetLogAttributes()["resource"] != resourceID {
+					continue
+				}
+				if entry.GetLogAttributes()["reason"] != string(v1alpha1.ProblemHealthCheckFailing) {
+					continue
+				}
+				if entry.GetLogAttributes()["detail"] != "Health check GET :8080/ failed: connection refused" {
+					continue
+				}
+				if entry.GetResourceAttributes()["loco.cluster.id"] != p.ClusterID {
+					return errors.New("diagnostic lost its cluster identity")
+				}
+				if entry.GetTraceId() == "" || entry.GetSpanId() == "" {
+					return errors.New("controller diagnostic has no trace/span IDs")
+				}
+				trace, err := p.Admin.Observability.GetTrace(ctx, &observabilityv1.GetTraceRequest{
+					Scope: &observabilityv1.TraceScope{Installation: true}, TraceId: entry.GetTraceId(),
+				})
+				if err != nil {
+					return err
+				}
+				for _, span := range trace.GetSpans() {
+					if span.GetSpanId() == entry.GetSpanId() && span.GetName() == "application.status" {
+						t.Logf(
+							"controller diagnostic read through API: body=%q reason=%s detail=%q trace=%s span=%s resource=%s cluster=%s",
+							entry.GetBody(),
+							entry.GetLogAttributes()["reason"],
+							entry.GetLogAttributes()["detail"],
+							entry.GetTraceId(),
+							entry.GetSpanId(),
+							resourceID,
+							entry.GetResourceAttributes()["loco.cluster.id"],
+						)
+						return nil
+					}
+				}
+			}
+			return errors.New("no correlated controller diagnostic for this deployment yet")
+		},
+	)
 }

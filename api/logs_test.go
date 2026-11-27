@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/team-loco/loco/internal/otelsetup"
+
 	"go.opentelemetry.io/otel/attribute"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
@@ -34,7 +36,9 @@ func TestOTLPLogsReceiveWhatStdoutWritesAtTheConfiguredLevel(t *testing.T) {
 	provider := sdklog.NewLoggerProvider(sdklog.WithProcessor(sdklog.NewSimpleProcessor(exporter)))
 	var stdout bytes.Buffer
 	stdoutHandler := slog.NewJSONHandler(&stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	logger := slog.New(CustomHandler{Handler: withOTLPLogs(stdoutHandler, provider, slog.LevelInfo)})
+	logger := slog.New(
+		CustomHandler{Handler: otelsetup.LogHandler(stdoutHandler, provider, defaultServiceName, slog.LevelInfo)},
+	)
 
 	logger.With("component", "scheduler").Info("kept")
 	logger.Debug("dropped")

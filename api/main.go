@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/team-loco/loco/internal/otelsetup"
+
 	charmLog "charm.land/log/v2"
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -170,7 +172,7 @@ func run() (err error) {
 			slog.Error("loco api failed", "error", err)
 		}
 	}()
-	handler := withOTLPLogs(getLoggerHandler(ac), loggerProvider, ac.LogLevel)
+	handler := otelsetup.LogHandler(getLoggerHandler(ac), loggerProvider, defaultServiceName, ac.LogLevel)
 	logger := slog.New(CustomHandler{Handler: handler})
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)

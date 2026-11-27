@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -13,7 +15,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/tracing"
@@ -54,29 +55,38 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
+	var logLevel slog.LevelVar
+	flag.TextVar(&logLevel, "log-level", &logLevel, "Log level: debug, info, warn or error.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	managerVersion := buildinfo.Version(version)
-	setupLog.Info("starting loco controller", "version", managerVersion)
 
 	operator := newOperatorConfig()
 	setup, err := selectReconciler(reconcilerName, operator)
 	if err != nil {
-		setupLog.Error(err, "invalid reconciler configuration")
+		slog.ErrorContext(context.Background(), "invalid reconciler configuration", "error", err)
 		os.Exit(1)
 	}
 	restConfig := ctrl.GetConfigOrDie()
 	var stops []func()
 	flush := func() {
-		for _, stop := range stops {
+		for _, stop := range slices.Backward(stops) {
 			stop()
 		}
 	}
+	logs, logsErr := configureLogging(context.Background(), setup.serviceName, managerVersion, &logLevel, operator.Logs)
+	if logsErr != nil {
+		slog.ErrorContext(context.Background(), "unable to start logs", "error", logsErr)
+		os.Exit(1)
+	}
+	if logs != nil {
+		stops = append(stops, func() {
+			if stopErr := otelsetup.StopLogs(logs); stopErr != nil {
+				setupLog.Error(stopErr, "unable to stop logs")
+			}
+		})
+	}
+	setupLog.Info("starting loco controller", "version", managerVersion)
 	if operator.Tracing {
 		provider, tracingErr := otelsetup.Start(context.Background(), setup.serviceName, managerVersion)
 		if tracingErr != nil {

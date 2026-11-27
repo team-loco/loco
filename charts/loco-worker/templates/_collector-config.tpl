@@ -73,7 +73,7 @@
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}
 {{- $_ := set $config.receivers.k8s_cluster "allocatable_types_to_report" $settings.allocatableTypes -}}
 {{- $_ := set $config.processors "transform/platform_event" (dict "error_mode" "propagate" "log_statements" (list (dict "context" "log" "statements" (list "set(resource.attributes[\"k8s.namespace.name\"], body[\"object\"][\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"object\"])" "set(resource.attributes[\"k8s.namespace.name\"], body[\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"metadata\"])")))) -}}
-{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform")) -}}
+{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects" "otlp/platform") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform")) -}}
 {{- end -}}
 {{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform")) -}}
 {{- if $settings.platformOnly -}}

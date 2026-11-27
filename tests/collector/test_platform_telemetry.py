@@ -320,3 +320,54 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
         )
     assert resource["loco.telemetry.scope"] == "platform"
     assert resource["k8s.cluster.name"] == "test-cluster"
+
+
+def test_controller_log_keeps_correlation_and_platform_identity(
+    configured_relays, tmp_path
+):
+    cluster = configured_relays["otel-col-cluster"]
+    assert (
+        "otlp/platform" in cluster["service"]["pipelines"]["logs/platform"]["receivers"]
+    )
+    config = platform_pipeline_config(cluster, "logs/platform")
+    record = {
+        "traceId": "0af7651916cd43dd8448eb211c80319c",
+        "spanId": "b7ad6b7169203331",
+        "body": {"stringValue": "readiness probe: connection refused"},
+        "severityNumber": 9,
+    }
+    payload = {
+        "resourceLogs": [
+            {
+                "resource": {
+                    "attributes": [
+                        {
+                            "key": "service.name",
+                            "value": {"stringValue": "loco-controller"},
+                        },
+                        {
+                            "key": "k8s.namespace.name",
+                            "value": {"stringValue": RELEASE_NAMESPACE},
+                        },
+                    ]
+                },
+                "scopeLogs": [{"logRecords": [record]}],
+            }
+        ]
+    }
+    with run_collector(tmp_path, config, "otel-col-cluster") as collector:
+        post_otlp(collector, "logs", payload)
+        (received,) = read_output(
+            collector, lambda document: document["resourceLogs"], 1
+        )
+    attrs = {
+        item["key"]: item["value"]["stringValue"]
+        for item in received["resource"]["attributes"]
+    }
+    assert attrs["loco.telemetry.scope"] == "platform"
+    assert attrs["k8s.cluster.name"] == "test-cluster"
+    (scope,) = received["scopeLogs"]
+    (actual,) = scope["logRecords"]
+    assert actual["traceId"] == record["traceId"]
+    assert actual["spanId"] == record["spanId"]
+    assert actual["body"] == record["body"]
