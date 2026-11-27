@@ -10,13 +10,13 @@ Create destinations once per exact cluster set. For two workers, configure these
 
 | Eligible clusters | Shared destination | Operator configuration |
 | --- | --- | --- |
-| CA | `infra-ca.apps.example.com` | Proxied DNS alias to the CA NodeBalancer |
-| NY | `infra-ny.apps.example.com` | Proxied DNS alias to the NY NodeBalancer |
+| CA | `infra-ca.apps.example.com` | DNS-only origin record for the CA NodeBalancer |
+| NY | `infra-ny.apps.example.com` | DNS-only origin record for the NY NodeBalancer |
 | CA and NY | `infra-ca-ny.apps.example.com` | One shared proxied load balancer with CA and NY pools and proximity steering |
 
 An application's CNAME points to one of these destinations. Adding apps creates DNS records, without creating more load balancers. A new cluster combination needs its own shared destination before the publisher can use it. Unknown combinations report an error and preserve the previous record.
 
-Use a full authoritative Cloudflare DNS zone. A proxied CNAME can refer to the shared load balancer in that zone; the application hostname must also be proxied. Keep the original application HTTP Host and origin TLS server name when forwarding through shared destinations. Configure Full (strict) encryption and validate the gateway's certificate for the original app hostname. Avoid Host-header or origin-server-name overrides that replace it with the infrastructure alias. Cloudflare's [load balancer setup](https://developers.cloudflare.com/load-balancing/load-balancers/create-load-balancer/), [proxy modes](https://developers.cloudflare.com/load-balancing/understand-basics/proxy-modes/) and [proximity steering](https://developers.cloudflare.com/load-balancing/understand-basics/traffic-steering/steering-policies/proximity-steering/) describe the provider-side requirements.
+Use a full authoritative Cloudflare DNS zone. A proxied CNAME can refer to the shared load balancer in that zone; the application hostname must also be proxied. Pool endpoints must use direct NodeBalancer addresses or DNS-only origin records, so a pool does not point back through the public proxy. Keep the original application HTTP Host and origin TLS server name when forwarding through shared destinations. Configure Full (strict) encryption and validate the gateway's certificate for the original app hostname. Avoid Host-header or origin-server-name overrides that replace it with the infrastructure alias. Cloudflare's [load balancer setup](https://developers.cloudflare.com/load-balancing/load-balancers/create-load-balancer/), [proxy modes](https://developers.cloudflare.com/load-balancing/understand-basics/proxy-modes/) and [proximity steering](https://developers.cloudflare.com/load-balancing/understand-basics/traffic-steering/steering-policies/proximity-steering/) describe the provider-side requirements.
 
 Proximity prefers a nearby eligible region. It does not check each application's health or implement application-level regional failover. Shared infrastructure health monitors must not use one customer's application as the health signal for every customer. This publisher does not create pools, load balancers, monitors or TLS settings.
 
