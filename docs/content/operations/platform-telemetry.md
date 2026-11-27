@@ -9,6 +9,7 @@ Platform telemetry is the logs, metrics and traces Loco's own components produce
 | Source | Signals | Turned on by |
 | --- | --- | --- |
 | API | Traces of requests and RPCs, Go runtime metrics, every log record at `LOG_LEVEL` or above | `loco-control-plane` value `platformTelemetry.enabled` |
+| Control-plane gateway | Request traces linked to API spans, as `loco-gateway`; `gateway.tracing.samplingRate` defaults to 100 percent | `platformTelemetry.enabled` with the built-in system ingest |
 | Observability proxy | Workload ingestion traces, including the storage write and record counts | `loco-control-plane` value `platformTelemetry.enabled` |
 | Application and build controllers | Traces of reconciles and Kubernetes API calls, controller-runtime metrics (reconciles, work queues, client requests), Go runtime metrics | `loco-worker` value `global.platformTelemetry.enabled` |
 | Worker cluster | Node metrics, cluster state and Kubernetes events from the Loco, collector and `global.platformTelemetry.namespaces` namespaces | `loco-worker` value `global.platformTelemetry.enabled` |
@@ -27,7 +28,7 @@ By default, everything goes to the control plane's observability proxy, which st
 
 The proxy accepts system telemetry only from Loco's own senders:
 
-- The API presents a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
+- The API and gateway collector present a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
 - A worker's collectors present the cluster's ingest token, as they do for application telemetry, and mark platform records with `loco.telemetry.scope=platform`. The collectors delete that marker from anything workloads send, and the proxy rejects a platform record that names a workspace.
 
 System rows keep 30 days of every signal. Set `SYSTEM_RETENTION_DAYS` through `obsProxy.ingest.env` to change it:
@@ -81,6 +82,8 @@ global:
 ```
 
 ## Send it somewhere else
+
+Control-plane gateway tracing uses the built-in system ingest. An external gateway tracing destination needs a separate OTLP/gRPC configuration.
 
 Each chart takes an OTLP/HTTP endpoint and headers for an operator's own collector or backend. With an endpoint set, that chart's platform telemetry goes only there and nothing of it reaches the observability proxy; customer telemetry still does.
 

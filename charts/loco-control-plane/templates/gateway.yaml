@@ -1,4 +1,5 @@
 {{- if .Values.gateway.create }}
+{{- $gatewayTracing := include "loco-control-plane.gatewayTracing" . }}
 {{- $listeners := include "loco-control-plane.listeners" . | fromJsonArray }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -46,6 +47,22 @@ spec:
       envoyService:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+  {{- if $gatewayTracing }}
+  telemetry:
+    tracing:
+      samplingRate: {{ .Values.gateway.tracing.samplingRate }}
+      provider:
+        type: OpenTelemetry
+        serviceName: loco-gateway
+        backendRefs:
+          - name: {{ .Release.Name }}-obs-proxy-ingest
+            namespace: {{ .Release.Namespace }}
+            port: {{ .Values.gateway.tracing.collector.port }}
+        openTelemetry:
+          resourceAttributes:
+            loco.telemetry.scope: platform
+            loco.region: {{ required "platformTelemetry.region is required when platform telemetry is enabled" .Values.platformTelemetry.region | quote }}
+  {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway

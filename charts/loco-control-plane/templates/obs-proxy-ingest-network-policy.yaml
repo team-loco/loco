@@ -1,4 +1,5 @@
 {{- if .Values.obsProxy.enabled }}
+{{- $gatewayTracing := include "loco-control-plane.gatewayTracing" . }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -18,7 +19,7 @@ spec:
           port: {{ .Values.obsProxy.ingest.grpcPort }}
         - protocol: TCP
           port: {{ .Values.obsProxy.ingest.httpPort }}
-    {{- if include "loco-control-plane.ingestRouted" . }}
+    {{- if or (include "loco-control-plane.ingestRouted" .) $gatewayTracing }}
     - from:
         - namespaceSelector:
             matchLabels:
@@ -30,5 +31,9 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.obsProxy.ingest.httpPort }}
+        {{- if $gatewayTracing }}
+        - protocol: TCP
+          port: {{ .Values.gateway.tracing.collector.port }}
+        {{- end }}
     {{- end }}
 {{- end }}

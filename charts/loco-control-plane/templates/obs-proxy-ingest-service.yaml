@@ -18,4 +18,11 @@ spec:
       protocol: TCP
       port: {{ .Values.obsProxy.ingest.httpPort }}
       targetPort: otlp-http
+    {{- if include "loco-control-plane.gatewayTracing" . }}
+    - name: gateway-otlp
+      protocol: TCP
+      appProtocol: grpc
+      port: {{ .Values.gateway.tracing.collector.port }}
+      targetPort: gateway-otlp
+    {{- end }}
 {{- end }}

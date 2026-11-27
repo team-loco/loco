@@ -329,3 +329,33 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: gateway.extraListeners repeats the hostname auth.region.test
+
+  - it: traces gateway requests through the system ingest when platform telemetry is enabled
+    set:
+      platformTelemetry.enabled: true
+      platformTelemetry.region: test-region
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - equal:
+          path: spec.telemetry.tracing
+          value:
+            samplingRate: 100
+            provider:
+              type: OpenTelemetry
+              serviceName: loco-gateway
+              backendRefs:
+                - name: loco-control-plane-obs-proxy-ingest
+                  namespace: loco-control-plane
+                  port: 4319
+              openTelemetry:
+                resourceAttributes:
+                  loco.telemetry.scope: platform
+                  loco.region: test-region
+
+  - it: leaves gateway tracing disabled without platform telemetry
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - notExists:
+          path: spec.telemetry.tracing

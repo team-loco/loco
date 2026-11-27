@@ -92,3 +92,7 @@ openbao:
       bucket: openbao-snapshots
       existingSecret:
         name: snapshot-s3
+
+platformTelemetry:
+  enabled: true
+  region: local-1

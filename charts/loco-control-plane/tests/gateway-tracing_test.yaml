@@ -1,0 +1,83 @@
+suite: gateway tracing namespaces
+release:
+  name: loco-control-plane
+  namespace: control-plane
+values:
+  - ../ci/default-values.yaml
+set:
+  gatewayNamespace: edge
+  platformTelemetry.enabled: true
+  platformTelemetry.region: test-region
+templates:
+  - templates/gateway-tracing-grant.yaml
+  - templates/obs-proxy-ingest-deployment.yaml
+  - templates/obs-proxy-ingest-service.yaml
+  - templates/gateway-tracing-collector.yaml
+  - templates/obs-proxy-ingest-network-policy.yaml
+tests:
+  - it: grants the gateway namespace only its ingest Service
+    template: templates/gateway-tracing-grant.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: control-plane
+      - equal:
+          path: spec
+          value:
+            from: [{group: gateway.envoyproxy.io, kind: EnvoyProxy, namespace: edge}]
+            to: [{group: "", kind: Service, name: loco-control-plane-obs-proxy-ingest}]
+
+  - it: admits gateway exports on gRPC even without a public ingest route
+    set:
+      obsProxy.ingest.hostname: ""
+    template: templates/obs-proxy-ingest-network-policy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress[1].from
+          value:
+            - namespaceSelector:
+                matchLabels: {kubernetes.io/metadata.name: edge}
+              podSelector:
+                matchLabels: {app.kubernetes.io/component: proxy, app.kubernetes.io/managed-by: envoy-gateway}
+      - contains:
+          path: spec.ingress[1].ports
+          content: {protocol: TCP, port: 4319}
+
+  - it: needs no Service grant in the release namespace
+    set:
+      gatewayNamespace: control-plane
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/gateway-tracing-grant.yaml
+
+  - it: leaves external exporters in charge of their own gateway configuration
+    set:
+      platformTelemetry.exporter.endpoint: https://otel.example.com
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/gateway-tracing-collector.yaml
+      - hasDocuments: {count: 0}
+        template: templates/gateway-tracing-grant.yaml
+
+  - it: gives the relay the system token and a mounted receiver configuration
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: gateway-tracing
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content: {name: SYSTEM_INGEST_TOKEN, valueFrom: {secretKeyRef: {name: loco-control-plane-system-ingest-token, key: token}}}
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content: {name: gateway-tracing, mountPath: /etc/gateway-tracing, readOnly: true}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: gateway-tracing, configMap: {name: loco-control-plane-gateway-tracing}}
+
+  - it: exposes the relay on its separate gRPC port
+    template: templates/obs-proxy-ingest-service.yaml
+    asserts:
+      - contains:
+          path: spec.ports
+          content: {name: gateway-otlp, protocol: TCP, appProtocol: grpc, port: 4319, targetPort: gateway-otlp}
