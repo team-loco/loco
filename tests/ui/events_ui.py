@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     copied_text,
+    event_stream_input,
     expect_rpc,
     load_state,
     observe_event_batches,
@@ -277,14 +278,16 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     expect(
         events.get_by_role("row", name="Recovered in late-commit", exact=True)
     ).to_be_visible()
-    batches = page.evaluate("window.__eventStreamBatches")
-    sql(
+    page_change_id = sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
-VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','page-change','message','Delivered before paging'));""",
-    )
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','page-change','message','Delivered before paging')) RETURNING id;""",
+    ).strip()
     page.wait_for_function(
-        "before => window.__eventStreamBatches > before", arg=batches
+        "id => Object.hasOwn(window.__eventStreamCursorById, id)", arg=page_change_id
+    )
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
     )
     events.get_by_role("button", name="Next page", exact=True).click()
     events.get_by_role("button", name="1 new event", exact=True).click(timeout=15000)
@@ -312,15 +315,18 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
         live.click()
     assert resumed_history.value.request not in prior_requests
     resumed_history.value.finished()
-    batches = page.evaluate("window.__eventStreamBatches")
-    sql(
+    paused_id = sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
-VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','paused-update','message','Paused update'));""",
-    )
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','paused-update','message','Paused update')) RETURNING id;""",
+    ).strip()
     page.wait_for_function(
-        "before => window.__eventStreamBatches > before", arg=batches
+        "id => Object.hasOwn(window.__eventStreamCursorById, id)", arg=paused_id
     )
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    paused_cursor = page.evaluate("id => window.__eventStreamCursorById[id]", paused_id)
     paused_row = events.get_by_role(
         "row", name="Recovered in paused-update", exact=True
     )
@@ -334,7 +340,11 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     expect(
         events.get_by_role("row", name="Recovered in paused-update", exact=True)
     ).to_have_count(0)
-    page.locator("[data-live-button]").click()
+    with page.expect_request(
+        lambda request: request.url.endswith("/StreamEvents")
+    ) as resumed:
+        live.click()
+    assert event_stream_input(resumed.value).get("cursor") == paused_cursor
     expect(
         events.get_by_role("row", name="Recovered in paused-update", exact=True)
     ).to_be_visible(timeout=15000)

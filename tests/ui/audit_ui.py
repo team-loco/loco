@@ -7,6 +7,7 @@ from pathlib import Path
 from harness import (
     call,
     copied_text,
+    event_stream_input,
     evidence,
     expect_rpc,
     load_state,
@@ -238,19 +239,26 @@ VALUES('workspace.created','{org}','{shared}','system',jsonb_build_object('name'
     )
     expect(events).to_contain_text("late audit transaction", timeout=15000)
     # Pause after the real batch arrives, before its delayed history refresh can run.
-    batches = page.evaluate("window.__eventStreamBatches")
-    sql(
+    paused_id = sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,actor_type,data)
-VALUES('workspace.created','{org}','{shared}','system',jsonb_build_object('name','paused audit update'));""",
-    )
+VALUES('workspace.created','{org}','{shared}','system',jsonb_build_object('name','paused audit update')) RETURNING id;""",
+    ).strip()
     page.wait_for_function(
-        "before => window.__eventStreamBatches > before", arg=batches
+        "id => Object.hasOwn(window.__eventStreamCursorById, id)", arg=paused_id
     )
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    paused_cursor = page.evaluate("id => window.__eventStreamCursorById[id]", paused_id)
     page.get_by_role("button", name="Pause", exact=True).click()
     page.wait_for_timeout(2500)
     expect(events).not_to_contain_text("paused audit update")
-    page.get_by_role("button", name="Live", exact=True).click()
+    with page.expect_request(
+        lambda request: request.url.endswith("/StreamEvents")
+    ) as resumed:
+        page.get_by_role("button", name="Live", exact=True).click()
+    assert event_stream_input(resumed.value).get("cursor") == paused_cursor
     expect(events).to_contain_text("paused audit update", timeout=15000)
     # A refused live subscription leaves history visible and offers an explicit reconnect.
     stream_url = "**/loco.event.v1.EventService/StreamEvents"

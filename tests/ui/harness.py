@@ -253,17 +253,36 @@ def line_starts(locator):
 
 
 def observe_event_batches(page):
-    """Observe real streaming response chunks without changing their contents or timing."""
+    """Observe complete Connect JSON event messages, forwarding original chunks unchanged."""
     page.add_init_script("""
 window.__eventStreamBatches = 0;
+window.__eventStreamCursorById = {};
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   const response = await originalFetch(...args);
   const url = args[0] instanceof Request ? args[0].url : String(args[0]);
-  if (!url.endsWith('/StreamEvents') || !response.body) return response;
+  if (!url.endsWith('/StreamEvents') || !response.ok || !response.body) return response;
+  let pending = new Uint8Array();
   const body = response.body.pipeThrough(new TransformStream({
     transform(chunk, controller) {
-      window.__eventStreamBatches++;
+      const joined = new Uint8Array(pending.length + chunk.length);
+      joined.set(pending);
+      joined.set(chunk, pending.length);
+      pending = joined;
+      while (pending.length >= 5) {
+        const size = new DataView(pending.buffer, pending.byteOffset).getUint32(1);
+        if (pending.length < 5 + size) break;
+        const flags = pending[0];
+        if (flags & 1) throw new Error('Expected uncompressed Connect JSON test messages');
+        if (!(flags & 2)) {
+          const message = JSON.parse(new TextDecoder().decode(pending.subarray(5, 5 + size)));
+          window.__eventStreamBatches++;
+          for (const event of message.events ?? []) {
+            window.__eventStreamCursorById[event.id] = message.cursor;
+          }
+        }
+        pending = pending.subarray(5 + size);
+      }
       controller.enqueue(chunk);
     },
   }));
@@ -272,3 +291,12 @@ window.fetch = async (...args) => {
   });
 };
 """)
+
+
+def event_stream_input(request):
+    """Read the unary request envelope used by the real Connect JSON stream."""
+    body = request.post_data_buffer
+    assert request.headers["content-type"].startswith("application/connect+json")
+    assert body[0] == 0
+    assert int.from_bytes(body[1:5], "big") == len(body) - 5
+    return json.loads(body[5:])
