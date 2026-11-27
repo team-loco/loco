@@ -46,6 +46,7 @@ const (
 	authorizationHeader   = "Authorization"
 	authorizationMetadata = "authorization"
 	retryAfterHeader      = "Retry-After"
+	feedbackLogAttribute  = "loco.telemetry.internal"
 )
 
 var (
@@ -54,6 +55,7 @@ var (
 	errRequestTooLarge        = errors.New("request body too large")
 	errInvalidRequest         = errors.New("invalid OTLP request")
 	errStorageUnavailable     = errors.New("telemetry storage unavailable")
+	errSystemTelemetryExport  = errors.New("system telemetry export")
 )
 
 type Consumers struct {
@@ -189,6 +191,9 @@ func export[Req otlpRequest, Resp otlpResponse, Payload any](
 			if span != nil {
 				span.RecordError(err)
 				span.SetStatus(otelcodes.Error, "telemetry storage unavailable")
+			}
+			if !filter.workload {
+				return response, fmt.Errorf("%w: %w", errSystemTelemetryExport, err)
 			}
 			return response, err
 		}
@@ -328,6 +333,10 @@ func logExportFailure(ctx context.Context, err, public error, attrs ...any) {
 		level = slog.LevelDebug
 	case errors.Is(public, errRequestTooLarge):
 		level = slog.LevelDebug
+	}
+	// Keep our own exporter failures on stdout without feeding them back into ingestion.
+	if errors.Is(err, errSystemTelemetryExport) {
+		attrs = append(attrs, feedbackLogAttribute, true)
 	}
 	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err}, attrs...)...)
 }

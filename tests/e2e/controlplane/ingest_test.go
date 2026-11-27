@@ -151,4 +151,93 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 			return err
 		},
 	)
+	cp.checkNodeLogs(t, issued.Token, reader, readerPassword, pod)
+}
+
+func (cp *controlPlane) checkNodeLogs(t *testing.T, token, reader, password, clickhousePod string) {
+	t.Helper()
+	nodeNamespace := cp.namespace
+	c.MustApply(t, namespace(nodeNamespace, "privileged"))
+	values := writeFile(t, "node-logs-values.yaml", fmt.Sprintf(`global:
+  region: %[1]s
+  platformTelemetry:
+    enabled: true
+    platformOnly: true
+    installation: node-logs-e2e
+    cluster: %[2]s
+    environment: test
+    namespaces: []
+  exporter:
+    endpoint: http://%[3]s-obs-proxy-ingest.%[4]s:%[5]d
+    headers:
+      Authorization: %[6]q
+    ingestToken:
+      enabled: false
+agent:
+  image: {tag: unused}
+controller:
+  image: {tag: unused}
+cluster: {role: apps}
+certManager: {existingTLSSecret: unused}
+gateway-helm: {enabled: false}
+otel-col-deploy: {enabled: false}
+otel-col-cluster: {enabled: false}
+otel-col-daemon:
+  namespaceOverride: %[4]s
+`, metricsRegion, c.KindCluster(), release, nodeNamespace, cp.values.ObsProxy.Ingest.HTTPPort, "Bearer "+token))
+	rendered := helm(t, "template", "platform-logs", c.Path("charts", "loco-worker"), "--namespace", cp.namespace,
+		"--values", values)
+	var objects []any
+	for _, object := range renderedDocuments(t, rendered) {
+		var identity struct {
+			Metadata struct {
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+		}
+		roundTrip(t, object, &identity)
+		if identity.Metadata.Labels["app.kubernetes.io/part-of"] == collectorPartOf {
+			objects = append(objects, object)
+		}
+	}
+	applyJSON(t, objects...)
+	rollout(t, nodeNamespace, "daemonset/"+nodeCollector)
+	for _, component := range []string{"loco-api", "loco-obs-proxy"} {
+		platform.Eventually(
+			t,
+			metricsTimeout,
+			component+" stdout reaches storage through the node collector",
+			func(ctx context.Context) error {
+				count, err := c.Kubectl(
+					ctx,
+					"-n",
+					cp.namespace,
+					"exec",
+					clickhousePod,
+					"-c",
+					"clickhouse",
+					"--",
+					"clickhouse-client",
+					"--user",
+					reader,
+					"--password",
+					password,
+					"-q",
+					fmt.Sprintf(
+						"SELECT count() FROM loco_obs.otel_logs WHERE WorkspaceId = '%s' AND ServiceName = '%s' "+
+							"AND ResourceAttributes['k8s.node.name'] != '' AND ResourceAttributes['loco.telemetry.scope'] = 'platform'",
+						systemtenant.WorkspaceID,
+						component,
+					),
+				)
+				if err == nil && strings.TrimSpace(count) == "0" {
+					return fmt.Errorf("no node-collected %s logs", component)
+				}
+				return err
+			},
+		)
+		t.Logf(
+			"real %s pod stdout collected from node files, enriched with node identity and stored in the system tenant",
+			component,
+		)
+	}
 }

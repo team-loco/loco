@@ -74,18 +74,7 @@ func main() {
 			stop()
 		}
 	}
-	logs, logsErr := configureLogging(context.Background(), setup.serviceName, managerVersion, &logLevel, operator.Logs)
-	if logsErr != nil {
-		slog.ErrorContext(context.Background(), "unable to start logs", "error", logsErr)
-		os.Exit(1)
-	}
-	if logs != nil {
-		stops = append(stops, func() {
-			if stopErr := otelsetup.StopLogs(logs); stopErr != nil {
-				setupLog.Error(stopErr, "unable to stop logs")
-			}
-		})
-	}
+	configureLogging(os.Stdout, &logLevel)
 	setupLog.Info("starting loco controller", "version", managerVersion)
 	if operator.Tracing {
 		provider, tracingErr := otelsetup.Start(context.Background(), setup.serviceName, managerVersion)

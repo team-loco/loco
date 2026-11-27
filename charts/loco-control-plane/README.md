@@ -166,7 +166,7 @@ The E2E suite builds the dashboard, API and proxy images, installs the CloudNati
 
 ## Platform telemetry
 
-`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. Proxy logs remain on standard output and its runtime metrics are not exported over OTLP. It keeps writing its logs to standard output. `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
+`platformTelemetry.enabled: true` makes the API export its own traces and Go runtime metrics over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. The chart defaults `api.env.APP_ENV` to `PRODUCTION`, so the API and proxy write structured logs to standard output. Enable the `loco-worker` chart's node collector platform pipeline in this cluster to collect those logs; add the control-plane namespace to `global.platformTelemetry.namespaces` if it differs from the worker release namespace. Logs follow the node collector's exporter settings. The proxy's runtime metrics are not exported over OTLP. `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
 
 ```yaml
 platformTelemetry:
@@ -192,7 +192,7 @@ platformTelemetry:
       Authorization: Bearer EXAMPLE_TOKEN
 ```
 
-The chart sets `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` for the API. `api.env` cannot set them, nor their per-signal forms such as `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, which would send that signal elsewhere.
+The chart sets `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` for the API. `api.env` cannot set them, nor their per-signal forms such as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, which would send that signal elsewhere.
 
 ## Bundled PostgreSQL
 

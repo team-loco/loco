@@ -26,6 +26,7 @@ spec:
         checksum/gateway-tracing: {{ include (print $.Template.BasePath "/gateway-tracing-collector.yaml") . | sha256sum }}
       {{- end }}
       labels:
+        app.kubernetes.io/name: loco-obs-proxy
         app: {{ .Release.Name }}-obs-proxy-ingest
         app.kubernetes.io/component: observability-proxy
     spec:

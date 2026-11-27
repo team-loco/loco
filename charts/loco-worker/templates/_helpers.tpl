@@ -126,7 +126,7 @@ app.kubernetes.io/name: loco-build-controller
 {{- define "loco-worker.platformOTLPEnv" -}}
 {{- if .root.Values.global.platformTelemetry.enabled -}}
 {{- range $variable := .env -}}
-{{- if regexMatch "^(OTEL_EXPORTER_OTLP_((TRACES|METRICS|LOGS)_)?(ENDPOINT|HEADERS)|OTEL_RESOURCE_ATTRIBUTES)$" $variable.name -}}
+{{- if regexMatch "^(OTEL_EXPORTER_OTLP_((TRACES|METRICS)_)?(ENDPOINT|HEADERS)|OTEL_RESOURCE_ATTRIBUTES)$" $variable.name -}}
 {{- fail (printf "%s sets %s, which global.platformTelemetry sets" $.path $variable.name) -}}
 {{- end -}}
 {{- end -}}

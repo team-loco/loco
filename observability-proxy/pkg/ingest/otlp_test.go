@@ -4,13 +4,19 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/internal/bearer"
 
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumererror"
@@ -311,5 +317,37 @@ func TestGRPCRejectsOversizedMessages(t *testing.T) {
 	}
 	if len(recorder.received) != 0 {
 		t.Fatalf("consumer received %d requests, want 0", len(recorder.received))
+	}
+}
+
+func TestSystemExportFailuresStayDiagnosticWithoutFeedingBack(t *testing.T) {
+	for _, system := range []bool{false, true} {
+		t.Run(strconv.FormatBool(system), func(t *testing.T) {
+			service, _, cp := newTestService(t, errStorageDown)
+			var output bytes.Buffer
+			previous := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+			t.Cleanup(func() { slog.SetDefault(previous) })
+			authorization := cp.bearer()
+			if system {
+				authorization = bearer.Header(testSystemToken)
+			}
+			response := post(t, service, authorization, protobufContentType, "", protoBody(t))
+			if response.Code != http.StatusServiceUnavailable {
+				t.Fatalf("storage failure status=%d", response.Code)
+			}
+			var record map[string]any
+			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+				t.Fatal(err)
+			}
+			if record["msg"] != "OTLP export failed" ||
+				!strings.Contains(fmt.Sprint(record["error"]), errStorageDown.Error()) {
+				t.Fatalf("actual failure was hidden: %s", &output)
+			}
+			marker, ok := record[feedbackLogAttribute].(bool)
+			if system != (ok && marker) {
+				t.Fatalf("self-export boundary=%v, want %v: %s", marker, system, &output)
+			}
+		})
 	}
 }

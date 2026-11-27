@@ -12,6 +12,7 @@ from helpers import (
     render_chart,
     run_collector,
 )
+from test_file_logs import file_log_pipeline, write_pod_log
 
 IDENTITY = {
     "enabled": True,
@@ -67,7 +68,13 @@ def test_application_pipelines_keep_their_configuration(
 ):
     for name, config in worker_relays.items():
         for pipeline, settings in config["service"]["pipelines"].items():
-            assert configured_relays[name]["service"]["pipelines"][pipeline] == settings
+            expected = dict(settings)
+            if name == "otel-col-daemon-agent" and pipeline == "logs":
+                expected["processors"] = [
+                    *settings["processors"],
+                    "filter/workload_logs",
+                ]
+            assert configured_relays[name]["service"]["pipelines"][pipeline] == expected
 
 
 def test_platform_identity_is_exported(configured_relays):
@@ -322,52 +329,112 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
     assert resource["k8s.cluster.name"] == "test-cluster"
 
 
-def test_controller_log_keeps_correlation_and_platform_identity(
+def test_node_logs_keep_correlation_types_and_separate_workloads(
     configured_relays, tmp_path
 ):
-    cluster = configured_relays["otel-col-cluster"]
-    assert (
-        "otlp/platform" in cluster["service"]["pipelines"]["logs/platform"]["receivers"]
+    daemon = configured_relays["otel-col-daemon-agent"]
+    config = file_log_pipeline(configured_relays)
+    pipeline = daemon["service"]["pipelines"]["logs/platform"]
+    processors = [
+        name
+        for name in pipeline["processors"]
+        if not name.startswith(("memory_limiter", "k8s_attributes"))
+    ]
+    config["processors"].update(
+        {name: daemon["processors"][name] for name in processors}
     )
-    config = platform_pipeline_config(cluster, "logs/platform")
-    record = {
-        "traceId": "0af7651916cd43dd8448eb211c80319c",
-        "spanId": "b7ad6b7169203331",
-        "body": {"stringValue": "readiness probe: connection refused"},
-        "severityNumber": 9,
+    config["service"]["pipelines"]["logs/platform"] = {
+        "receivers": ["file_log"],
+        "processors": processors,
+        "exporters": ["file"],
     }
-    payload = {
-        "resourceLogs": [
-            {
-                "resource": {
-                    "attributes": [
-                        {
-                            "key": "service.name",
-                            "value": {"stringValue": "loco-controller"},
-                        },
-                        {
-                            "key": "k8s.namespace.name",
-                            "value": {"stringValue": RELEASE_NAMESPACE},
-                        },
-                    ]
-                },
-                "scopeLogs": [{"logRecords": [record]}],
-            }
-        ]
+    records = {
+        "loco-controller": {
+            "msg": "application rollout changed",
+            "level": "INFO",
+            "time": "2026-10-19T12:00:00.123456789Z",
+            "trace_id": "0af7651916cd43dd8448eb211c80319c",
+            "span_id": "b7ad6b7169203331",
+            "resource": "synthetic-unready-service",
+            "detail": "readiness probe: connection refused",
+        },
+        "loco-api": {
+            "msg": "request failed",
+            "level": "ERROR",
+            "request": {"requestId": "synthetic-request", "entity": None},
+            "literal": '{"must":"stay a string"}',
+        },
+        "loco-obs-proxy": {"msg": "otlp listening", "level": "INFO", "http": ":4318"},
     }
-    with run_collector(tmp_path, config, "otel-col-cluster") as collector:
-        post_otlp(collector, "logs", payload)
-        (received,) = read_output(
-            collector, lambda document: document["resourceLogs"], 1
+    for service, record in records.items():
+        write_pod_log(
+            tmp_path,
+            RELEASE_NAMESPACE,
+            [json.dumps(record)],
+            pod=service,
+            container=service,
         )
-    attrs = {
-        item["key"]: item["value"]["stringValue"]
-        for item in received["resource"]["attributes"]
+    write_pod_log(
+        tmp_path,
+        RELEASE_NAMESPACE,
+        [
+            json.dumps(
+                {
+                    "msg": "OTLP export failed",
+                    "level": "ERROR",
+                    "loco.telemetry.internal": True,
+                }
+            )
+        ],
+        pod="loco-obs-proxy-feedback",
+        container="obs-proxy-ingest",
+    )
+    workload = json.dumps(
+        {"msg": "customer JSON must remain a body", "trace_id": "user-string"}
+    )
+    write_pod_log(tmp_path, "loco-ws-tenant", [workload])
+    for collector, namespace in [
+        ("otel-col-daemon-agent", "loco-obs-node"),
+        ("otel-col-cluster", "loco-obs"),
+        ("otel-col-deploy", "loco-obs"),
+    ]:
+        write_pod_log(
+            tmp_path, namespace, ["collector logs must not loop"], pod=collector + "-0"
+        )
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+        received = read_output(
+            collector,
+            lambda document: [
+                (resource.get("resource", {}).get("attributes", []), record)
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            4,
+        )
+    assert len(received) == 4, received
+    by_body = {
+        record["body"]["stringValue"]: (attrs, record) for attrs, record in received
     }
-    assert attrs["loco.telemetry.scope"] == "platform"
-    assert attrs["k8s.cluster.name"] == "test-cluster"
-    (scope,) = received["scopeLogs"]
-    (actual,) = scope["logRecords"]
-    assert actual["traceId"] == record["traceId"]
-    assert actual["spanId"] == record["spanId"]
-    assert actual["body"] == record["body"]
+    assert set(by_body) == {record["msg"] for record in records.values()} | {workload}
+    for expected in records.values():
+        attrs, actual = by_body[expected["msg"]]
+        attrs = {item["key"]: item["value"] for item in attrs}
+        assert attrs["loco.telemetry.scope"] == {"stringValue": "platform"}
+        assert attrs["k8s.cluster.name"] == {"stringValue": "test-cluster"}
+        assert actual["severityNumber"] == (17 if expected["level"] == "ERROR" else 9)
+    _, controller = by_body[records["loco-controller"]["msg"]]
+    assert controller["traceId"] == records["loco-controller"]["trace_id"]
+    assert controller["spanId"] == records["loco-controller"]["span_id"]
+    assert controller["timeUnixNano"] == "1792411200123456789"
+    _, api = by_body[records["loco-api"]["msg"]]
+    attributes = {item["key"]: item["value"] for item in api["attributes"]}
+    assert "kvlistValue" in attributes["request"]
+    assert attributes["literal"] == {"stringValue": records["loco-api"]["literal"]}
+    attrs, actual = by_body[workload]
+    assert not any(item["key"] == "loco.telemetry.scope" for item in attrs)
+    assert "traceId" not in actual
+    print(
+        "synthetic CRI files: controller/API/proxy collected once as platform logs; workload kept separate; collector logs excluded"
+    )
+    print(json.dumps(controller, sort_keys=True))

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/team-loco/loco/api/reqctx"
+	"github.com/team-loco/loco/internal/otelsetup"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -17,7 +18,7 @@ func logLine(t *testing.T, ctx context.Context) map[string]any {
 	t.Helper()
 	var buf bytes.Buffer
 	jsonHandler := slog.NewJSONHandler(&buf, nil)
-	logger := slog.New(CustomHandler{Handler: jsonHandler})
+	logger := slog.New(otelsetup.LogHandler(jsonHandler, requestLogAttrs))
 	logger.InfoContext(ctx, "hello")
 	line := map[string]any{}
 	if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
@@ -87,7 +88,7 @@ func TestDerivedLoggerPreservesContext(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			logger := tt.derive(slog.New(CustomHandler{Handler: slog.NewJSONHandler(&buf, nil)}))
+			logger := tt.derive(slog.New(otelsetup.LogHandler(slog.NewJSONHandler(&buf, nil), requestLogAttrs)))
 			ctx := reqctx.WithRequest(t.Context(), reqctx.Request{ID: testRequestID})
 			ctx = trace.ContextWithSpanContext(ctx, testSpanContext(t))
 			logger.InfoContext(ctx, "hello", "answer", 42)

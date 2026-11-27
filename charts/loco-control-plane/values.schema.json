@@ -129,7 +129,12 @@
           "additionalProperties": false
         },
         "env": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "APP_ENV": {
+              "type": "string"
+            }
+          }
         },
         "existingSecret": {
           "type": "string",

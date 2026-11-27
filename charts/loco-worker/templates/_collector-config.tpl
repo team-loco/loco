@@ -65,6 +65,21 @@
 {{- $kubelet := deepCopy $config.receivers.kubeletstats -}}
 {{- $_ := set $kubelet "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers "kubeletstats/platform" $kubelet -}}
+{{/* One file receiver fans out to disjoint platform and workload namespace filters. */}}
+{{- $podMetadata := index $config.processors "k8s_attributes/pod_uid" -}}
+{{- $_ := set $podMetadata.extract "labels" (append $podMetadata.extract.labels (dict "from" "pod" "key" "app.kubernetes.io/name" "tag_name" "loco.platform.service.name")) -}}
+{{- $_ := set $config.processors "filter/workload_logs" (dict "error_mode" "propagate" "log_conditions" (list (printf "resource.attributes[\"k8s.namespace.name\"] != nil and IsMatch(resource.attributes[\"k8s.namespace.name\"], %s)" ($pattern | toJson)))) -}}
+{{- $_ := set $config.service.pipelines.logs "processors" (append $config.service.pipelines.logs.processors "filter/workload_logs") -}}
+{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "file_log") "processors" (list "memory_limiter" "k8s_attributes/pod_uid" "filter/platform" "transform/log_severity" "transform/platform_log" "filter/platform_feedback" "resource/platform")) -}}
+{{- $excluded := index $config.receivers "file_log" "exclude" | default list -}}
+{{- range $collectorName := list "otel-col-daemon" "otel-col-deploy" "otel-col-cluster" -}}
+{{- if index $.root.Values $collectorName "enabled" -}}
+{{- $other := index $.root.Subcharts $collectorName -}}
+{{- $excluded = append $excluded (printf "/var/log/pods/%s_%s*_*/*/*.log" (include "opentelemetry-collector.namespace" $other) (include "opentelemetry-collector.fullname" $other)) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set (index $config.receivers "file_log") "exclude" ($excluded | uniq) -}}
+
 {{- else -}}
 {{- $receivers = list "k8s_cluster" "otlp/platform" -}}
 {{- $_ := set $config.receivers "otlp/platform" (dict "protocols" (dict "http" (dict "endpoint" (printf "${env:MY_POD_IP}:%v" (include "loco-worker.platformOTLPPort" .root))))) -}}
@@ -73,7 +88,7 @@
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}
 {{- $_ := set $config.receivers.k8s_cluster "allocatable_types_to_report" $settings.allocatableTypes -}}
 {{- $_ := set $config.processors "transform/platform_event" (dict "error_mode" "propagate" "log_statements" (list (dict "context" "log" "statements" (list "set(resource.attributes[\"k8s.namespace.name\"], body[\"object\"][\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"object\"])" "set(resource.attributes[\"k8s.namespace.name\"], body[\"metadata\"][\"namespace\"]) where IsMap(body) and IsMap(body[\"metadata\"])")))) -}}
-{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects" "otlp/platform") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform")) -}}
+{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "k8sobjects") "processors" (list "memory_limiter" "transform/platform_event" "filter/platform" "resource/platform")) -}}
 {{- end -}}
 {{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform")) -}}
 {{- if $settings.platformOnly -}}

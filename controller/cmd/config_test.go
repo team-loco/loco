@@ -28,18 +28,16 @@ func TestOperatorConfigEnablesTracingAndMetricsWithTheirOTLPEndpoints(t *testing
 		env         string
 		wantTracing bool
 		wantMetrics bool
-		wantLogs    bool
 	}{
 		"no endpoint":      {},
-		"shared endpoint":  {env: envOTLPEndpoint, wantTracing: true, wantMetrics: true, wantLogs: true},
+		"shared endpoint":  {env: envOTLPEndpoint, wantTracing: true, wantMetrics: true},
 		"traces endpoint":  {env: envOTLPTracesEndpoint, wantTracing: true},
 		"metrics endpoint": {env: envOTLPMetricsEndpoint, wantMetrics: true},
-		"logs endpoint":    {env: envOTLPLogsEndpoint, wantLogs: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 			for _, variable := range []string{
-				envOTLPEndpoint, envOTLPTracesEndpoint, envOTLPMetricsEndpoint, envOTLPLogsEndpoint,
+				envOTLPEndpoint, envOTLPTracesEndpoint, envOTLPMetricsEndpoint,
 			} {
 				t.Setenv(variable, "")
 			}
@@ -52,9 +50,6 @@ func TestOperatorConfigEnablesTracingAndMetricsWithTheirOTLPEndpoints(t *testing
 			}
 			if operator.Metrics != tc.wantMetrics {
 				t.Errorf("metrics = %t, want %t", operator.Metrics, tc.wantMetrics)
-			}
-			if operator.Logs != tc.wantLogs {
-				t.Errorf("logs = %t, want %t", operator.Logs, tc.wantLogs)
 			}
 		})
 	}

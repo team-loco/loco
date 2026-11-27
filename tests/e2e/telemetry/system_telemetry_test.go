@@ -27,11 +27,11 @@ import (
 
 const systemReaderEmail = "system-reader@test.local"
 
-// TestAPITelemetryReachesTheSystemTenant checks that the API's own logs, traces and metrics,
+// TestAPITelemetryReachesTheSystemTenant checks that the host API's own traces and metrics,
 // exported with the system ingest token, land under the system tenant stamped as the control plane.
 func TestAPITelemetryReachesTheSystemTenant(t *testing.T) {
 	t.Parallel()
-	for _, table := range []string{"otel_logs", "otel_traces", "otel_metrics_sum"} {
+	for _, table := range []string{"otel_traces", "otel_metrics_sum"} {
 		waitCount(t, "the API's own rows in "+table, fmt.Sprintf(
 			"SELECT count() FROM %s WHERE WorkspaceId = '%s' AND ServiceName = 'loco-api' "+
 				"AND ResourceAttributes['loco.cluster.id'] = '%s' AND OrganizationId = '' "+
@@ -54,10 +54,10 @@ func TestControllerTelemetryReachesTheSystemTenant(t *testing.T) {
 	), func(count int) bool { return count > 0 })
 }
 
-// TestSystemReaderReadsTheAPIsLogs checks that a user with the system read role reads the API's own
+// TestSystemReaderReadsTheControllersLogs checks that a user with the system read role reads the controller's own
 // log lines from the system tenant through the observability API's installation scope, that the system
 // tenant's ID is not a workspace, and that a user without the role is denied.
-func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
+func TestSystemReaderReadsTheControllersLogs(t *testing.T) {
 	t.Parallel()
 	web := p.Clients(p.ProviderToken(t, systemReaderEmail))
 	code, err := platform.ApproveCLILogin(t.Context(), web)
@@ -91,20 +91,25 @@ func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 			Installation: true,
 			StartTime:    timestamppb.New(time.Now().Add(-time.Hour)),
 			EndTime:      timestamppb.Now(),
-			Query:        "@component:loco-api @cluster:" + systemtenant.ControlPlaneClusterID,
+			Query:        "@component:loco-controller @cluster:" + p.ClusterID,
 			PageSize:     1,
 		})
 	}
-	platform.Eventually(t, telemetryTimeout, "an API log line read as a system reader", func(context.Context) error {
-		response, queryErr := query(reader)
-		if queryErr != nil {
-			return queryErr
-		}
-		if len(response.GetEntries()) == 0 {
-			return errors.New("no API log lines yet")
-		}
-		return nil
-	})
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"a controller log line read as a system reader",
+		func(context.Context) error {
+			response, queryErr := query(reader)
+			if queryErr != nil {
+				return queryErr
+			}
+			if len(response.GetEntries()) == 0 {
+				return errors.New("no controller log lines yet")
+			}
+			return nil
+		},
+	)
 	_, err = reader.Observability.QueryLogs(t.Context(), &observabilityv1.QueryLogsRequest{
 		WorkspaceId: systemtenant.WorkspaceID,
 		StartTime:   timestamppb.New(time.Now().Add(-time.Hour)),
@@ -230,7 +235,7 @@ func TestSystemMetricsSelectNodeResourceIdentity(t *testing.T) {
 }
 
 // TestControllerLogsLinkToTheirReconcile follows a real deployment's diagnostic through
-// the controller, cluster collector, ingest and the installation-scoped read API.
+// controller stdout, node file collection, ingest and the installation-scoped read API.
 func TestControllerLogsLinkToTheirReconcile(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
@@ -267,6 +272,10 @@ func TestControllerLogsLinkToTheirReconcile(t *testing.T) {
 				}
 				if entry.GetResourceAttributes()["loco.cluster.id"] != p.ClusterID {
 					return errors.New("diagnostic lost its cluster identity")
+				}
+				if entry.GetLogAttributes()["log.file.path"] == "" ||
+					entry.GetResourceAttributes()["k8s.node.name"] == "" {
+					return errors.New("controller diagnostic did not come from node file collection")
 				}
 				if entry.GetTraceId() == "" || entry.GetSpanId() == "" {
 					return errors.New("controller diagnostic has no trace/span IDs")

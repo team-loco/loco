@@ -147,11 +147,3 @@ tests:
         template: templates/controller/deployment.yaml
       - contains: *instance
         template: templates/builds/deployment.yaml
-
-  - it: accepts controller logs on the platform OTLP endpoint
-    template: templates/collectors/collector-configs.yaml
-    documentSelector: {path: metadata.name, value: otel-col-cluster}
-    asserts:
-      - matchRegex:
-          path: data.relay
-          pattern: 'logs/platform:\n\s+exporters:\n(?:\s+- [^\n]+\n)+\s+processors:\n(?:\s+- [^\n]+\n)+\s+receivers:\n\s+- k8sobjects\n\s+- otlp/platform'

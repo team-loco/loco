@@ -14,6 +14,7 @@ spec:
   template:
     metadata:
       labels:
+        app.kubernetes.io/name: loco-api
         app: {{ .Release.Name }}-api
     spec:
       serviceAccountName: {{ include "loco-control-plane.apiServiceAccount" . }}

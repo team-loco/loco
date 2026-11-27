@@ -10,7 +10,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. |
+| `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. The control-plane chart defaults this to `PRODUCTION`. |
 | `APP_PORT` | empty | Listen address, such as `:8000`. Empty listens on port 80. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`, for the JSON logs of `APP_ENV=PRODUCTION`. |
 | `GOMEMLIMIT` | none | Go runtime soft memory limit, such as `900MiB`. The chart sets it to the container memory limit. `GOMAXPROCS` follows the container CPU limit, at least 2, without being set. |
@@ -20,10 +20,9 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_TRUSTED_PROXY_HOPS` | `0` | How many proxies in front of the API append the address they received a request from to `X-Forwarded-For`. The API shows the entry that many places from the right as a session's address; `0` uses the connection's address. The chart sets `1` for its gateway. |
 | `LOCO_RPC_TIMEOUT` | `30s` | Deadline of each unary RPC. Streams have none. |
 | `LOCO_SHUTDOWN_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for open requests before closing their connections. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces, Go runtime metrics and logs. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty; metrics are off while this and `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` are both empty; log export is off while this and `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` are both empty. A backend that accepts only traces belongs in `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, which leaves metrics off. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces and Go runtime metrics. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty; metrics are off while this and `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` are both empty. A backend that accepts only traces belongs in `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, which leaves metrics off. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | empty | OTLP/HTTP endpoint for traces only. |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | empty | OTLP/HTTP endpoint for metrics only. The API exports Go runtime metrics: memory, garbage collection goal, goroutine count and scheduler latency (`go.schedule.duration`). |
-| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | empty | OTLP/HTTP endpoint for logs only. The API exports every record it writes at `LOG_LEVEL` or above and keeps writing them to its standard output. |
 | `OTEL_PROPAGATORS` | `tracecontext,baggage` | Trace context formats the API reads from requests and writes to outgoing calls: `tracecontext`, `baggage`, `b3`, `b3multi`, `jaeger`, `xray`, `ottrace` or `none`. Each request starts its own trace and links to the caller's span, so a client cannot choose the trace a request joins or whether it is sampled. |
 
 ## Database

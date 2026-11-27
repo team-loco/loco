@@ -332,3 +332,10 @@ tests:
           content:
             name: GOMEMLIMIT
             valueFrom: {resourceFieldRef: {containerName: api, resource: limits.memory}}
+
+  - it: writes deployed API logs as structured JSON
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APP_ENV, value: PRODUCTION}

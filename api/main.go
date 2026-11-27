@@ -157,23 +157,17 @@ func main() {
 	}
 }
 
-// run logs the error it returns; once log export starts, it logs it before the log provider flushes.
+// run logs the error it returns.
 func run() (err error) {
 	ac := newAPIConfig()
 
-	loggerProvider, err := startLogs(context.Background(), ac.LogsEnabled, ac.Version)
-	if err != nil {
-		slog.Error("loco api failed", "error", err)
-		return err
-	}
-	defer stopLogs(loggerProvider)
 	defer func() {
 		if err != nil {
 			slog.Error("loco api failed", "error", err)
 		}
 	}()
-	handler := otelsetup.LogHandler(getLoggerHandler(ac), loggerProvider, defaultServiceName, ac.LogLevel)
-	logger := slog.New(CustomHandler{Handler: handler})
+	handler := otelsetup.LogHandler(getLoggerHandler(ac), requestLogAttrs)
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 
