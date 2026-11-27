@@ -97,7 +97,7 @@ function ProblemLog({
 }) {
 	const timePref = useTimePreferences();
 	const at = maybeTsMs(deploymentProblem(deployment)?.since);
-	const nowMs = useNow().getTime();
+	const nowMs = useNow(15_000).getTime();
 	const window = at === undefined ? undefined : aroundWindow(at, nowMs);
 	const logs = useQueryLogs({
 		workspaceId,
