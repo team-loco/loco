@@ -314,7 +314,7 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     page.goto(
         state["ui_url"]
         + base
-        + f"/observability?view=events&live=0&from={history_end - 600_000}&to={history_end}"
+        + f"/observability?view=events&from={history_end - 600_000}&to={history_end}"
     )
     with expect_rpc(
         page, "ListEvents", lambda body: bool(body.get("pageToken"))
@@ -336,6 +336,16 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
         assert time.monotonic() < deadline, "pre-remount event was not published"
         time.sleep(0.1)
     held_history = []
+    bootstrap_requests = []
+
+    def watch_bootstrap(request):
+        if request.url.endswith("/StreamEvents") or (
+            request.url.endswith("/ListEvents")
+            and request.post_data_json.get("afterCursor")
+        ):
+            bootstrap_requests.append(request.url)
+
+    page.on("request", watch_bootstrap)
 
     def hold_history(route):
         if route.request.post_data_json.get("pageToken"):
@@ -359,13 +369,17 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     ).to_be_visible()
     assert held_history, "fresh history request was not held"
     assert held_history[0].request.post_data_json == cached_input
-    for route in held_history:
-        route.continue_()
-    page.unroute(history_rpc, hold_history)
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    assert not bootstrap_requests, bootstrap_requests
     with expect_rpc(
         page, "ListEvents", lambda body: bool(body.get("afterCursor"))
     ) as historical_unread:
-        page.locator("[data-live-button]").click()
+        for route in held_history:
+            route.continue_()
+        page.unroute(history_rpc, hold_history)
+    page.remove_listener("request", watch_bootstrap)
     count_input = historical_unread.value.request.post_data_json
     assert "endTime" in count_input, count_input
     assert historical_unread.value.json().get("totalCount", 0) == 0
