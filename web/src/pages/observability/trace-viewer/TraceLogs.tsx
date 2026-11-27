@@ -1,8 +1,9 @@
 import type { SetTraceZoom } from "./useTraceZoom";
 import { useTraceResources } from "./TraceColors";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import { useLayout } from "@/lib/layout";
+import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { descendantIds, type Zoom } from "../flame";
 import type { LogRow } from "../rows";
 import type { TraceSummary } from "../traces";
@@ -10,6 +11,8 @@ import { TracePlot } from "./TracePlot";
 import { TraceLogPanel } from "./TraceLogPanel";
 import { SpanPanel } from "./SpanPanel";
 import { useTraceLogs } from "./trace-logs";
+
+const parseDetailsWidth = layoutNumber(400, 0, Number.POSITIVE_INFINITY);
 
 export function TraceLogs({
 	trace,
@@ -34,6 +37,24 @@ export function TraceLogs({
 	spanTab: string;
 	onSpanTab: (tab: string) => void;
 }) {
+	const [savedWidth, setDetailsWidth] = useLayout("trace.details", parseDetailsWidth);
+	const [draggedWidth, setDraggedWidth] = useState<number | null>(null);
+	const [containerWidth, setContainerWidth] = useState(0);
+	const containerRef = useCallback((element: HTMLDivElement | null) => {
+		if (element === null) return;
+		const measure = () => {
+			setContainerWidth(element.clientWidth);
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+	const maxWidth = Math.round(containerWidth * 0.6);
+	const minWidth = Math.min(320, maxWidth);
+	const detailsWidth = Math.min(maxWidth, Math.max(minWidth, draggedWidth ?? savedWidth));
 	const logs = useTraceLogs(trace);
 	const { children } = useTraceResources();
 	const [hoverSpan, setHoverSpan] = useState<string | null>(null);
@@ -83,7 +104,11 @@ export function TraceLogs({
 		setCollapsed(false);
 	};
 	return (
-		<div className="flex min-w-0 flex-col min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
+		<div
+			ref={containerRef}
+			style={{ "--trace-details-width": `${String(detailsWidth)}px` } as CSSProperties}
+			className="flex min-w-0 flex-col min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_var(--trace-details-width)]"
+		>
 			<div className="flex min-h-0 min-w-0 flex-col">
 				<div className="flex min-w-0 shrink-0 flex-col pr-5 pb-5 pl-6 min-[1100px]:min-h-0 min-[1100px]:shrink min-[1100px]:pb-0">
 					<TracePlot
@@ -117,16 +142,32 @@ export function TraceLogs({
 					onCollapsed={setCollapsed}
 				/>
 			</div>
-			<div className="border-t border-line bg-panel px-5 pt-4 pb-6 min-[1100px]:min-h-0 min-[1100px]:overflow-auto min-[1100px]:border-t-0 min-[1100px]:border-l">
-				<SpanPanel
-					trace={trace}
-					selected={selected}
-					missing={missing}
-					select={select}
-					label={label}
-					tab={spanTab}
-					onTab={onSpanTab}
-				/>
+			<div className="relative min-h-0 min-w-0">
+				<div
+					className="pointer-events-none absolute inset-0 z-10 hidden min-[1100px]:block [&>*]:pointer-events-auto"
+					data-separators
+				>
+					<ColumnResizeHandle
+						label="span details"
+						width={detailsWidth}
+						min={minWidth}
+						max={maxWidth}
+						onWidth={setDetailsWidth}
+						onDrag={setDraggedWidth}
+						atStart
+					/>
+				</div>
+				<div className="h-full border-t border-line bg-panel px-5 pt-4 pb-6 min-[1100px]:overflow-auto min-[1100px]:border-t-0 min-[1100px]:border-l">
+					<SpanPanel
+						trace={trace}
+						selected={selected}
+						missing={missing}
+						select={select}
+						label={label}
+						tab={spanTab}
+						onTab={onSpanTab}
+					/>
+				</div>
 			</div>
 		</div>
 	);

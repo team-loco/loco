@@ -484,6 +484,38 @@ with session(out) as browser:
         "([el, w]) => el.getBoundingClientRect().width > w",
         arg=[drawer.element_handle(), narrow + 150],
     )
+    details_grip = drawer.get_by_role("separator", name="Resize span details")
+    details_panel = details_grip.locator("../..")
+    initial_width = details_panel.bounding_box()["width"]
+    box = details_grip.bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + 20
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x - 180, y, steps=5)
+    page.mouse.up()
+    wider = details_panel.bounding_box()["width"]
+    assert abs(wider - initial_width - 180) <= 1, (initial_width, wider)
+    details_grip.press("ArrowRight")
+    assert abs(details_panel.bounding_box()["width"] - wider + 16) <= 1
+    saved_width = details_panel.bounding_box()["width"]
+    drawer.get_by_role("button", name="Close", exact=True).click()
+    open_trace.click()
+    assert abs(details_panel.bounding_box()["width"] - saved_width) <= 1
+    for _ in range(40):
+        details_grip.press("ArrowLeft")
+    assert (
+        details_panel.bounding_box()["width"]
+        <= drawer.bounding_box()["width"] * 0.6 + 1
+    )
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(details_grip).to_be_hidden()
+    assert details_panel.bounding_box()["width"] <= drawer.bounding_box()["width"]
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.evaluate(
+        "() => { const layout = JSON.parse(localStorage.getItem('loco-layout')); delete layout['trace.details']; localStorage.setItem('loco-layout', JSON.stringify(layout)); }"
+    )
+    page.reload()
+    expect(details_grip).to_have_attribute("aria-valuenow", "400")
     flame = drawer.get_by_role("region", name="Flame graph")
     expect(flame.get_by_role("button")).to_have_count(len(spans))
     bottom = drawer.get_by_role("region", name="Trace bottom panel", exact=True)
