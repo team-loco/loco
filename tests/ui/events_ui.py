@@ -316,12 +316,16 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
         + base
         + f"/observability?view=events&live=0&from={history_end - 600_000}&to={history_end}"
     )
-    events.get_by_role("button", name="Next page", exact=True).click()
+    with expect_rpc(
+        page, "ListEvents", lambda body: bool(body.get("pageToken"))
+    ) as cached_history:
+        events.get_by_role("button", name="Next page", exact=True).click()
+    cached_input = cached_history.value.request.post_data_json
     expect(events.get_by_text("Page 2", exact=True)).to_be_visible()
-    historical_url = page.url.replace("&live=0", "")
-    # Let this page's successful history persist, then publish while the view is closed.
-    page.wait_for_timeout(1200)
-    page.goto("about:blank")
+    cached_history_url = page.url
+    # Leave through the router so the successfully loaded older page remains cached.
+    page.get_by_role("link", name="Logs", exact=True).click()
+    expect(page).to_have_url(re.compile(r"view=logs"))
     sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
@@ -331,10 +335,37 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
         assert time.monotonic() < deadline, "pre-remount event was not published"
         time.sleep(0.1)
+    held_history = []
+
+    def hold_history(route):
+        if route.request.post_data_json.get("pageToken"):
+            held_history.append(route)
+        else:
+            route.continue_()
+
+    history_rpc = "**/loco.event.v1.EventService/ListEvents"
+    page.route(history_rpc, hold_history)
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/ListEvents")
+            and bool(request.post_data_json.get("pageToken"))
+        )
+    ):
+        page.go_back()
+    expect(page).to_have_url(cached_history_url)
+    # The fresh history response is held: these rows can only come from the cache.
+    expect(
+        events.get_by_role("row", name="Recovered in history", exact=True).first
+    ).to_be_visible()
+    assert held_history, "fresh history request was not held"
+    assert held_history[0].request.post_data_json == cached_input
+    for route in held_history:
+        route.continue_()
+    page.unroute(history_rpc, hold_history)
     with expect_rpc(
         page, "ListEvents", lambda body: bool(body.get("afterCursor"))
     ) as historical_unread:
-        page.goto(historical_url)
+        page.locator("[data-live-button]").click()
     count_input = historical_unread.value.request.post_data_json
     assert "endTime" in count_input, count_input
     assert historical_unread.value.json().get("totalCount", 0) == 0
