@@ -191,6 +191,12 @@ func (s *RoutingServer) ReportPublication(
 	if !published && req.GetOutcome() != routingv1.PublicationOutcome_PUBLICATION_OUTCOME_ERROR {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "publication outcome is required")
 	}
+	message := req.GetMessage()
+	if published {
+		message = ""
+	} else if message == "" {
+		message = "Routing publication failed"
+	}
 	err = withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
 		if _, lockErr := qtx.LockRoutePublisher(ctx, id); lockErr != nil {
 			return fmt.Errorf("lock routing publisher: %w", lockErr)
@@ -203,7 +209,7 @@ func (s *RoutingServer) ReportPublication(
 				SessionID:    &session,
 				Revision:     req.GetRevision(),
 				Published:    published,
-				Message:      req.GetMessage(),
+				Message:      message,
 				DrainSeconds: s.drainSeconds,
 			},
 		)

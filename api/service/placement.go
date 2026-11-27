@@ -78,6 +78,11 @@ func placeApplication(
 	if notifyErr := notifyRemovedPlacements(ctx, qtx, params.ResourceID, removed); notifyErr != nil {
 		return notifyErr
 	}
+	return persistPlacement(ctx, qtx, params)
+}
+
+// Payload-only changes preserve a placement's pending retirement.
+func persistPlacement(ctx context.Context, qtx *genDb.Queries, params genDb.UpsertPlacementParams) error {
 	placement, err := qtx.UpsertPlacement(ctx, params)
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
@@ -237,7 +242,7 @@ func rewritePlacement(
 	if err != nil {
 		return fmt.Errorf("encode placement %s: %w", placement.ID, err)
 	}
-	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+	return persistPlacement(ctx, qtx, genDb.UpsertPlacementParams{
 		ResourceID:    placement.ResourceID,
 		ClusterID:     placement.ClusterID,
 		Region:        placement.Region,

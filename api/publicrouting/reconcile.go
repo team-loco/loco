@@ -193,7 +193,9 @@ func (r *Reconciler) reconcile(ctx context.Context, q *db.Queries, key db.ListPu
 	}
 	pending := false
 	for _, p := range publications {
-		if p.AcknowledgedRevision != p.Revision || p.DrainUntil == nil || p.DrainUntil.After(time.Now()) {
+		acknowledged := p.AcknowledgedRevision == p.Revision
+		drained := p.DrainUntil != nil && !p.DrainUntil.After(time.Now())
+		if !acknowledged || !drained {
 			pending = true
 			break
 		}
@@ -236,8 +238,8 @@ func eligibleClusters(
 		if err := json.Unmarshal(p.PublicRoute, &route); err != nil {
 			return nil, 0, fmt.Errorf("decode placement route %s: %w", p.ID, err)
 		}
-		if !route.Ready || route.Revision != p.DesiredRevision ||
-			!slices.Contains(route.Hostnames, publication.Hostname) {
+		currentAccepted := route.Ready && route.Revision == p.DesiredRevision
+		if !currentAccepted || !slices.Contains(route.Hostnames, publication.Hostname) {
 			continue
 		}
 		var payload loco.PlacementPayload
@@ -263,7 +265,8 @@ func saveIntent(
 	clusters []uuid.UUID,
 	withdrawing bool,
 ) error {
-	if p.ID != uuid.Nil && p.Withdrawing == withdrawing && slices.Equal(p.ClusterIds, clusters) {
+	sameMembership := p.Withdrawing == withdrawing && slices.Equal(p.ClusterIds, clusters)
+	if p.ID != uuid.Nil && sameMembership {
 		return nil
 	}
 	if clusters == nil {

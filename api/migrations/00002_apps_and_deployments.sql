@@ -798,6 +798,20 @@ CREATE TRIGGER public_routing_retirement AFTER INSERT OR DELETE ON public_routin
 FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
 
 -- +goose StatementBegin
+CREATE FUNCTION enqueue_cluster_public_routing() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO public_routing_dirty(resource_id, environment_id)
+    SELECT DISTINCT resource_id, environment_id FROM placements WHERE cluster_id = NEW.id
+    ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+CREATE TRIGGER public_routing_cluster_change AFTER UPDATE OF removed_at ON clusters
+FOR EACH ROW WHEN (OLD.removed_at IS DISTINCT FROM NEW.removed_at)
+EXECUTE FUNCTION enqueue_cluster_public_routing();
+
+-- +goose StatementBegin
 CREATE FUNCTION guard_public_domain() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     IF EXISTS(SELECT 1 FROM public_route_publications p WHERE p.hostname = NEW.domain
@@ -824,6 +838,8 @@ DROP TRIGGER IF EXISTS public_routing_placement_create ON placements;
 DROP TRIGGER IF EXISTS public_routing_placement_change ON placements;
 DROP TRIGGER IF EXISTS public_routing_retirement ON public_routing_retirements;
 DROP FUNCTION IF EXISTS enqueue_public_routing;
+DROP TRIGGER IF EXISTS public_routing_cluster_change ON clusters;
+DROP FUNCTION IF EXISTS enqueue_cluster_public_routing;
 DROP TABLE IF EXISTS public_routing_dirty;
 DROP TABLE IF EXISTS public_routing_retirements;
 DROP TABLE IF EXISTS public_route_publications;

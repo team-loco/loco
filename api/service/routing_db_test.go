@@ -944,3 +944,123 @@ func TestRoutingOwnedTokenHasOnlyPublisherAccess(t *testing.T) {
 	)
 	wantCode(t, err, connect.CodePermissionDenied)
 }
+
+func TestHostnameEditPreservesPendingPlacementRetirement(t *testing.T) {
+	t.Parallel()
+	f := newRoutingFixture(t)
+	f.deploy(t)
+	f.ready(t, f.clusterID, true)
+	f.reconcile(t)
+	f.ack(t, f.publications(t)[0])
+	err := withTx(
+		t.Context(),
+		f.pool,
+		func(q *db.Queries) error { return removePlacement(t.Context(), q, f.resourceID, f.envID, f.clusterID) },
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.domain.add(testSecondDomain); err != nil {
+		t.Fatal(err)
+	}
+	var retiring bool
+	err = f.pool.QueryRow(t.Context(), `SELECT EXISTS(SELECT 1 FROM public_routing_retirements
+ WHERE resource_id=$1 AND cluster_id=$2)`, f.resourceID, f.clusterID).
+		Scan(&retiring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !retiring {
+		t.Fatal("hostname rewrite canceled retirement")
+	}
+	f.reconcile(t)
+	for _, p := range f.publications(t) {
+		f.ack(t, p)
+	}
+	if _, err = f.pool.Exec(
+		t.Context(),
+		"UPDATE public_route_publications SET drain_until=NOW()-INTERVAL '1 second'",
+	); err != nil {
+		t.Fatal(err)
+	}
+	f.reconcile(t)
+	if !f.placement(t, f.clusterID).DesiredDeleted {
+		t.Fatal("hostname edit prevented placement retirement")
+	}
+}
+
+func TestClusterRemovalReconcilesSettledPublication(t *testing.T) {
+	t.Parallel()
+	f := newRoutingFixture(t)
+	f.deploy(t)
+	f.ready(t, f.clusterID, true)
+	f.reconcile(t)
+	f.ack(t, f.publications(t)[0])
+	if _, err := f.pool.Exec(
+		t.Context(),
+		"UPDATE public_route_publications SET drain_until=NOW()-INTERVAL '1 second'",
+	); err != nil {
+		t.Fatal(err)
+	}
+	f.reconcile(t)
+	var queued int
+	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM public_routing_dirty").Scan(&queued); err != nil {
+		t.Fatal(err)
+	}
+	if queued != 0 {
+		t.Fatal("fixture was not settled")
+	}
+	if _, err := f.pool.Exec(
+		t.Context(),
+		"UPDATE clusters SET removed_at=NOW(), is_active=false WHERE id=$1",
+		f.clusterID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	f.reconcile(t)
+	if p := f.publications(t)[0]; !p.Withdrawing || len(p.ClusterIds) != 0 {
+		t.Fatalf("removed cluster still published: %+v", p)
+	}
+	if _, err := f.pool.Exec(t.Context(), "UPDATE clusters SET removed_at=NULL WHERE id=$1", f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	f.reconcile(t)
+	if p := f.publications(t)[0]; p.Withdrawing || !slices.Equal(p.ClusterIds, []uuid.UUID{f.clusterID}) {
+		t.Fatalf("restored cluster not admitted: %+v", p)
+	}
+}
+
+func TestPublicationReportCanonicalizesDiagnostics(t *testing.T) {
+	t.Parallel()
+	f := newRoutingFixture(t)
+	f.deploy(t)
+	f.ready(t, f.clusterID, true)
+	f.reconcile(t)
+	p := f.publications(t)[0]
+	f.list(t, 0)
+	for _, tc := range []struct {
+		outcome       routingv1.PublicationOutcome
+		message, want string
+	}{
+		{routingv1.PublicationOutcome_PUBLICATION_OUTCOME_ERROR, "", "Routing publication failed"},
+		{routingv1.PublicationOutcome_PUBLICATION_OUTCOME_PUBLISHED, "Informational provider text", ""},
+	} {
+		_, err := f.server.ReportPublication(
+			f.ctx,
+			&routingv1.ReportPublicationRequest{
+				PublisherId:   f.publisher.String(),
+				SessionId:     f.session,
+				PublicationId: p.ID.String(),
+				Revision:      p.Revision,
+				Outcome:       tc.outcome,
+				Message:       tc.message,
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := f.publications(t)[0].Message; got != tc.want {
+			t.Fatalf("message=%q want=%q", got, tc.want)
+		}
+	}
+}
