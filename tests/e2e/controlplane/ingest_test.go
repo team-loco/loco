@@ -184,6 +184,12 @@ otel-col-deploy: {enabled: false}
 otel-col-cluster: {enabled: false}
 otel-col-daemon:
   namespaceOverride: %[4]s
+  config:
+    extensions:
+      file_storage:
+        # Other suites run another node collector on this same kind node.
+        directory: /var/lib/otelcol/%[4]s-node-logs
+        create_directory: true
 `, metricsRegion, c.KindCluster(), release, nodeNamespace, cp.values.ObsProxy.Ingest.HTTPPort, "Bearer "+token))
 	rendered := helm(t, "template", "platform-logs", c.Path("charts", "loco-worker"), "--namespace", cp.namespace,
 		"--values", values)
