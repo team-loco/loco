@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -194,6 +196,19 @@ func TestPublicRouteBatchesAndPrunesHostnames(t *testing.T) {
 	if len(routes.Items) != 2 {
 		t.Fatalf("routes = %d, want 2", len(routes.Items))
 	}
+
+	var routed []string
+	for _, route := range routes.Items {
+		for _, hostname := range route.Spec.Hostnames {
+			routed = append(routed, string(hostname))
+		}
+	}
+	slices.Sort(routed)
+	want := slices.Clone(app.Spec.ServiceSpec.Routing.Hostnames)
+	slices.Sort(want)
+	if !slices.Equal(routed, want) {
+		t.Fatalf("routed hostnames = %v, want %v", routed, want)
+	}
 	for i := range routes.Items {
 		route := &routes.Items[i]
 		if err := kube.Get(t.Context(), client.ObjectKeyFromObject(route), route); err != nil {
@@ -250,5 +265,93 @@ func TestPublicRouteBatchesAndPrunesHostnames(t *testing.T) {
 	}
 	if len(routes.Items) != 0 || app.Status.PublicRoute != nil {
 		t.Fatalf("private app retains routes or observation: %d %+v", len(routes.Items), app.Status.PublicRoute)
+	}
+}
+
+func TestPublicRouteErrorNeverReportsReady(t *testing.T) {
+	for _, operation := range []string{"apply", "read", "prune"} {
+		t.Run(operation, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			if err := gatewayv1.Install(scheme); err != nil {
+				t.Fatal(err)
+			}
+			injected := errors.New("injected Kubernetes failure")
+			funcs := interceptor.Funcs{}
+			switch operation {
+			case "apply":
+				funcs.Apply = func(context.Context, client.WithWatch, runtime.ApplyConfiguration, ...client.ApplyOption) error {
+					return injected
+				}
+			case "read":
+				funcs.Get = func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+					return injected
+				}
+			case "prune":
+				funcs.List = func(context.Context, client.WithWatch, client.ObjectList, ...client.ListOption) error {
+					return injected
+				}
+			}
+			kube := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&gatewayv1.HTTPRoute{}).
+				Build()
+			app := testApplication()
+			app.Spec.ServiceSpec.Routing = testRouting()
+			r := &ApplicationReconciler{
+				Client:                   kube,
+				APIReader:                kube,
+				Gateway:                  testGateway,
+				LocoNamespace:            testLocoNamespace,
+				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			}
+
+			if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+				t.Fatal(err)
+			}
+			route := &gatewayv1.HTTPRoute{}
+			if err := kube.Get(
+				t.Context(),
+				client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)},
+				route,
+			); err != nil {
+				t.Fatal(err)
+			}
+			route.Status.Parents = []gatewayv1.RouteParentStatus{
+				{
+					ParentRef:      route.Spec.ParentRefs[0],
+					ControllerName: envoyGatewayController,
+					Conditions: []metav1.Condition{
+						{
+							Type:               string(gatewayv1.RouteConditionAccepted),
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: route.Generation,
+						},
+						{
+							Type:               string(gatewayv1.RouteConditionResolvedRefs),
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: route.Generation,
+						},
+					},
+				},
+			}
+			if err := kube.Status().Update(t.Context(), route); err != nil {
+				t.Fatal(err)
+			}
+			if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+				t.Fatal(err)
+			}
+			if !app.Status.PublicRoute.Ready {
+				t.Fatal("initial route not ready")
+			}
+			failing := interceptor.NewClient(kube, funcs)
+			r.Client = failing
+			r.APIReader = failing
+			if err := r.ensureHTTPRoute(t.Context(), app); !errors.Is(err, injected) {
+				t.Fatalf("error = %v", err)
+			}
+			if app.Status.PublicRoute == nil || app.Status.PublicRoute.Ready {
+				t.Fatalf("error observation = %+v", app.Status.PublicRoute)
+			}
+		})
 	}
 }

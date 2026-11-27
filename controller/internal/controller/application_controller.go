@@ -961,9 +961,9 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		observation := &locov1alpha1.PublicRouteStatus{
 			Revision:  revision,
 			Hostnames: slices.Clone(routing.Hostnames),
-			Ready:     true,
 		}
 		app.Status.PublicRoute = observation
+		allReady := true
 		for hostnames := range slices.Chunk(routing.Hostnames, hostnamesPerRoute) {
 			offset := len(desired)
 			routeName := getRouteName(app)
@@ -975,8 +975,13 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 			if err != nil {
 				return err
 			}
-			observation.Ready = observation.Ready && ready
+			allReady = allReady && ready
 		}
+		if err := r.prunePublicRoutes(ctx, app, desired); err != nil {
+			return err
+		}
+		observation.Ready = allReady
+		return nil
 	}
 	return r.prunePublicRoutes(ctx, app, desired)
 }
