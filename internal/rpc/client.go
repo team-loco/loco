@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/gen/go/loco/routing/v1/routingv1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -29,6 +30,7 @@ import (
 )
 
 type Clients struct {
+	Routing       routingv1connect.RoutingServiceClient
 	ClusterAdmin  clusterv1connect.ClusterAdminServiceClient
 	RegionAdmin   clusterv1connect.RegionAdminServiceClient
 	SystemRole    adminv1connect.SystemRoleServiceClient
@@ -73,6 +75,7 @@ func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
 
 func NewClients(connectClient *connect.Client) *Clients {
 	return &Clients{
+		Routing:       routingv1connect.NewRoutingServiceClient(connectClient),
 		ClusterAdmin:  clusterv1connect.NewClusterAdminServiceClient(connectClient),
 		RegionAdmin:   clusterv1connect.NewRegionAdminServiceClient(connectClient),
 		SystemRole:    adminv1connect.NewSystemRoleServiceClient(connectClient),

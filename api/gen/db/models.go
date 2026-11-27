@@ -324,11 +324,12 @@ func (ns NullDomainSource) Value() (driver.Value, error) {
 type EntityType string
 
 const (
-	EntityTypeSystem       EntityType = "system"
-	EntityTypeOrganization EntityType = "organization"
-	EntityTypeWorkspace    EntityType = "workspace"
-	EntityTypeResource     EntityType = "resource"
-	EntityTypeUser         EntityType = "user"
+	EntityTypeSystem           EntityType = "system"
+	EntityTypeOrganization     EntityType = "organization"
+	EntityTypeWorkspace        EntityType = "workspace"
+	EntityTypeResource         EntityType = "resource"
+	EntityTypeUser             EntityType = "user"
+	EntityTypeRoutingPublisher EntityType = "routing_publisher"
 )
 
 func (e *EntityType) Scan(src interface{}) error {
@@ -671,21 +672,22 @@ func (ns NullWebhookKind) Value() (driver.Value, error) {
 }
 
 type ApiToken struct {
-	ID              uuid.UUID     `json:"id"`
-	TokenHash       string        `json:"tokenHash"`
-	DisplaySuffix   string        `json:"displaySuffix"`
-	Name            string        `json:"name"`
-	EntityType      EntityType    `json:"entityType"`
-	EntityID        uuid.UUID     `json:"entityId"`
-	Scopes          []EntityScope `json:"scopes"`
-	PersonalUserID  *uuid.UUID    `json:"personalUserId"`
-	OrganizationRef *uuid.UUID    `json:"organizationRef"`
-	WorkspaceRef    *uuid.UUID    `json:"workspaceRef"`
-	ResourceRef     *uuid.UUID    `json:"resourceRef"`
-	CreatedBy       uuid.UUID     `json:"createdBy"`
-	CreatedAt       time.Time     `json:"createdAt"`
-	ExpiresAt       time.Time     `json:"expiresAt"`
-	LastUsedAt      *time.Time    `json:"lastUsedAt"`
+	ID                  uuid.UUID     `json:"id"`
+	TokenHash           string        `json:"tokenHash"`
+	DisplaySuffix       string        `json:"displaySuffix"`
+	Name                string        `json:"name"`
+	EntityType          EntityType    `json:"entityType"`
+	EntityID            uuid.UUID     `json:"entityId"`
+	Scopes              []EntityScope `json:"scopes"`
+	RoutingPublisherRef *uuid.UUID    `json:"routingPublisherRef"`
+	PersonalUserID      *uuid.UUID    `json:"personalUserId"`
+	OrganizationRef     *uuid.UUID    `json:"organizationRef"`
+	WorkspaceRef        *uuid.UUID    `json:"workspaceRef"`
+	ResourceRef         *uuid.UUID    `json:"resourceRef"`
+	CreatedBy           uuid.UUID     `json:"createdBy"`
+	CreatedAt           time.Time     `json:"createdAt"`
+	ExpiresAt           time.Time     `json:"expiresAt"`
+	LastUsedAt          *time.Time    `json:"lastUsedAt"`
 }
 
 type AuthState struct {
@@ -979,6 +981,7 @@ type Placement struct {
 	ApplyFailed       bool              `json:"applyFailed"`
 	ObservedRevision  int64             `json:"observedRevision"`
 	ReadyReplicas     int32             `json:"readyReplicas"`
+	PublicRoute       []byte            `json:"publicRoute"`
 	ProblemReason     string            `json:"problemReason"`
 	StatusUpdatedAt   *time.Time        `json:"statusUpdatedAt"`
 	RegionStatus      string            `json:"regionStatus"`
@@ -994,6 +997,36 @@ type PlacementWindow struct {
 	WorkspaceID uuid.UUID  `json:"workspaceId"`
 	PlacedAt    time.Time  `json:"placedAt"`
 	RemovedAt   *time.Time `json:"removedAt"`
+}
+
+type PublicRoutePublication struct {
+	ID                   uuid.UUID   `json:"id"`
+	PublisherID          uuid.UUID   `json:"publisherId"`
+	Hostname             string      `json:"hostname"`
+	ResourceID           uuid.UUID   `json:"resourceId"`
+	EnvironmentID        uuid.UUID   `json:"environmentId"`
+	ClusterIds           []uuid.UUID `json:"clusterIds"`
+	Withdrawing          bool        `json:"withdrawing"`
+	Revision             int64       `json:"revision"`
+	ChangeSequence       int64       `json:"changeSequence"`
+	AcknowledgedRevision int64       `json:"acknowledgedRevision"`
+	AcknowledgedAt       *time.Time  `json:"acknowledgedAt"`
+	DrainUntil           *time.Time  `json:"drainUntil"`
+	Message              string      `json:"message"`
+	UpdatedAt            time.Time   `json:"updatedAt"`
+}
+
+type PublicRoutingDirty struct {
+	NextAttemptAt time.Time `json:"nextAttemptAt"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+type PublicRoutingRetirement struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	ClusterID     uuid.UUID `json:"clusterId"`
+	RequestedAt   time.Time `json:"requestedAt"`
 }
 
 type RegistryCredential struct {
@@ -1059,6 +1092,17 @@ type ResourceRegionInput struct {
 	LastHeartbeat      *time.Time      `json:"lastHeartbeat"`
 	HealthStatus       *string         `json:"healthStatus"`
 	UnservedDomains    []string        `json:"unservedDomains"`
+}
+
+type RoutePublisher struct {
+	ID               uuid.UUID  `json:"id"`
+	AppDomain        string     `json:"appDomain"`
+	ReservedPrefixes []string   `json:"reservedPrefixes"`
+	Bootstrapped     bool       `json:"bootstrapped"`
+	ChangeSequence   int64      `json:"changeSequence"`
+	SessionID        *uuid.UUID `json:"sessionId"`
+	SessionExpiresAt *time.Time `json:"sessionExpiresAt"`
+	CreatedAt        time.Time  `json:"createdAt"`
 }
 
 type Secret struct {

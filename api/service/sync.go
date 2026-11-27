@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -814,6 +815,14 @@ func (s *AgentServer) recordStatus(
 	if !validRolloutReport(ctx, status) {
 		return
 	}
+	var publicRoute []byte
+	if status.GetPublicRoute() != nil {
+		publicRoute, err = json.Marshal(status.GetPublicRoute())
+		if err != nil {
+			slog.ErrorContext(ctx, "encode public route observation", "error", err)
+			return
+		}
+	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		placement := genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID}
 		if _, resourceErr := qtx.LockPlacementResource(ctx, placement); errors.Is(resourceErr, pgx.ErrNoRows) {
@@ -834,6 +843,7 @@ func (s *AgentServer) recordStatus(
 		row, updateErr := qtx.UpdatePlacementStatus(ctx, genDb.UpdatePlacementStatusParams{
 			ObservedRevision: status.GetObservedRevision(),
 			ReadyReplicas:    status.GetReadyReplicas(),
+			PublicRoute:      publicRoute,
 			ID:               placementID,
 			ClusterID:        clusterID,
 		})

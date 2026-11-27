@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/pkg/transit"
+	"github.com/team-loco/loco/api/publicrouting"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
@@ -153,12 +154,17 @@ const (
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
-	defaultHeartbeatInterval         = 30 * time.Second
-	defaultClusterJoinTokenTTL       = time.Hour
-	defaultClusterJoinTokenMaxTTL    = 7 * 24 * time.Hour
-	defaultWorkspaceNamespaceGrace   = 24 * time.Hour
-	defaultAgentAssertionMaxLifetime = 5 * time.Minute
-	defaultInvitationTTL             = 168 * time.Hour
+	defaultRoutingSessionSeconds     int32 = 60
+	defaultRoutingBatchSize          int32 = 500
+	defaultRoutingDrainSeconds       int32 = 120
+	defaultRoutingInterval                 = 5 * time.Second
+	defaultRoutingRetrySeconds       int32 = 5
+	defaultHeartbeatInterval               = 30 * time.Second
+	defaultClusterJoinTokenTTL             = time.Hour
+	defaultClusterJoinTokenMaxTTL          = 7 * 24 * time.Hour
+	defaultWorkspaceNamespaceGrace         = 24 * time.Hour
+	defaultAgentAssertionMaxLifetime       = 5 * time.Minute
+	defaultInvitationTTL                   = 168 * time.Hour
 
 	systemAdminsEnv            = "LOCO_SYSTEM_ADMINS"
 	systemReadersEnv           = "LOCO_SYSTEM_READERS"
@@ -206,6 +212,9 @@ func (c RegistryAuthConfig) TokenMode() bool {
 }
 
 type APIConfig struct {
+	Routing               publicrouting.Config
+	RoutingDrainSeconds   int32
+	RoutingSessionSeconds int32
 	TargetPlatform        workloadplatform.Platform
 	ClickHouse            ClickHouseConfig
 	Observability         service.ObservabilityConfig
@@ -382,6 +391,13 @@ func newAPIConfig() *APIConfig {
 		SecretLimits:          secretLimits,
 		CountLimits:           newCountLimits(),
 		HeartbeatInterval:     heartbeatInterval,
+		Routing: publicrouting.Config{
+			Interval:     envconfig.PositiveDuration("LOCO_ROUTING_INTERVAL", defaultRoutingInterval),
+			RetrySeconds: positiveInt32Env("LOCO_ROUTING_RETRY_SECONDS", defaultRoutingRetrySeconds),
+			BatchSize:    positiveInt32Env("LOCO_ROUTING_BATCH_SIZE", defaultRoutingBatchSize),
+		},
+		RoutingDrainSeconds:   positiveInt32Env("LOCO_ROUTING_DRAIN_SECONDS", defaultRoutingDrainSeconds),
+		RoutingSessionSeconds: positiveInt32Env("LOCO_ROUTING_SESSION_SECONDS", defaultRoutingSessionSeconds),
 		SystemRoles:           systemRoles,
 		TracingEnabled:        tracingEnabled,
 		MetricsEnabled:        newMetricsEnabled(),

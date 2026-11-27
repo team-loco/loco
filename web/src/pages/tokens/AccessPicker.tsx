@@ -28,8 +28,16 @@ export interface AccessItem {
 	level: Level;
 }
 
-const KIND_RANK = { user: 0, org: 1, ws: 2, res: 3, system: 4 } as const;
+const KIND_RANK = {
+	user: 0,
+	org: 1,
+	ws: 2,
+	res: 3,
+	system: 4,
+	publisher: 5,
+} as const;
 const GROUPS: { label: string; kinds: NodeKind[] }[] = [
+	{ label: "Routing publishers", kinds: ["publisher"] },
 	{ label: "Account", kinds: ["user"] },
 	{ label: "Organization", kinds: ["org"] },
 	{ label: "Workspaces", kinds: ["ws"] },
@@ -111,9 +119,10 @@ export function AccessPicker({
 	const shown = pool.slice(0, CHOICE_PAGE);
 	const more = pool.length - shown.length + choices.more;
 	const loading = choices.workspacesLoading || choices.resourcesLoading;
-	const groups = GROUPS.map((g) => ({ ...g, nodes: shown.filter((n) => g.kinds.includes(n.kind)) })).filter(
-		(g) => g.nodes.length > 0,
-	);
+	const groups = GROUPS.map((g) => ({
+		...g,
+		nodes: shown.filter((n) => g.kinds.includes(n.kind)),
+	})).filter((g) => g.nodes.length > 0);
 	const placeholder =
 		scope?.kind === "ws"
 			? `Add ${scope.label} or one of its resources…`
@@ -153,6 +162,8 @@ export function AccessPicker({
 			}
 			case "system":
 				return "System";
+			case "publisher":
+				return "Routing publisher";
 		}
 	};
 
@@ -170,6 +181,8 @@ export function AccessPicker({
 				return n.parent?.label ?? "Resource";
 			case "system":
 				return "System";
+			case "publisher":
+				return "Routing publisher";
 		}
 	};
 

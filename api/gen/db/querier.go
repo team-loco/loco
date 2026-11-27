@@ -18,6 +18,7 @@ type Querier interface {
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	BindRoutePublisher(ctx context.Context, arg BindRoutePublisherParams) (RoutePublisher, error)
 	BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsedByOtherDeploymentsParams) (bool, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
@@ -27,6 +28,7 @@ type Querier interface {
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
+	CheckPublisherReservations(ctx context.Context, arg CheckPublisherReservationsParams) (bool, error)
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimSystemRole(ctx context.Context, arg ClaimSystemRoleParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
@@ -102,8 +104,10 @@ type Querier interface {
 	DeleteExpiredUsedRefreshTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
+	DeletePublicRoutingDirty(ctx context.Context, arg DeletePublicRoutingDirtyParams) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
+	DeleteRoutingRetirement(ctx context.Context, arg DeleteRoutingRetirementParams) error
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
 	DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
@@ -116,6 +120,8 @@ type Querier interface {
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
 	// Records that a running placement's current revision became healthy with every replica available.
 	DeployDeploymentPlacement(ctx context.Context, arg DeployDeploymentPlacementParams) (int64, error)
+	EffectiveRoutingHostnames(ctx context.Context, arg EffectiveRoutingHostnamesParams) ([]EffectiveRoutingHostnamesRow, error)
+	EnqueueBoundRouteAssignments(ctx context.Context, appDomain *string) error
 	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
 	// Locks each build's resource before the build, in resource id order.
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]ExpireAwaitingUploadBuildsRow, error)
@@ -164,6 +170,7 @@ type Querier interface {
 	GetResourceEnvironmentPlacement(ctx context.Context, arg GetResourceEnvironmentPlacementParams) (Placement, error)
 	GetResourceOrganizationSuspension(ctx context.Context, id uuid.UUID) (*string, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetRoutePublisher(ctx context.Context, id uuid.UUID) (RoutePublisher, error)
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error)
 	GetSystemRoleSources(ctx context.Context, id uuid.UUID) (GetSystemRoleSourcesRow, error)
@@ -183,6 +190,7 @@ type Querier interface {
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
 	HasInaccessibleAccountDeletionTokens(ctx context.Context, arg HasInaccessibleAccountDeletionTokensParams) (bool, error)
+	HasManagedPublicRoutes(ctx context.Context, arg HasManagedPublicRoutesParams) (bool, error)
 	HasScopeInOrg(ctx context.Context, arg HasScopeInOrgParams) (*bool, error)
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
@@ -199,6 +207,7 @@ type Querier interface {
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
 	ListAdminRegions(ctx context.Context) ([]ListAdminRegionsRow, error)
+	ListBoundResourceDomains(ctx context.Context, arg ListBoundResourceDomainsParams) ([]ListBoundResourceDomainsRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error)
@@ -252,20 +261,26 @@ type Querier interface {
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretEnvs(ctx context.Context, environmentID uuid.UUID) ([]ListPlacementSecretEnvsRow, error)
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error)
+	ListPublicRoutingWork(ctx context.Context, limit int32) ([]ListPublicRoutingWorkRow, error)
 	ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error)
+	ListReadyRoutingRetirements(ctx context.Context, arg ListReadyRoutingRetirementsParams) ([]PublicRoutingRetirement, error)
 	ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error)
 	ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
 	ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error)
+	ListResourceRoutePublications(ctx context.Context, arg ListResourceRoutePublicationsParams) ([]PublicRoutePublication, error)
 	ListResourcesByIDs(ctx context.Context, ids []uuid.UUID) ([]Resource, error)
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
+	ListRouteIntents(ctx context.Context, arg ListRouteIntentsParams) ([]PublicRoutePublication, error)
+	ListRoutingPlacements(ctx context.Context, arg ListRoutingPlacementsParams) ([]ListRoutingPlacementsRow, error)
 	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
 	ListSecretSizes(ctx context.Context, environmentID uuid.UUID) ([]ListSecretSizesRow, error)
 	ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListSystemRoleEntriesExcept(ctx context.Context, arg ListSystemRoleEntriesExceptParams) ([]ListSystemRoleEntriesExceptRow, error)
 	ListSystemRoleHolders(ctx context.Context) ([]ListSystemRoleHoldersRow, error)
+	ListUnbootstrappedPublishers(ctx context.Context) ([]ListUnbootstrappedPublishersRow, error)
 	ListUnclaimedSystemRoleEmails(ctx context.Context) ([]ListUnclaimedSystemRoleEmailsRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
@@ -301,11 +316,15 @@ type Querier interface {
 	LockOrgResources(ctx context.Context, orgID uuid.UUID) error
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
+	LockPublicRoutingWork(ctx context.Context, arg LockPublicRoutingWorkParams) error
 	LockResourceDigests(ctx context.Context, arg LockResourceDigestsParams) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) error
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error)
+	LockRoutePublisher(ctx context.Context, id uuid.UUID) (RoutePublisher, error)
+	LockRoutePublishers(ctx context.Context, dollar_1 []uuid.UUID) ([]uuid.UUID, error)
+	LockRoutingAssignments(ctx context.Context) error
 	// Locks every system:admin row so concurrent changes cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockSystemRoleEntriesExcept(ctx context.Context, arg LockSystemRoleEntriesExceptParams) ([]LockSystemRoleEntriesExceptRow, error)
@@ -326,6 +345,7 @@ type Querier interface {
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
+	MarkPublisherBootstrapped(ctx context.Context, id uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	// Marks each active cluster whose last heartbeat is older than silent_after_seconds on the database clock, the clock
 	// heartbeats are stamped with, and returns it once. The cluster rows
@@ -337,6 +357,7 @@ type Querier interface {
 	// Regions are the region codes on cluster rows.
 	// One more than the highest n of the clusters in {prefix}-{n} regions.
 	NextRegionNumber(ctx context.Context, prefix string) (int32, error)
+	NextRouteChangeSequence(ctx context.Context, id uuid.UUID) (int64, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	NotifyDeploymentActivity(ctx context.Context, deploymentID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
@@ -378,7 +399,10 @@ type Querier interface {
 	RemoveSystemScopes(ctx context.Context, userID uuid.UUID) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
+	RenewRoutePublisherSession(ctx context.Context, arg RenewRoutePublisherSessionParams) (RoutePublisher, error)
+	ReportRoutePublication(ctx context.Context, arg ReportRoutePublicationParams) (PublicRoutePublication, error)
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
+	ReschedulePublicRoutingWork(ctx context.Context, arg ReschedulePublicRoutingWorkParams) error
 	ResetLockTimeout(ctx context.Context) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
 	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]RestartResourcePlacementsRow, error)
@@ -404,6 +428,7 @@ type Querier interface {
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetSystemRoleGrant(ctx context.Context, arg SetSystemRoleGrantParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	StageRoutingRetirement(ctx context.Context, arg StageRoutingRetirementParams) error
 	// Stores the entries of one new sign-in after deleting the sign-ins older than the newest keep, and
 	// stores none of them while any of their keys is live. An expired row counts as absent, so its key can
 	// be stored again.
@@ -440,6 +465,7 @@ type Querier interface {
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
+	UpsertRouteIntent(ctx context.Context, arg UpsertRouteIntentParams) (PublicRoutePublication, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }

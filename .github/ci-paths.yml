@@ -198,7 +198,7 @@ docs:
 e2e:
   go:
     build: [api, agent, builder, cmd/loco, cmd/locoadm, controller/cmd, observability-proxy, tools/pullimage]
-    test: [tests/e2e/apps, tests/e2e/builds, tests/e2e/telemetry]
+    test: [tests/e2e/apps, tests/e2e/builds, tests/e2e/routing, tests/e2e/telemetry]
   pull_request:
     - "{builder,controller,observability-proxy}/Dockerfile*"
     - "charts/loco-control-plane/**"

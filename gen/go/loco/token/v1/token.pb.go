@@ -27,12 +27,13 @@ const (
 type EntityType int32
 
 const (
-	EntityType_ENTITY_TYPE_UNSPECIFIED  EntityType = 0
-	EntityType_ENTITY_TYPE_SYSTEM       EntityType = 1
-	EntityType_ENTITY_TYPE_ORGANIZATION EntityType = 2
-	EntityType_ENTITY_TYPE_WORKSPACE    EntityType = 3
-	EntityType_ENTITY_TYPE_RESOURCE     EntityType = 4
-	EntityType_ENTITY_TYPE_USER         EntityType = 5
+	EntityType_ENTITY_TYPE_UNSPECIFIED       EntityType = 0
+	EntityType_ENTITY_TYPE_SYSTEM            EntityType = 1
+	EntityType_ENTITY_TYPE_ORGANIZATION      EntityType = 2
+	EntityType_ENTITY_TYPE_WORKSPACE         EntityType = 3
+	EntityType_ENTITY_TYPE_RESOURCE          EntityType = 4
+	EntityType_ENTITY_TYPE_USER              EntityType = 5
+	EntityType_ENTITY_TYPE_ROUTING_PUBLISHER EntityType = 6
 )
 
 // Enum value maps for EntityType.
@@ -44,14 +45,16 @@ var (
 		3: "ENTITY_TYPE_WORKSPACE",
 		4: "ENTITY_TYPE_RESOURCE",
 		5: "ENTITY_TYPE_USER",
+		6: "ENTITY_TYPE_ROUTING_PUBLISHER",
 	}
 	EntityType_value = map[string]int32{
-		"ENTITY_TYPE_UNSPECIFIED":  0,
-		"ENTITY_TYPE_SYSTEM":       1,
-		"ENTITY_TYPE_ORGANIZATION": 2,
-		"ENTITY_TYPE_WORKSPACE":    3,
-		"ENTITY_TYPE_RESOURCE":     4,
-		"ENTITY_TYPE_USER":         5,
+		"ENTITY_TYPE_UNSPECIFIED":       0,
+		"ENTITY_TYPE_SYSTEM":            1,
+		"ENTITY_TYPE_ORGANIZATION":      2,
+		"ENTITY_TYPE_WORKSPACE":         3,
+		"ENTITY_TYPE_RESOURCE":          4,
+		"ENTITY_TYPE_USER":              5,
+		"ENTITY_TYPE_ROUTING_PUBLISHER": 6,
 	}
 )
 
@@ -907,7 +910,7 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\ventity_type\x18\x01 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
 	"\tentity_id\x18\x02 \x01(\tR\bentityId\x122\n" +
-	"\x06scopes\x18\x03 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes*\xaa\x01\n" +
+	"\x06scopes\x18\x03 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes*\xcd\x01\n" +
 	"\n" +
 	"EntityType\x12\x1b\n" +
 	"\x17ENTITY_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -915,7 +918,8 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x18ENTITY_TYPE_ORGANIZATION\x10\x02\x12\x19\n" +
 	"\x15ENTITY_TYPE_WORKSPACE\x10\x03\x12\x18\n" +
 	"\x14ENTITY_TYPE_RESOURCE\x10\x04\x12\x14\n" +
-	"\x10ENTITY_TYPE_USER\x10\x05*b\n" +
+	"\x10ENTITY_TYPE_USER\x10\x05\x12!\n" +
+	"\x1dENTITY_TYPE_ROUTING_PUBLISHER\x10\x06*b\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

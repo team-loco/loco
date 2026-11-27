@@ -150,11 +150,12 @@ func TestAffectedE2EShards(t *testing.T) {
 		appsTest = "tests/e2e/apps/a_test.go"
 	)
 	workflows, _ := repository(t)
-	all := []string{apps, "builds", "telemetry"}
+	all := []string{apps, "builds", "routing", "telemetry"}
 	for _, tc := range []struct {
 		files, want []string
 	}{
 		{nil, all},
+		{[]string{"tests/e2e/routing/a_test.go"}, []string{"routing"}},
 		{[]string{appsTest, "docs/content/example.md"}, []string{apps}},
 		{[]string{"tests/e2e/telemetry/a_test.go", appsTest}, []string{apps, "telemetry"}},
 		{[]string{appsTest, "api/service/resource.go"}, all},

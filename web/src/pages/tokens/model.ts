@@ -5,7 +5,7 @@ import { scopeLevel } from "@/hooks/useMyScopes";
 import { pluralize } from "@/lib/format";
 import { agoLabel, DAY_MS, maybeTsMs, shortDurationLabel } from "@/lib/time";
 
-export type NodeKind = "org" | "ws" | "res" | "user" | "system";
+export type NodeKind = "org" | "ws" | "res" | "user" | "system" | "publisher";
 export type Level = 1 | 2 | 3;
 
 export const OWNER_KEYS = ["org", "ws", "user"] as const;
@@ -19,6 +19,11 @@ export const OWNER_TITLE: Record<OwnerKey, string> = {
 export const LEVELS: Level[] = [1, 2, 3];
 
 export const ALLOWS: Record<NodeKind, string[]> = {
+	publisher: [
+		"Read routing intents for the app domain",
+		"Acknowledge routing publications",
+		"Manage publisher credentials",
+	],
 	org: [
 		"View the organization, its workspaces and members",
 		"Create workspaces and add members",
@@ -101,13 +106,22 @@ export function entityNode(
 	parent: EntityNode | null,
 	resources?: number,
 ): EntityNode {
-	const node: EntityNode = { key: nodeKey(entityType, id), kind: kindOf(entityType), entityType, id, label, parent };
+	const node: EntityNode = {
+		key: nodeKey(entityType, id),
+		kind: kindOf(entityType),
+		entityType,
+		id,
+		label,
+		parent,
+	};
 	if (resources !== undefined) node.resources = resources;
 	return node;
 }
 
 export function kindOf(entityType: EntityType): NodeKind {
 	switch (entityType) {
+		case EntityType.ROUTING_PUBLISHER:
+			return "publisher";
 		case EntityType.ORGANIZATION:
 			return "org";
 		case EntityType.WORKSPACE:
@@ -183,7 +197,11 @@ export function grantsToScopes(
 	for (const it of items) {
 		for (const level of LEVELS) {
 			if (level > it.level) break;
-			out.push({ entityType: it.node.entityType, entityId: it.node.id, scope: levelScope(level) });
+			out.push({
+				entityType: it.node.entityType,
+				entityId: it.node.id,
+				scope: levelScope(level),
+			});
 		}
 	}
 	return out;
@@ -213,7 +231,14 @@ export function withScopeEntities(entities: Entities, scopes: EntityScope[]): En
 	return nodes;
 }
 
-const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3, res: 4 };
+const KIND_ORDER: Record<NodeKind, number> = {
+	system: 0,
+	user: 1,
+	org: 2,
+	ws: 3,
+	res: 4,
+	publisher: 5,
+};
 
 /** Orders keys by kind; organizations keep the entities' order, which puts the active one first, and the rest sort by name. */
 export function sortKeys(entities: Entities, keys: string[]): string[] {
@@ -255,6 +280,7 @@ const CHIP_NAMES = 3;
 
 /** How an access chip names a grant: "<name> org", "<name> workspace", or the bare name. */
 export function chipName(node: EntityNode): string {
+	if (node.kind === "publisher") return `${node.label} routing publisher`;
 	if (node.kind === "org") return `${node.label} org`;
 	if (node.kind === "ws") return `${node.label} workspace`;
 	return node.label;
@@ -269,11 +295,16 @@ export function collapsedNames(names: readonly string[]): string {
 export function accessChips(entities: Entities, token: Token): AccessChip[] {
 	const grants = tokenGrants(token);
 	return sortKeys(entities, [...grants.keys()])
-		.map((key) => ({ key, level: grants.get(key) ?? 1, node: resolveNode(entities, key) }))
+		.map((key) => ({
+			key,
+			level: grants.get(key) ?? 1,
+			node: resolveNode(entities, key),
+		}))
 		.toSorted((a, b) => b.level - a.level);
 }
 
 const ALLOWS_SCOPE: Record<NodeKind, string> = {
+	publisher: "",
 	org: "",
 	ws: " (selected workspaces)",
 	res: " (selected resources)",

@@ -8,9 +8,17 @@ import (
 	"log/slog"
 	"time"
 
+	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/internal/rpcerr"
+
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+)
+
+var errManagedClusterMove = rpcerr.NewCoded(
+	connect.CodeFailedPrecondition,
+	"managed public routing requires an explicit cluster migration before moving a live placement within a region",
 )
 
 var errPlacementApplicationMissing = errors.New("placement application spec is missing")
@@ -20,6 +28,40 @@ func placeApplication(
 	qtx *genDb.Queries,
 	params genDb.UpsertPlacementParams,
 ) error {
+	managed, err := qtx.HasManagedPublicRoutes(
+		ctx,
+		genDb.HasManagedPublicRoutesParams{ResourceID: params.ResourceID, EnvironmentID: params.EnvironmentID},
+	)
+	if err != nil {
+		return err
+	}
+	if managed {
+		live, readErr := qtx.ListResourceEnvironmentPlacements(
+			ctx,
+			genDb.ListResourceEnvironmentPlacementsParams{
+				ResourceID:    params.ResourceID,
+				EnvironmentID: params.EnvironmentID,
+			},
+		)
+		if readErr != nil {
+			return readErr
+		}
+		for _, p := range live {
+			if p.Region == params.Region && p.ClusterID != params.ClusterID {
+				return errManagedClusterMove
+			}
+		}
+	}
+	if err = qtx.DeleteRoutingRetirement(
+		ctx,
+		genDb.DeleteRoutingRetirementParams{
+			ResourceID:    params.ResourceID,
+			EnvironmentID: params.EnvironmentID,
+			ClusterID:     params.ClusterID,
+		},
+	); err != nil {
+		return err
+	}
 	retired, err := qtx.RetireOtherRegionPlacements(ctx, genDb.RetireOtherRegionPlacementsParams{
 		ResourceID:    params.ResourceID,
 		EnvironmentID: params.EnvironmentID,
@@ -61,6 +103,23 @@ func placeApplication(
 }
 
 func removePlacement(ctx context.Context, qtx *genDb.Queries, resourceID, environmentID, clusterID uuid.UUID) error {
+	managed, err := qtx.HasManagedPublicRoutes(
+		ctx,
+		genDb.HasManagedPublicRoutesParams{ResourceID: resourceID, EnvironmentID: environmentID},
+	)
+	if err != nil {
+		return err
+	}
+	if managed {
+		return qtx.StageRoutingRetirement(
+			ctx,
+			genDb.StageRoutingRetirementParams{
+				ResourceID:    resourceID,
+				EnvironmentID: environmentID,
+				ClusterID:     clusterID,
+			},
+		)
+	}
 	removed, err := qtx.MarkPlacementDeleted(ctx, genDb.MarkPlacementDeletedParams{
 		ResourceID:    resourceID,
 		EnvironmentID: environmentID,

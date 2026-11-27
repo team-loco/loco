@@ -13,6 +13,9 @@ type Action struct {
 
 // Logout is public and has no Action.
 var (
+	BindRoutingPublisher   = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
+	ReadRouteIntents       = Action{entityType: db.EntityTypeRoutingPublisher, scope: db.ScopeRead}
+	ReportRoutePublication = Action{entityType: db.EntityTypeRoutingPublisher, scope: db.ScopeWrite}
 	// resources
 
 	// ListResources requires workspace:read

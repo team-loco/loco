@@ -375,9 +375,10 @@ func routingHostnames(
 	queries genDb.Querier,
 	resourceID, environmentID uuid.UUID,
 ) ([]string, error) {
-	rows, err := queries.ListEnvironmentResourceDomains(ctx, genDb.ListEnvironmentResourceDomainsParams{
-		ResourceIds: []uuid.UUID{resourceID}, EnvironmentID: environmentID,
-	})
+	rows, err := queries.EffectiveRoutingHostnames(
+		ctx,
+		genDb.EffectiveRoutingHostnamesParams{ResourceID: resourceID, EnvironmentID: environmentID},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list routing domains: %w", err)
 	}
