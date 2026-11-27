@@ -1,5 +1,6 @@
 import argparse
 import base64
+import json
 import re
 from pathlib import Path
 
@@ -287,6 +288,26 @@ with session(out) as browser:
         drawer.get_by_role("heading", name="Created a resource", exact=True)
     ).to_be_visible()
     expect(drawer.get_by_text("Time", exact=True)).to_be_visible()
+    raw_event = drawer.locator("[data-slot=code-block]")
+    raw_json = raw_event.locator("pre")
+    expect(raw_json.locator(".sh__token--property").first).to_be_visible()
+    expect(raw_json.locator(".sh__token--string").first).to_be_visible()
+    raw_box = raw_event.bounding_box()
+    drawer_box = drawer.bounding_box()
+    assert (
+        drawer_box["y"] + drawer_box["height"] - (raw_box["y"] + raw_box["height"]) < 30
+    )
+    assert raw_json.evaluate("el => el.scrollWidth == el.clientWidth")
+    wrap = drawer.get_by_role("button", name="Wrap lines", exact=True)
+    expect(wrap).to_have_attribute("aria-pressed", "true")
+    wrap.press("Space")
+    expect(wrap).to_have_attribute("aria-pressed", "false")
+    wrap.press("Space")
+    expect(wrap).to_have_attribute("aria-pressed", "true")
+    drawer.get_by_role("button", name="Copy JSON", exact=True).press("Enter")
+    copied_event = json.loads(copied_text(page))
+    assert copied_event["type"] == "resource.created"
+    assert copied_event["requestId"] != ""
     expect(drawer.get_by_role("button", name="Newer", exact=True)).to_be_disabled()
     page.mouse.move(0, 0)
     request_cell = drawer.get_by_text("Request ID", exact=True).locator(
