@@ -17,7 +17,7 @@ const SIGNALS = [
 		title: "CPU",
 		metric: "k8s.node.cpu.usage",
 		scale: 1,
-		unit: " CPU",
+		unit: " cores",
 		format: (value: number) => `${value.toFixed(2)} cores`,
 	},
 	{
