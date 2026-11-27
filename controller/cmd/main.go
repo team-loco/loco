@@ -131,8 +131,7 @@ func main() {
 		fail(err, "unable to start manager")
 	}
 
-	applicationMetrics := operator.Metrics && reconcilerName == reconcilerApplication
-	if applicationMetrics && metricsAddr != metricsOff {
+	if operator.CapacityMetrics && metricsAddr != metricsOff {
 		if err := mgr.AddMetricsServerExtraHandler(
 			capacitymetrics.Path,
 			capacity.Handler(mgr.GetAPIReader(), mgr.Elected()),

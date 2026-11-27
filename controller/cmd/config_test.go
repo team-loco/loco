@@ -169,3 +169,19 @@ func TestOperatorConfigPanicsOnAnInvalidRegistryAuthMode(t *testing.T) {
 		})
 	}
 }
+
+func TestCapacityMetricsAreIndependentOfControllerOTLPExport(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+	for _, variable := range []string{envOTLPEndpoint, envOTLPTracesEndpoint, envOTLPMetricsEndpoint} {
+		t.Setenv(variable, "")
+	}
+	t.Setenv(envCapacityMetrics, "true")
+	config := newOperatorConfig()
+	if !config.CapacityMetrics || config.Metrics {
+		t.Fatalf("capacity scrape/SDK export = %v/%v", config.CapacityMetrics, config.Metrics)
+	}
+	t.Setenv(envCapacityMetrics, "false")
+	if newOperatorConfig().CapacityMetrics {
+		t.Fatal("capacity source remains enabled")
+	}
+}

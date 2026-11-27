@@ -178,3 +178,23 @@ tests:
       global.platformTelemetry.enabled: false
     asserts:
       - hasDocuments: {count: 0}
+
+  - it: enables capacity on only the application controller when both roles run
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CAPACITY_METRICS, value: "true"}
+        template: templates/controller/deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CAPACITY_METRICS, value: "false"}
+        template: templates/builds/deployment.yaml
+
+  - it: enables capacity on the build controller in a builds-only installation
+    template: templates/builds/deployment.yaml
+    set:
+      cluster.role: builds
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CAPACITY_METRICS, value: "true"}
