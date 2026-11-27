@@ -44,6 +44,8 @@ message ListRouteIntentsResponse {
   repeated RouteIntent intents = 1;
   int64 next_sequence = 2;
   bool has_more = 3;
+  // Lease budget measured conservatively from when this list call began.
+  int32 session_seconds = 4;
 }
 enum PublicationOutcome {
   PUBLICATION_OUTCOME_UNSPECIFIED = 0;

@@ -34,13 +34,13 @@ Issue the publisher an owned token through `TokenService.CreateToken`, using a s
 
 ## Consume intents
 
-`ListRouteIntents` takes `publisherId`, a random process-lifetime `sessionId` UUID and `afterSequence`. Start from zero, process every page and retain `nextSequence` as the next cursor. `hasMore` requests another page. An empty page preserves the cursor. A process restart starts again from zero and reconciles the snapshot idempotently.
+`ListRouteIntents` takes `publisherId`, a random process-lifetime `sessionId` UUID and `afterSequence`. Start from zero, process every page and retain `nextSequence` as the next cursor. `hasMore` requests another page. An empty page preserves the cursor. `sessionSeconds` gives a conservative lease budget measured from when the list call began; bound external work to that deadline. A process restart starts again from zero and reconciles the snapshot idempotently.
 
 Each intent contains its stable `publicationId`, `revision`, hostname, resource/environment IDs, exact `clusterIds`, `preference: "nearest"`, `withdrawing` and `changeSequence`. Region names alone do not identify eligible clusters. The publisher configures nearby-region preference only among members of the supplied set.
 
 Per-route revisions and change sequences serve different purposes. A revision identifies the desired contents of one publication. The binding's change sequence orders changed publications for pagination. Unchanged reconciliation and acknowledgements do not create new intent changes. Withdrawal tombstones remain in snapshots after their resource is deleted and after cleanup completes.
 
-The session lease permits one active writer per binding. Successful list calls renew it. A different session waits for expiry. Run one publisher replica with a `Recreate` deployment strategy, renew during long batches, and bound provider request timeouts below the session lifetime. A stale provider request can still finish externally after intent changes; stale acknowledgements are rejected, and the publisher must repair external state from current intent.
+The session lease permits one active writer per binding. Successful list calls renew it and require both read and write permission because they claim the exclusive writer session. A different session waits for expiry. Run one publisher replica with a `Recreate` deployment strategy, renew during long batches, and bound provider request timeouts below the session lifetime. A stale provider request can still finish externally after intent changes; stale acknowledgements are rejected, and the publisher must repair external state from current intent.
 
 For an empty cluster set with `withdrawing: false`, wait for a newer intent. No placement has qualified yet. For a withdrawal, delete only infrastructure the publisher owns, verify removal, then report success.
 

@@ -109,6 +109,13 @@ func (p *Platform) AddWorker(t *testing.T, region *clusterv1.NewRegion) *Platfor
 	if err = worker.StartAgent(ctx, p.APIURL, worker.JoinToken); err != nil {
 		t.Fatal(err)
 	}
+	if err = worker.DB.QueryRow(ctx, "SELECT id FROM clusters WHERE cluster_key = $1", worker.ClusterKey).
+		Scan(&worker.ClusterID); err != nil {
+		t.Fatal(err)
+	}
+	if worker.ClusterID != created.GetClusterId() {
+		t.Fatal("registered worker identity differs from enrollment")
+	}
 	if worker.ClusterID == p.ClusterID {
 		t.Fatal("second worker reused first cluster identity")
 	}

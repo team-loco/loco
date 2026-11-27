@@ -17619,6 +17619,12 @@
           "hasMore": {
             "type": "boolean",
             "title": "has_more"
+          },
+          "sessionSeconds": {
+            "type": "integer",
+            "title": "session_seconds",
+            "format": "int32",
+            "description": "Lease budget measured conservatively from when this list call began."
           }
         },
         "title": "ListRouteIntentsResponse",

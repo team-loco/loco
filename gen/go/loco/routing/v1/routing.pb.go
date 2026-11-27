@@ -341,12 +341,14 @@ func (x *ListRouteIntentsRequest) GetAfterSequence() int64 {
 }
 
 type ListRouteIntentsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Intents       []*RouteIntent         `protobuf:"bytes,1,rep,name=intents,proto3" json:"intents,omitempty"`
-	NextSequence  int64                  `protobuf:"varint,2,opt,name=next_sequence,json=nextSequence,proto3" json:"next_sequence,omitempty"`
-	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Intents      []*RouteIntent         `protobuf:"bytes,1,rep,name=intents,proto3" json:"intents,omitempty"`
+	NextSequence int64                  `protobuf:"varint,2,opt,name=next_sequence,json=nextSequence,proto3" json:"next_sequence,omitempty"`
+	HasMore      bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	// Lease budget measured conservatively from when this list call began.
+	SessionSeconds int32 `protobuf:"varint,4,opt,name=session_seconds,json=sessionSeconds,proto3" json:"session_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListRouteIntentsResponse) Reset() {
@@ -398,6 +400,13 @@ func (x *ListRouteIntentsResponse) GetHasMore() bool {
 		return x.HasMore
 	}
 	return false
+}
+
+func (x *ListRouteIntentsResponse) GetSessionSeconds() int32 {
+	if x != nil {
+		return x.SessionSeconds
+	}
+	return 0
 }
 
 type ReportPublicationRequest struct {
@@ -551,11 +560,12 @@ const file_loco_routing_v1_routing_proto_rawDesc = "" +
 	"\fpublisher_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vpublisherId\x12'\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\x12.\n" +
-	"\x0eafter_sequence\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\rafterSequence\"\x92\x01\n" +
+	"\x0eafter_sequence\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\rafterSequence\"\xbb\x01\n" +
 	"\x18ListRouteIntentsResponse\x126\n" +
 	"\aintents\x18\x01 \x03(\v2\x1c.loco.routing.v1.RouteIntentR\aintents\x12#\n" +
 	"\rnext_sequence\x18\x02 \x01(\x03R\fnextSequence\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\xb5\x02\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\x12'\n" +
+	"\x0fsession_seconds\x18\x04 \x01(\x05R\x0esessionSeconds\"\xb5\x02\n" +
 	"\x18ReportPublicationRequest\x12+\n" +
 	"\fpublisher_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vpublisherId\x12'\n" +
 	"\n" +

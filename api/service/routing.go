@@ -126,7 +126,10 @@ func (s *RoutingServer) ListRouteIntents(
 	if err != nil {
 		return nil, err
 	}
-	response := &routingv1.ListRouteIntentsResponse{NextSequence: req.GetAfterSequence()}
+	response := &routingv1.ListRouteIntentsResponse{
+		NextSequence:   req.GetAfterSequence(),
+		SessionSeconds: s.sessionSeconds,
+	}
 	err = withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
 		publisher, renewErr := qtx.RenewRoutePublisherSession(
 			ctx,
