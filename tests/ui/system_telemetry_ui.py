@@ -220,14 +220,22 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
         page.get_by_role("option", name="@cluster:control-plane", exact=True)
     ).to_be_visible()
     expect(
-        page.get_by_role("option", name=f"@cluster:{cluster['id']}", exact=True)
+        page.get_by_role(
+            "option", name=f"@cluster:{cluster['id']} {cluster['name']}", exact=True
+        )
     ).to_be_visible()
+    search.fill("@cluster:us-ca-1")
+    expect(
+        page.get_by_role("option", name="@cluster:control-plane", exact=True)
+    ).to_have_count(0)
     with expect_rpc(
         page,
         "QueryMetrics",
         lambda body: body.get("attributes", {}).get("cluster") == cluster["id"],
     ) as filtered:
-        page.get_by_role("option", name=f"@cluster:{cluster['id']}", exact=True).click()
+        page.get_by_role(
+            "option", name=f"@cluster:{cluster['id']} {cluster['name']}", exact=True
+        ).click()
     page.locator("h1").click()
     expect(page).to_have_url(re.compile(cluster["id"]))
     assert filtered.value.request.post_data_json["installation"] is True

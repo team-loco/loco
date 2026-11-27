@@ -72,7 +72,7 @@ const TEXT_VALUE_KEYS = new Set<FieldKey>(["resource", "component", "cluster", "
 const MAX_PINNED = 10;
 const RECENT_SAVE_MS = 1500;
 
-export type ValueCounts = (key: FieldKey) => [string, number][];
+export type ValueCounts = (key: FieldKey) => [value: string, count: number, label?: string][];
 
 function placeholder(view: QueryView, installation: boolean): string {
 	if (installation) {
@@ -222,7 +222,14 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 	});
 
 	// value is the token as written; v is the value it matches, which the list shows.
-	const valueItem = (key: FieldKey, v: string, c: number, neg: boolean, value = quoteValue(v)): Suggestion => {
+	const valueItem = (
+		key: FieldKey,
+		v: string,
+		c: number,
+		neg: boolean,
+		value = quoteValue(v),
+		label?: string,
+	): Suggestion => {
 		const res = resourceByName.get(v);
 		const icon =
 			key === "level" ? (
@@ -234,7 +241,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 			key: `v:${key}:${v}`,
 			icon,
 			main: `${neg ? "-" : ""}@${key}:${value}`,
-			hint: c > 0 ? formatCount(c) : "",
+			hint: label ?? (c > 0 ? formatCount(c) : ""),
 			apply: () => {
 				addToken({ neg, key, value });
 			},
@@ -253,13 +260,17 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 		const pref = part.toLowerCase();
 		const vals = vmDef.views.includes(view)
 			? valueCounts(vmDef.key)
-					.filter(([v]) => v.toLowerCase().includes(pref))
+					.filter(([v, , label]) => v.toLowerCase().includes(pref) || label?.toLowerCase().includes(pref))
 					.slice(0, MAX_VALUES)
 			: [];
-		const typed: [string, number, string][] =
-			part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0, part]] : [];
-		const entries = [...typed, ...vals.map(([v, c]): [string, number, string] => [v, c, quoteValue(v)])];
-		const items = entries.map(([v, c, written]) => valueItem(vmDef.key, v, c, neg, written));
+		const knownValue = vals.some(([v, , label]) => v.toLowerCase() === pref || label?.toLowerCase().includes(pref));
+		const typed: [string, number, string, string | undefined][] =
+			part !== "" && !knownValue ? [[part, 0, part, undefined]] : [];
+		const entries = [
+			...typed,
+			...vals.map(([v, c, label]): [string, number, string, string | undefined] => [v, c, quoteValue(v), label]),
+		];
+		const items = entries.map(([v, c, written, label]) => valueItem(vmDef.key, v, c, neg, written, label));
 		groups.push({
 			title: `@${vmDef.key} values${sampledKeys?.has(vmDef.key) ? ", counts from loaded lines" : ""}`,
 			items,
@@ -338,7 +349,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 				valueCounts(f.key)
 					.filter(([v]) => v.toLowerCase().includes(word))
 					.slice(0, MAX_TEXT_VALUES)
-					.map(([v, c]) => valueItem(f.key, v, c, false)),
+					.map(([v, c, label]) => valueItem(f.key, v, c, false, quoteValue(v), label)),
 			);
 		if (values.length > 0) groups.push({ title: "Values", items: values });
 		const ks = fields.filter((f) => f.key.startsWith(cur.toLowerCase()));
