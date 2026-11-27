@@ -6,6 +6,7 @@ export function EventStreamNotice({ error, onRetry }: { error: unknown; onRetry:
 	if (error === null) return null;
 	return (
 		<Banner
+			className="mx-0 mt-0"
 			tone="warn"
 			title="Live updates disconnected"
 			action={
