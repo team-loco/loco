@@ -2,6 +2,8 @@
 title: "Public routing publication"
 ---
 
+> Unreleased. Validate external publication with a disposable zone and public workers before enabling it for production.
+
 Loco's public routing API tells an external publisher which exact worker clusters may serve each application hostname. The publisher translates that intent into DNS or edge configuration. Application requests go through the configured edge and worker gateways; they do not call the Loco API.
 
 An app domain is operator-managed until an installation administrator binds a publisher. Loco installs no DNS provider automatically. Existing operator-managed domains keep their current lifecycle.

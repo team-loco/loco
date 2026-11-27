@@ -105,4 +105,4 @@ locoadm cluster create --name worker-staging --country us --subdivision ca --kub
 
 `status` requires a system read or system admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
 
-Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.
+Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. For an operator-managed app domain, point its wildcard at a gateway or use external-dns. For app-specific multi-region routing, bind an external publisher through the [public routing API](public-routing.md); an installation-wide wildcard alone does not describe where each app runs.
