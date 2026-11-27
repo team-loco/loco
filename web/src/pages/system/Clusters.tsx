@@ -3,6 +3,8 @@ import { PlusIcon, SearchXIcon, ServerIcon } from "lucide-react";
 import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 
+import { PartialError } from "@/components/design/ErrorState";
+import { getErrorMessage } from "@/lib/error-handler";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -14,7 +16,7 @@ import { NEW_CLUSTER_PATH, systemAccess } from "@/lib/system";
 import { useMyScopes } from "@/hooks/useMyScopes";
 
 import { ClusterTable } from "./ClusterTable";
-import { useFleet } from "./shared";
+import { useClusterCapacities, useFleet } from "./shared";
 
 const PARAMS = {
 	q: parseAsString.withDefault(""),
@@ -24,6 +26,7 @@ const PARAMS = {
 
 export function SystemClusters() {
 	const fleet = useFleet();
+	const capacities = useClusterCapacities();
 	const canChange = systemAccess(useMyScopes().scopes) === "admin";
 	const [{ q, region, removed }, setParams] = useQueryStates(PARAMS, { history: "replace" });
 	const needle = q.trim().toLowerCase();
@@ -97,7 +100,17 @@ export function SystemClusters() {
 						/>
 					}
 				>
+					{capacities.query.error !== null && (
+						<PartialError
+							title="Capacity unavailable"
+							detail={getErrorMessage(capacities.query.error, "Failed to load cluster capacity")}
+							error={capacities.query.error}
+							onRetry={async () => await capacities.query.refetch()}
+						/>
+					)}
 					<ClusterTable
+						capacities={capacities.byCluster}
+						capacityLoading={capacities.query.isLoading}
 						rows={rows}
 						apiVersion={fleet.apiVersion}
 						canChange={canChange}

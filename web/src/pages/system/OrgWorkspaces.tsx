@@ -1,3 +1,5 @@
+import { keepPreviousData } from "@tanstack/react-query";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { create } from "@bufbuild/protobuf";
 import { useQuery } from "@connectrpc/connect-query";
 import { listWorkspaceAllocations } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
@@ -29,7 +31,7 @@ export function OrgWorkspaces({ orgId }: { orgId: string }) {
 	const result = useQuery(
 		listWorkspaceAllocations,
 		{ orgId, query: params.wq, page: params.wpage, memory: params.wsort === "memory", ascending: !params.wdesc },
-		{ refetchInterval: 30_000 },
+		{ refetchInterval: 30_000, placeholderData: keepPreviousData },
 	);
 	const allocations = new Map((result.data?.workspaces ?? []).map((row) => [row.workspaceId, row]));
 	const rows = (result.data?.workspaces ?? []).map((row) =>
@@ -56,6 +58,11 @@ export function OrgWorkspaces({ orgId }: { orgId: string }) {
 	}));
 	const total = result.data?.totalCount ?? 0;
 	const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+	const shown = useShownPage(
+		params.wpage,
+		rows.length === 0 ? `0 of ${total}` : pageRangeLabel(params.wpage, PAGE_SIZE, total),
+		result.isPlaceholderData,
+	);
 	return (
 		<Section
 			id="workspaces"
@@ -89,26 +96,27 @@ export function OrgWorkspaces({ orgId }: { orgId: string }) {
 			)}
 			{result.data !== undefined && (
 				<>
-					<WorkspaceTable
-						orgId={orgId}
-						currentWorkspaceId=""
-						rows={rows}
-						allocationColumns={columns}
-						hrefForWorkspace={(workspace) => resourcesPath(orgId, workspace.id)}
-						onOpenWorkspace={(workspace) => {
-							void navigate(resourcesPath(orgId, workspace.id));
-						}}
-						sort={{
-							id: params.wsort,
-							desc: params.wdesc,
-							onChange: (id, desc) => {
-								if (id === "cpu" || id === "memory") void setParams({ wsort: id, wdesc: desc, wpage: 0 });
-							},
-						}}
-					/>
+					<div aria-busy={result.isFetching}>
+						<WorkspaceTable
+							orgId={orgId}
+							currentWorkspaceId=""
+							rows={rows}
+							allocationColumns={columns}
+							hrefForWorkspace={(workspace) => resourcesPath(orgId, workspace.id)}
+							onOpenWorkspace={(workspace) => {
+								void navigate(resourcesPath(orgId, workspace.id));
+							}}
+							sort={{
+								id: params.wsort,
+								desc: params.wdesc,
+								onChange: (id, desc) => {
+									if (id === "cpu" || id === "memory") void setParams({ wsort: id, wdesc: desc, wpage: 0 });
+								},
+							}}
+						/>
+					</div>
 					<Pager
-						label={rows.length === 0 ? `0 of ${total}` : pageRangeLabel(params.wpage, PAGE_SIZE, total)}
-						page={params.wpage}
+						{...shown}
 						total={total}
 						pageSizes={[PAGE_SIZE]}
 						loading={result.isFetching}

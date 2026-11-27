@@ -28,7 +28,8 @@ export function allocationTiles(response: GetNodeAllocationsResponse): Allocatio
 		const requested = response.memory ? node.memoryBytesRequested : node.cpuMillicoresRequested;
 		const reservationsCurrent = response.sample !== undefined && !response.sample.stale;
 		const current = reservationsCurrent && !node.capacityStale;
-		if (current && allocatable !== undefined && allocatable > requested) {
+		const headroomKnown = current && allocatable !== undefined;
+		if (headroomKnown && allocatable > requested) {
 			tiles.push({
 				id: "available",
 				name: "Available",
