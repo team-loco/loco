@@ -84,8 +84,11 @@ A system admin manages another user's sessions and account. A system reader can 
 | `UserService.RevokeUserSessions` | Ends every session of the user. Requires system admin. |
 | `UserService.GetAccountDeletionImpact` | Previews deleting the account. Requires system read. |
 | `UserService.DeleteUser` | Deletes the account. Requires system admin. |
+| `UserService.SetUserStatus` | Suspends or reinstates the user. Requires system admin. |
 
 `ListSessions`, `RevokeSession` and `GetAccountDeletionImpact` take an optional `user_id`; without it they act on the caller's own account and need a session sign-in. `RevokeUserSessions` and `DeleteUser` always name the user. `OrgService.ListUserOrgs` with another user's `user_id` requires system read and returns each organization with the user's `scopes` on it.
+
+`SetUserStatus` accepts a user ID or email and must target another user. Requests to suspend or reinstate the caller return `PermissionDenied`.
 
 ## Delete an account
 
