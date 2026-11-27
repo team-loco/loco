@@ -55,7 +55,6 @@ var (
 	errRequestTooLarge        = errors.New("request body too large")
 	errInvalidRequest         = errors.New("invalid OTLP request")
 	errStorageUnavailable     = errors.New("telemetry storage unavailable")
-	errSystemTelemetryExport  = errors.New("system telemetry export")
 )
 
 type Consumers struct {
@@ -192,9 +191,6 @@ func export[Req otlpRequest, Resp otlpResponse, Payload any](
 				span.RecordError(err)
 				span.SetStatus(otelcodes.Error, "telemetry storage unavailable")
 			}
-			if !filter.workload {
-				return response, fmt.Errorf("%w: %w", errSystemTelemetryExport, err)
-			}
 			return response, err
 		}
 	}
@@ -282,7 +278,7 @@ func exportHandler[Req otlpRequest, Resp otlpResponse, Payload any](
 		w.Header().Set("Content-Type", protobufContentType)
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(payload); err != nil { //nolint:gosec // G705: an OTLP protobuf body, never HTML
-			slog.WarnContext(r.Context(), "write OTLP response", "error", err)
+			slog.WarnContext(r.Context(), "write OTLP response", "error", err, feedbackLogAttribute, true)
 		}
 	}
 }
@@ -334,11 +330,9 @@ func logExportFailure(ctx context.Context, err, public error, attrs ...any) {
 	case errors.Is(public, errRequestTooLarge):
 		level = slog.LevelDebug
 	}
-	// Keep our own exporter failures on stdout without feeding them back into ingestion.
-	if errors.Is(err, errSystemTelemetryExport) {
-		attrs = append(attrs, feedbackLogAttribute, true)
-	}
-	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err}, attrs...)...)
+	// The collector can be the failed sender even before authentication succeeds.
+	// Keep ingestion diagnostics on stdout without recirculating them as telemetry.
+	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err, feedbackLogAttribute, true}, attrs...)...)
 }
 
 func (s *Service) writeFailure(ctx context.Context, w http.ResponseWriter, err error) {
@@ -360,7 +354,7 @@ func (s *Service) writeHTTPError(w http.ResponseWriter, httpStatus int, code cod
 	}
 	w.WriteHeader(httpStatus)
 	if _, err := w.Write(payload); err != nil {
-		slog.Warn("write OTLP error response", "error", err)
+		slog.Warn("write OTLP error response", "error", err, feedbackLogAttribute, true)
 	}
 }
 

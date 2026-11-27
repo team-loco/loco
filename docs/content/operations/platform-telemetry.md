@@ -22,7 +22,7 @@ The proxy traces admitted, decoded batches that retain at least one non-system r
 
 System-only batches produce no proxy spans, whether authenticated with the system ingest token or sent through a worker's platform pipelines. A mixed batch produces one ingestion span when it retains workload records. When that span returns to the proxy as system telemetry, ingestion stores it without generating another span. Loco's own SDK resources always carry `loco.telemetry.scope=platform`, even when operator resource attributes try to replace it. External collectors forwarding these signals back with a worker token must preserve that platform resource marker; arbitrary identity rewriting is outside this guarantee. With the marker preserved, self-ingestion suppresses the next generation of spans. The ClickHouse exporter's internal instrumentation and the proxy's authorization/export HTTP clients remain uninstrumented, so they cannot create another export cycle.
 
-Storage failures while ingesting system telemetry stay visible on proxy stdout with `loco.telemetry.internal=true`. Node collectors exclude those self-export diagnostics from forwarding, so an unavailable backend cannot produce another generation of logs. Other proxy diagnostics remain collected.
+Ingestion failure diagnostics stay visible on proxy stdout with `loco.telemetry.internal=true`. Node collectors exclude those internal diagnostics from forwarding, so an unavailable backend cannot produce another generation of logs. Other proxy diagnostics remain collected.
 
 The proxy stops its trace provider before stopping ingestion listeners so it can flush telemetry to itself. Requests that finish after the provider has stopped do not export a final ingestion span.
 

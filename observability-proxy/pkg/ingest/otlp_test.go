@@ -11,12 +11,11 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/internal/bearer"
+	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumererror"
@@ -320,34 +319,53 @@ func TestGRPCRejectsOversizedMessages(t *testing.T) {
 	}
 }
 
-func TestSystemExportFailuresStayDiagnosticWithoutFeedingBack(t *testing.T) {
-	for _, system := range []bool{false, true} {
-		t.Run(strconv.FormatBool(system), func(t *testing.T) {
-			service, _, cp := newTestService(t, errStorageDown)
-			var output bytes.Buffer
-			previous := slog.Default()
-			slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
-			t.Cleanup(func() { slog.SetDefault(previous) })
-			authorization := cp.bearer()
-			if system {
-				authorization = bearer.Header(testSystemToken)
-			}
-			response := post(t, service, authorization, protobufContentType, "", protoBody(t))
-			if response.Code != http.StatusServiceUnavailable {
-				t.Fatalf("storage failure status=%d", response.Code)
-			}
-			var record map[string]any
-			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
-				t.Fatal(err)
-			}
-			if record["msg"] != "OTLP export failed" ||
-				!strings.Contains(fmt.Sprint(record["error"]), errStorageDown.Error()) {
-				t.Fatalf("actual failure was hidden: %s", &output)
-			}
-			marker, ok := record[feedbackLogAttribute].(bool)
-			if system != (ok && marker) {
-				t.Fatalf("self-export boundary=%v, want %v: %s", marker, system, &output)
-			}
-		})
+func TestIngestFailuresStayDiagnosticWithoutFeedingBack(t *testing.T) {
+	for _, transport := range []string{"HTTP", "gRPC"} {
+		for _, failure := range []struct {
+			name string
+			auth bool
+		}{{name: "storage"}, {name: "auth", auth: true}} {
+			t.Run(transport+"/"+failure.name, func(t *testing.T) {
+				service, recorder, cp := newTestService(t, errStorageDown)
+				diagnostic := errStorageDown.Error()
+				if failure.auth {
+					cp.Update(func(state *ingesttest.State) { state.Outage = true })
+					diagnostic = ErrAuthUnavailable.Error()
+				}
+				var output bytes.Buffer
+				previous := slog.Default()
+				slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+				t.Cleanup(func() { slog.SetDefault(previous) })
+				if transport == "HTTP" {
+					response := post(t, service, cp.bearer(), protobufContentType, "", protoBody(t))
+					if response.Code != http.StatusServiceUnavailable {
+						t.Fatalf("failure status=%d", response.Code)
+					}
+				} else {
+					_, err := grpcClient(t, service).Export(grpcAuthorized(t, cp), testLogsRequest())
+					if status.Code(err) != codes.Unavailable {
+						t.Fatalf("failure code=%v", err)
+					}
+				}
+				if failure.auth && len(recorder.received) != 0 {
+					t.Fatal("auth outage reached storage instead of testing the pre-admission boundary")
+				}
+				var record map[string]any
+				if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+					t.Fatal(err)
+				}
+				if record["msg"] != "OTLP export failed" || !strings.Contains(fmt.Sprint(record["error"]), diagnostic) {
+					t.Fatalf("actual failure was hidden: %s", &output)
+				}
+				if record[feedbackLogAttribute] != true {
+					t.Fatalf("ingest failure can feed back: %s", &output)
+				}
+				t.Logf(
+					"%s %s outage: stdout preserves diagnostic, internal marker prevents re-ingestion",
+					transport,
+					failure.name,
+				)
+			})
+		}
 	}
 }
