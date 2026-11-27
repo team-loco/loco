@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -95,11 +97,15 @@ func TestValidationRejectsAnInvalidProductionCohort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file, data, 0600); err != nil {
+	if err = os.WriteFile(file, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := check(t.Context(), root); err == nil || !strings.Contains(err.Error(), "kubeconform") {
-		t.Fatalf("invalid production cohort: %v, want schema rejection", err)
+	err = check(t.Context(), root)
+	if _, ok := errors.AsType[*exec.ExitError](err); !ok {
+		t.Fatalf("invalid production cohort: %v, want validator exit error", err)
+	}
+	if !strings.Contains(err.Error(), "kubeconform") || !strings.Contains(err.Error(), "interval") {
+		t.Fatalf("invalid production cohort: %v, want interval schema rejection", err)
 	}
 }
 
