@@ -291,6 +291,27 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     expect(
         events.get_by_role("row", name="Recovered in page-change", exact=True)
     ).to_be_visible(timeout=15000)
+    # Finish the prior case's reads before establishing a new connection baseline.
+    live = page.locator("[data-live-button]")
+    live.click()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    prior_requests = page.requests()
+    for request in prior_requests:
+        if request.url.endswith("/ListEvents") and request.timing["responseEnd"] < 0:
+            response = request.response()
+            if response is not None:
+                response.finished()
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("pageSize") == 25 and not body.get("pageToken"),
+    ) as resumed_history:
+        live.click()
+    assert resumed_history.value.request not in prior_requests
+    resumed_history.value.finished()
     batches = page.evaluate("window.__eventStreamBatches")
     sql(
         state,
@@ -300,7 +321,15 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     page.wait_for_function(
         "before => window.__eventStreamBatches > before", arg=batches
     )
-    page.locator("[data-live-button]").click()
+    paused_row = events.get_by_role(
+        "row", name="Recovered in paused-update", exact=True
+    )
+    expect(paused_row).to_have_count(0)
+    live.click()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
     page.clock.run_for(31_000)
     expect(
         events.get_by_role("row", name="Recovered in paused-update", exact=True)
