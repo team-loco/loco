@@ -3,7 +3,7 @@ import json
 import re
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -363,6 +363,32 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         state,
         f"UPDATE deployment_rollouts SET snapshot=jsonb_set(jsonb_set(snapshot, '{{problem,since}}', to_jsonb('{failed_at}'::text)), '{{replicas}}', '[]'::jsonb) WHERE deployment_id='{p['current']}';",
     )
+    failure_time = datetime.fromisoformat(failed_at.replace("Z", "+00:00"))
+    preview_requests = []
+
+    def incident_history(route):
+        request = route.request.post_data_json
+        preview_requests.append(request)
+        older = (
+            datetime.fromisoformat(request["endTime"].replace("Z", "+00:00"))
+            < failure_time
+        )
+        at = failure_time + timedelta(seconds=-1 if older else 1)
+        route.fulfill(
+            json={
+                "entries": [
+                    {
+                        "timestamp": at.isoformat(),
+                        "level": "ERROR",
+                        "body": "Before failure" if older else "After failure",
+                    }
+                ]
+            }
+        )
+
+    context.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
+    )
     page.reload()
     expect(panel).to_have_count(0)
     incident = page.locator('section[aria-labelledby="incident-title"]')
@@ -386,6 +412,24 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         incident.get_by_text("Process exited with code 1", exact=True)
     ).to_be_visible()
     expect(incident.get_by_text("Since ", exact=False)).to_be_visible()
+    preview = incident.locator('[data-slot="incident-log"]')
+    expect(preview.get_by_text("Before failure", exact=True)).to_be_visible()
+    expect(preview.get_by_text("After failure", exact=True)).to_be_visible()
+    assert preview.inner_text().index("Before failure") < preview.inner_text().index(
+        "After failure"
+    )
+    assert len(preview_requests) == 2, preview_requests
+    for request in preview_requests:
+        assert request["query"] == "@replica:progress-new-1", request
+        assert request["environmentId"] == p["environment"], request
+        assert request["resourceIds"] == [p["resource"]], request
+        assert datetime.fromisoformat(
+            request["startTime"].replace("Z", "+00:00")
+        ) >= failure_time - timedelta(minutes=5), request
+        assert datetime.fromisoformat(
+            request["endTime"].replace("Z", "+00:00")
+        ) <= failure_time + timedelta(minutes=5), request
+
     incident.get_by_role("button", name="Roll back", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui", exact=True)
     expect(dialog).to_be_visible()

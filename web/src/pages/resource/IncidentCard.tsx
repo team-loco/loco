@@ -56,7 +56,7 @@ function RegionLogs({
 		around: at,
 		limit: LOG_LINES,
 	});
-	const lines = logs.entries.toReversed();
+	const lines = logs.entries.toSorted((a, b) => tsMs(a.timestamp) - tsMs(b.timestamp));
 	return (
 		<div
 			aria-label={`Last log lines in ${region}`}
