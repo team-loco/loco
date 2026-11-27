@@ -70,7 +70,10 @@ export function EventsView() {
 	const now = useNow(NOW_TICK_MS);
 	const nowMs = now.getTime();
 
-	const span = resolveWindow(range, nowMs);
+	const windowKey = JSON.stringify([orgId, workspaceId, environment?.id, range]);
+	const [window, setWindow] = useState({ key: windowKey, end: openedAt });
+	if (window.key !== windowKey) setWindow({ key: windowKey, end: Math.max(window.end, nowMs) });
+	const span = resolveWindow(range, window.end);
 	const base = {
 		orgId,
 		workspaceId,
@@ -92,7 +95,8 @@ export function EventsView() {
 	const stream = useEventStream({
 		orgId,
 		workspaceId,
-		startTime: resolveWindow(range, openedAt).from,
+		startTime: span.from,
+		endTime: range.kind === "absolute" ? span.to : undefined,
 		initialCursor,
 		on: live && enabled,
 		environmentId: environment?.id ?? "",
@@ -306,6 +310,7 @@ function useEventStream({
 	environmentId,
 	query,
 	startTime,
+	endTime,
 	initialCursor,
 	on,
 	onFirstPage,
@@ -315,12 +320,17 @@ function useEventStream({
 	environmentId: string;
 	query: string;
 	startTime: number;
+	endTime: number | undefined;
 	initialCursor: string;
 	on: boolean;
 	onFirstPage: boolean;
 }) {
 	const queryClient = useQueryClient();
-	const scope = `${orgId}/${workspaceId}/${environmentId}`;
+	const scope = `${orgId}/${workspaceId}/${environmentId}/${startTime}/${endTime ?? ""}`;
+	const bounds = {
+		startTime: msToTimestamp(startTime),
+		...(endTime === undefined ? {} : { endTime: msToTimestamp(endTime) }),
+	};
 	const key = `${scope}/${query}`;
 	const [viewed, setViewed] = useState({ scope, cursor: "" });
 
@@ -342,7 +352,7 @@ function useEventStream({
 			environmentId,
 			types: ENVIRONMENT_EVENT_TYPES,
 			readableResources: true,
-			startTime: msToTimestamp(startTime),
+			...bounds,
 		},
 		on,
 		initialCursor,
@@ -351,10 +361,12 @@ function useEventStream({
 			if (onFirstPage) refreshPage();
 		},
 	);
-	const firstPageAdvanced = onFirstPage && viewed.cursor !== subscription.cursor;
-	const initialPosition = viewed.cursor === "" && subscription.cursor !== "";
-	const resetViewed = firstPageAdvanced || viewed.scope !== scope || initialPosition;
-	if (resetViewed) setViewed({ scope, cursor: subscription.cursor });
+	const historyReady = initialCursor !== "";
+	const firstPageAdvanced = onFirstPage && viewed.cursor !== initialCursor;
+	const newScope = viewed.scope !== scope || viewed.cursor === "";
+	if (historyReady && (firstPageAdvanced || newScope)) setViewed({ scope, cursor: initialCursor });
+	const hasBaseline = viewed.scope === scope && viewed.cursor !== "";
+	const countArrivals = on && !onFirstPage && hasBaseline;
 	const received = useQuery(
 		listEvents,
 		{
@@ -364,12 +376,12 @@ function useEventStream({
 			query,
 			types: ENVIRONMENT_EVENT_TYPES,
 			readableResources: true,
-			startTime: msToTimestamp(startTime),
+			...bounds,
 			pageSize: 1,
 			includeTotalCount: true,
 			afterCursor: viewed.scope === scope ? viewed.cursor : "",
 		},
-		{ enabled: on && !onFirstPage && viewed.cursor !== "" },
+		{ enabled: countArrivals },
 	);
 	return { ...subscription, newEvents: received.data?.totalCount ?? 0 };
 }

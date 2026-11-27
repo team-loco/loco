@@ -18,30 +18,31 @@ export function useEventSubscription(
 	const [failure, setFailure] = useState<{ input: string; error: unknown } | null>(null);
 	const [attempt, setAttempt] = useState(0);
 	const handle = useEffectEvent(onRefresh);
-	const ready = enabled && initialCursor !== "";
 	const [position, setPosition] = useState({ input, cursor: "" });
-	const resumeCursor = useEffectEvent(() => {
-		if (position.input === input && position.cursor !== "") return position.cursor;
-		return initialCursor;
-	});
+	const currentCursor = (position.input === input ? position.cursor : "") || initialCursor;
+	const ready = enabled && currentCursor !== "";
+	const resumeCursor = useEffectEvent(() => currentCursor);
 	useEffect(() => {
 		if (!ready) return;
 		const abort = new AbortController();
 		const client = createClient(EventService, transport);
 		const scoped = fromJsonString(StreamEventsRequestSchema, input);
 		void followEvents(
-			(cursor, signal) =>
-				client.streamEvents(
-					{ ...scoped, cursor: cursor || resumeCursor() },
+			(cursor, signal) => {
+				const from = cursor || resumeCursor();
+				return client.streamEvents(
+					{ ...scoped, cursor: from },
 					{
 						signal,
 						onHeader: () => {
 							if (abort.signal.aborted) return;
+							setPosition({ input, cursor: from });
 							setFailure(null);
 							handle();
 						},
 					},
-				),
+				);
+			},
 			(_events, cursor) => {
 				setPosition({ input, cursor });
 				handle();
@@ -60,7 +61,6 @@ export function useEventSubscription(
 		};
 	}, [ready, input, transport, attempt]);
 	return {
-		cursor: (position.input === input ? position.cursor : "") || initialCursor,
 		error: ready && failure?.input === input ? failure.error : null,
 		retry: () => {
 			setAttempt((value) => value + 1);
