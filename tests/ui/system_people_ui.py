@@ -219,6 +219,24 @@ with session(repo / "tests/ui/out/system-people") as browser:
     expect(row(page, "Open Max Member")).to_have_count(0)
     page.get_by_role("button", name="Clear search", exact=True).click()
     expect(row(page, "Open Max Member")).to_be_visible()
+
+    # A failed search keeps its controls available so clearing it recovers.
+    def fail_search(route):
+        if (route.request.post_data_json or {}).get("query") == "failure":
+            route.fulfill(
+                status=503,
+                json={"code": "unavailable", "message": "User search unavailable"},
+            )
+        else:
+            route.fallback()
+
+    page.route("**/" + LIST_USERS, fail_search)
+    search.fill("failure")
+    expect(page.get_by_text("User search unavailable.", exact=True)).to_be_visible()
+    expect(search).to_be_visible()
+    page.get_by_role("button", name="Clear search", exact=True).click()
+    expect(row(page, "Open Max Member")).to_be_visible()
+    page.unroute("**/" + LIST_USERS, fail_search)
     row(page, "Open Ada Admin").click()
     drawer = page.get_by_role("dialog")
     expect(drawer.get_by_text("Active", exact=True)).to_be_visible()

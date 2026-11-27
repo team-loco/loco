@@ -83,53 +83,55 @@ export function SystemUsers() {
 	return (
 		<Page>
 			<PageHeader title="Users" />
-			{page.error !== null ? (
-				<ErrorCard error={page.error} fallbackMessage="Failed to load the users" minHeight="min-h-48" />
-			) : (
-				<Section
-					search={
-						<SearchInput
-							value={params.q}
-							maxLength={200}
-							aria-label="Search users"
-							placeholder="Search by name or email"
-							onChange={(e) => {
-								void setParams({ q: e.target.value || null, pages: null });
+			<Section
+				search={
+					<SearchInput
+						value={params.q}
+						maxLength={200}
+						aria-label="Search users"
+						placeholder="Search by name or email"
+						onChange={(e) => {
+							void setParams({ q: e.target.value || null, pages: null });
+						}}
+						onClear={() => {
+							void setParams({ q: null, pages: null });
+						}}
+					/>
+				}
+			>
+				{page.error !== null ? (
+					<ErrorCard error={page.error} fallbackMessage="Failed to load the users" minHeight="min-h-48" />
+				) : (
+					<>
+						<DataTable
+							table={table}
+							label="Users"
+							band
+							loading={page.isLoading}
+							empty={<EmptyState icon={<UsersIcon />} title={emptyTitle} />}
+							activeRowId={params.user}
+							onRowClick={(row) => {
+								void setParams({ user: row.original.id });
 							}}
-							onClear={() => {
-								void setParams({ q: null, pages: null });
-							}}
+							rowLabel={(row) => `Open ${userLabel(row.original)}`}
 						/>
-					}
-				>
-					<DataTable
-						table={table}
-						label="Users"
-						band
-						loading={page.isLoading}
-						empty={<EmptyState icon={<UsersIcon />} title={emptyTitle} />}
-						activeRowId={params.user}
-						onRowClick={(row) => {
-							void setParams({ user: row.original.id });
-						}}
-						rowLabel={(row) => `Open ${userLabel(row.original)}`}
-					/>
-					<Pager
-						label={shown.label}
-						page={shown.page}
-						loading={page.isPlaceholderData}
-						total={users.length}
-						pageSizes={PAGE_SIZES}
-						pageSize={params.size}
-						onPageSize={(size) => {
-							void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
-						}}
-						onFirst={pager.onFirst}
-						onPrev={pager.onPrev}
-						onNext={pager.onNext}
-					/>
-				</Section>
-			)}
+						<Pager
+							label={shown.label}
+							page={shown.page}
+							loading={page.isPlaceholderData}
+							total={users.length}
+							pageSizes={PAGE_SIZES}
+							pageSize={params.size}
+							onPageSize={(size) => {
+								void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
+							}}
+							onFirst={pager.onFirst}
+							onPrev={pager.onPrev}
+							onNext={pager.onNext}
+						/>
+					</>
+				)}
+			</Section>
 			<UserDrawer
 				userId={params.user}
 				canChange={canChange}
