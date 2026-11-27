@@ -20,6 +20,30 @@ from harness import (
 )
 from playwright.sync_api import expect
 
+
+def assert_waterfall_gutters(waterfall):
+    # The root span fills the time range, including when it is clipped by zoom.
+    geometry = waterfall.evaluate(
+        """region => {
+            const row = region.querySelector('[data-span-id]');
+            const name = row.firstElementChild.getBoundingClientRect();
+            const bounds = row.getBoundingClientRect();
+            const bar = row.querySelector('.tv-span-bar').getBoundingClientRect();
+            const axis = region.querySelector('[data-trace-axis]').getBoundingClientRect();
+            return {
+                left: bar.left - name.right,
+                right: bounds.right - bar.right,
+                axisLeft: axis.left - bar.left,
+                axisRight: axis.right - bar.right,
+            };
+        }"""
+    )
+    assert geometry["left"] >= 7, geometry
+    assert geometry["right"] >= 7, geometry
+    assert abs(geometry["axisLeft"]) < 1, geometry
+    assert abs(geometry["axisRight"]) < 1, geometry
+
+
 parser = argparse.ArgumentParser(
     description="Exercise the production trace viewer with fixture trace responses"
 )
@@ -752,12 +776,14 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Reset zoom", exact=True).click()
     drawer.get_by_role("button", name="Waterfall", exact=True).click()
     waterfall = drawer.get_by_role("region", name="Waterfall")
+    assert_waterfall_gutters(waterfall)
     axis_box = waterfall.locator("[data-trace-axis]").bounding_box()
     page.mouse.move(axis_box["x"] + axis_box["width"] * 0.1, axis_box["y"] + 8)
     page.mouse.down()
     page.mouse.move(axis_box["x"] + axis_box["width"] * 0.5, axis_box["y"] + 8, steps=6)
     page.mouse.up()
     expect(overview).to_have_attribute("aria-valuetext", "10–50% of trace")
+    assert_waterfall_gutters(waterfall)
     drawer.get_by_role("button", name="Reset zoom", exact=True).click()
 
     expect(waterfall.locator("[data-span]")).to_have_count(len(spans))
@@ -791,6 +817,7 @@ with session(out) as browser:
     expect(
         waterfall.get_by_role("separator", name="Resize span column")
     ).to_have_attribute("aria-valuenow", "356")
+    assert_waterfall_gutters(waterfall)
     hint = drawer.get_by_text(
         "Drag the time axis or double-click a span to zoom", exact=True
     )
@@ -1979,6 +2006,7 @@ with session(out) as browser:
         drawer.get_by_role("button", name="Waterfall", exact=True).click()
         waterfall = drawer.get_by_role("region", name="Waterfall")
         expect(waterfall.locator("[data-span]")).to_have_count(len(concurrent_spans))
+        assert_waterfall_gutters(waterfall)
         assert waterfall.locator("[data-span]").evaluate_all(
             "buttons => buttons.every(b => b.clientHeight === b.scrollHeight)"
         )
