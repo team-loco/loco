@@ -261,7 +261,8 @@ const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   const response = await originalFetch(...args);
   const url = args[0] instanceof Request ? args[0].url : String(args[0]);
-  if (!url.endsWith('/StreamEvents') || !response.ok || !response.body) return response;
+  const isEventStream = url.endsWith('/StreamEvents') && response.ok && response.body !== null;
+  if (!isEventStream) return response;
   let pending = new Uint8Array();
   const body = response.body.pipeThrough(new TransformStream({
     transform(chunk, controller) {
