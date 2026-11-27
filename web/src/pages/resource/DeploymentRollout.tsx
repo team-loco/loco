@@ -10,8 +10,8 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { deploymentProblem, placementIn } from "@/lib/deployment-utils";
-import { HOUR_MS } from "@/lib/obs-time";
-import { formatClock, maybeTsMs } from "@/lib/time";
+import { aroundWindow, HOUR_MS, windowSpan } from "@/lib/obs-time";
+import { formatClock, maybeTsMs, msToTimestamp } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn, formatShortId } from "@/lib/utils";
 import { LevelBadge } from "@/pages/observability/format";
@@ -96,11 +96,17 @@ function ProblemLog({
 	href: string | undefined;
 }) {
 	const timePref = useTimePreferences();
+	const at = maybeTsMs(deploymentProblem(deployment)?.since);
+	const nowMs = useNow(15_000).getTime();
+	const window = at === undefined ? undefined : aroundWindow(at, nowMs);
 	const logs = useQueryLogs({
 		workspaceId,
 		environmentId: deployment.environmentId,
 		resourceIds: [deployment.resourceId],
-		spanMs: HOUR_MS,
+		spanMs: window === undefined ? HOUR_MS : windowSpan(window),
+		...(window?.kind === "absolute"
+			? { startTime: msToTimestamp(window.from), endTime: msToTimestamp(window.to) }
+			: {}),
 		query,
 		limit: PROBLEM_LOG_LINES,
 		enabled: query !== "",

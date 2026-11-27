@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Pop
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatMemory } from "@/lib/quantity";
 import { agoLabel, maybeTsMs } from "@/lib/time";
+import { logsAtHref } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { replicaState } from "./deployment-progress";
@@ -108,7 +109,9 @@ function ReplicaCell({
 							size="icon-sm"
 							aria-label="Replica logs"
 							nativeButton={false}
-							render={<Link to={logsHref} />}
+							render={
+								<Link to={logsAtHref(logsHref, replica.ready ? undefined : maybeTsMs(replica.lastExit?.finishedAt))} />
+							}
 						>
 							<ScrollTextIcon />
 						</Button>

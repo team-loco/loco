@@ -429,6 +429,7 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.get_by_role("button", name="Retry", exact=True)).to_be_visible()
     context.unroute(operations)
     build_id = "b0000000-0000-4000-8000-000000000001"
+    failure_at = int(time.time()) - 6 * 60 * 60
     context.route(
         operations,
         lambda route: route.fulfill(
@@ -438,6 +439,9 @@ with session(repo / "tests/ui/out/system") as browser:
                         "id": build_id,
                         "kind": "build",
                         "resourceName": "synthetic-build",
+                        "updatedAt": time.strftime(
+                            "%Y-%m-%dT%H:%M:%SZ", time.gmtime(failure_at)
+                        ),
                         "status": "failed",
                         "message": "The build failed while installing dependencies.",
                         "orgId": state["orgs"]["ops"]["id"],
@@ -465,6 +469,7 @@ with session(repo / "tests/ui/out/system") as browser:
     )
     assert parse_qs(build_url.query).get("view") == ["logs"]
     assert parse_qs(build_url.query).get("q") == ["@build:" + build_id]
+    assert parse_qs(build_url.query).get("at") == [str(failure_at * 1000)]
     expect(page.get_by_text("No events", exact=True)).to_be_visible()
     expect(
         page.get_by_text(

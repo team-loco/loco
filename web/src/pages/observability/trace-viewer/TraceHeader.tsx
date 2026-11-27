@@ -26,7 +26,7 @@ import {
 import { SheetTitle, SheetDescription } from "@/components/design/Sheet";
 import { useCopy } from "@/hooks/useCopy";
 import { agoLabel, formatClock, formatFullTime, formatMonthDay, timeZoneLabel } from "@/lib/time";
-import { aroundWindow } from "@/lib/obs-time";
+import { traceLogWindow } from "./trace-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
@@ -313,7 +313,7 @@ export function TraceHeader({
 								className="items-start"
 								onClick={() => {
 									goTo("logs", {
-										range: aroundWindow(start, Date.now()),
+										range: traceLogWindow(trace, Date.now()),
 										tokens: [{ key: "trace", value: traceId, neg: false }],
 									});
 								}}

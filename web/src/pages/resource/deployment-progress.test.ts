@@ -307,3 +307,15 @@ test("a headline says the action by kind and the outcome by state", () => {
 	});
 	expect(at(DeploymentStatus.CANCELED).title).toBe("Deploy canceled");
 });
+
+test("rollout failure logs stay on the reported failure six hours later", () => {
+	const at = Date.now() - 6 * 60 * 60_000;
+	const deployment = create(DeploymentSchema, {
+		placements: [{ problem: { since: timestampFromMs(at), logsQuery: "@replica:failed" } }],
+	});
+	const url = new URL(problemLogsHref("/logs?env=production&r=web", deployment)!, "https://loco.test");
+	expect(url.searchParams.get("at")).toBe(String(at));
+	expect(Number(url.searchParams.get("from"))).toBe(at - 5 * 60_000);
+	expect(Number(url.searchParams.get("to"))).toBe(at + 5 * 60_000);
+	expect(url.searchParams.get("q")).toBe("@replica:failed");
+});

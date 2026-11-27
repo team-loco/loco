@@ -450,9 +450,16 @@ export function AlertsDrawer() {
 	const close = () => {
 		openChange(false);
 	};
+	const deploymentBuildLogsHref = (deployment: Deployment) => {
+		const buildId = getServiceSpec(deployment)?.build?.buildId ?? "";
+		if (buildId === "") return undefined;
+		return buildLogsPath(activeOrgId, activeWorkspaceId, buildId, {
+			createdAt: deployment.createdAt,
+			finishedAt: deployment.completedAt,
+		});
+	};
 	const deployCard = (d: Deployment) => {
 		const resource = byId.get(d.resourceId);
-		const buildId = getServiceSpec(d)?.build?.buildId ?? "";
 		return (
 			<DeployCard
 				key={d.id}
@@ -464,7 +471,7 @@ export function AlertsDrawer() {
 					...envParams,
 					r: [resource?.slug ?? ""],
 				})}
-				buildLogsHref={buildId === "" ? undefined : buildLogsPath(activeOrgId, activeWorkspaceId, buildId)}
+				buildLogsHref={deploymentBuildLogsHref(d)}
 				onNavigate={close}
 			/>
 		);

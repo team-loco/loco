@@ -1,3 +1,4 @@
+import type { Build } from "@gen/loco/build/v1/build_pb";
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
@@ -343,7 +344,7 @@ export function DeploymentsSection({
 	workspaceId: string;
 	environmentId: string | undefined;
 	regions: RegionView[];
-	buildLogsHref: (buildId: string) => string | undefined;
+	buildLogsHref: (buildId: string, build?: Build) => string | undefined;
 	canWrite: boolean;
 	canReadWorkspace: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
@@ -609,7 +610,7 @@ export function DeploymentsSection({
 								workspaceId={workspaceId}
 								canWrite={canWrite}
 								deployment={buildDeployment(selected.data.build.id)}
-								logsHref={buildLogsHref(selected.data.build.id)}
+								logsHref={buildLogsHref(selected.data.build.id, selected.data.build)}
 								onCanceled={() => {
 									builds.refresh();
 									void selected.refetch();

@@ -345,7 +345,7 @@ function buildColumns(
 	openId: string | null,
 	onOpen: (id: string | null) => void,
 	actions: Pick<Parameters<typeof BuildActions>[0], "canWrite" | "onCanceled" | "onShowDeployments"> & {
-		logsHref: (buildId: string) => string | undefined;
+		logsHref: (buildId: string, build?: Build) => string | undefined;
 	},
 ): DataColumn<Build>[] {
 	return [
@@ -430,7 +430,7 @@ function buildColumns(
 				<BuildActions
 					build={build}
 					onShowDeployments={actions.onShowDeployments}
-					logsHref={actions.logsHref(build.id)}
+					logsHref={actions.logsHref(build.id, build)}
 					canWrite={actions.canWrite}
 					onCanceled={actions.onCanceled}
 				/>
@@ -462,7 +462,7 @@ export function BuildsTable({
 	onOpen: (id: string | null) => void;
 	deploymentFor: (buildId: string) => BuildDeploymentLink | undefined;
 	onShowDeployments: (buildId: string) => void;
-	logsHref: (buildId: string) => string | undefined;
+	logsHref: (buildId: string, build?: Build) => string | undefined;
 	onCanceled: () => void;
 	emptyText: ReactNode;
 }) {
@@ -502,7 +502,7 @@ export function BuildsTable({
 						actors={actors}
 						workspaceId={workspaceId}
 						deployment={deploymentFor(row.id)}
-						logsHref={logsHref(row.id)}
+						logsHref={logsHref(row.id, row.original)}
 						canWrite={canWrite}
 						onCanceled={onCanceled}
 					/>

@@ -3,7 +3,7 @@ import json
 import re
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -119,7 +119,9 @@ p = state["progress"]
 path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production"
 
 
-def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
+def phase(
+    status, problem_reason=None, *, new_ready=False, survivors=True, problem_since=None
+):
     building = status in ("building", "canceled")
     now = int(time.time())
     replica = {
@@ -140,6 +142,12 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         if status == "running" or new_ready
         else "Waiting for readiness",
     }
+    if status == "failed":
+        replica["last_exit"] = {
+            "reason": "Error",
+            "exit_code": 1,
+            "finished_at": {"seconds": now - 6 * 60 * 60},
+        }
     previous = [
         {
             "uid": name,
@@ -197,6 +205,8 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
             else "Process exited with code 1",
             "replica_name": replica["name"],
         }
+        if problem_since is not None:
+            snapshot["problem"]["since"] = {"seconds": problem_since // 1000}
     last_seq = int(
         sql(
             state,
@@ -349,6 +359,15 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             "Failing", exact=True
         )
     ).to_be_visible()
+    # An exited replica opens its historical failure, rather than recent logs.
+    page.get_by_role("button", name="1, Failing", exact=True).click()
+    replica_link = page.get_by_role("link", name="Replica logs", exact=True)
+    replica_params = parse_qs(urlparse(replica_link.get_attribute("href")).query)
+    assert replica_params["q"] == ["@replica:progress-new-1"], replica_params
+    assert (
+        abs(int(replica_params["at"][0]) - (time.time() - 6 * 60 * 60) * 1000) < 30_000
+    ), replica_params
+    page.keyboard.press("Escape")
     # The incident card shows once no deploy card does.
     sql(
         state,
@@ -783,6 +802,66 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert len(rollbacks) == 1, queued
     assert rollbacks[0]["sourceDeploymentId"] == before, rollbacks
     assert [pl["region"] for pl in rollbacks[0]["placements"]] == ["us-ca-1"], rollbacks
+    assert not errors, errors
+    context.close()
+    # A mounted failure preview must follow a newer problem from the deployment watch.
+    sql(
+        state,
+        f"DELETE FROM deployment_rollouts WHERE deployment_id='{p['current']}' AND revision > 2;",
+    )
+    first_failure = int(time.time() * 1000)
+    phase("deploying", "restarting", problem_since=first_failure)
+    context, page, errors = open_page(browser, state=state)
+    page.clock.install()
+    latest_failure = first_failure
+    preview_requests = []
+
+    def evolving_problem_logs(route):
+        request = route.request.post_data_json
+        preview_requests.append(request)
+        end = (
+            datetime.fromisoformat(
+                request["endTime"].replace("Z", "+00:00")
+            ).timestamp()
+            * 1000
+        )
+        updated = latest_failure > first_failure and end >= latest_failure
+        route.fulfill(
+            json={
+                "entries": [
+                    {
+                        "timestamp": datetime.fromtimestamp(
+                            latest_failure / 1000, UTC
+                        ).isoformat(),
+                        "level": "LOG_LEVEL_ERROR",
+                        "body": "Updated failure log"
+                        if updated
+                        else "Initial failure log",
+                    }
+                ]
+            }
+        )
+
+    context.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs", evolving_problem_logs
+    )
+    page.goto(state["ui_url"] + path)
+    expect(page.get_by_text("Initial failure log", exact=True)).to_be_visible()
+    page.clock.fast_forward(6 * 60_000)
+    latest_failure = int(page.evaluate("Date.now()") // 1000) * 1000
+    phase("deploying", "restarting", problem_since=latest_failure)
+    expect(page.get_by_text("Updated failure log", exact=True)).to_be_visible(
+        timeout=25000
+    )
+    assert any(
+        abs(
+            datetime.fromisoformat(r["startTime"].replace("Z", "+00:00")).timestamp()
+            * 1000
+            - (latest_failure - 5 * 60_000)
+        )
+        < 1
+        for r in preview_requests
+    ), preview_requests
     assert not errors, errors
     context.close()
     browser.close()

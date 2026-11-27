@@ -1,3 +1,4 @@
+import type { Build } from "@gen/loco/build/v1/build_pb";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import {
@@ -94,7 +95,7 @@ function ProgressPanel({
 	logsHref: string | undefined;
 	/** The logs of one region's replicas. */
 	regionLogsHref: (region: string) => string | undefined;
-	buildLogsHref: (buildId: string) => string | undefined;
+	buildLogsHref: (buildId: string, build?: Build) => string | undefined;
 	canWrite: boolean;
 	/** Opens the spec of `to` compared with the spec of `from`. */
 	onCompare: (from: Deployment, to: Deployment) => void;
@@ -166,7 +167,7 @@ function ProgressPanel({
 	const feed = rolloutActivity(activity, region.name, live ? (placement?.currentRevision ?? 0n) : 0n);
 	const elapsed = deploymentElapsedMs(deployment, nowMs, feed.restart);
 	const headline = rolloutHeadline(deployment, elapsed);
-	const buildHref = buildId === "" ? undefined : buildLogsHref(buildId);
+	const buildHref = buildId === "" ? undefined : buildLogsHref(buildId, build);
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
 	const image = depImage(deployment);
@@ -451,7 +452,7 @@ export function DeploymentProgress({
 	logsHref: string | undefined;
 	/** The logs of one region's replicas. */
 	regionLogsHref: (region: string) => string | undefined;
-	buildLogsHref: (buildId: string) => string | undefined;
+	buildLogsHref: (buildId: string, build?: Build) => string | undefined;
 	canWrite: boolean;
 	/** Opens the spec of `to` compared with the spec of `from`. */
 	onCompare: (from: Deployment, to: Deployment) => void;
