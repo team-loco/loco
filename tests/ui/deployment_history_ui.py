@@ -420,7 +420,6 @@ with session(out) as browser:
     line = spec_dialog.locator(".sh__line").first
     expect(wrap).to_have_attribute("aria-pressed", "true")
     expect(line).to_have_css("white-space", "pre-wrap")
-    scroller = spec_dialog.locator('[data-slot="spec-body"]')
     sizes = "e => [e.scrollWidth, e.clientWidth]"
     scroll_width, client_width = scroller.evaluate(sizes)
     assert scroll_width == client_width, (scroll_width, client_width)
