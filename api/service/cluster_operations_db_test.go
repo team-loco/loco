@@ -18,7 +18,7 @@ import (
 
 func operationsServer(f *deployFixture) *ClusterAdminServer {
 	cfg := testAgentConfig()
-	return NewClusterAdminServer(f.pool, f.queries, cfg.JoinTokenTTL, cfg.JoinTokenMaxTTL, testHeartbeatInterval)
+	return NewClusterAdminServer(f.pool, f.queries, cfg.JoinTokenTTL, cfg.JoinTokenMaxTTL, testHeartbeatInterval, nil)
 }
 
 func capacityOf(t *testing.T, f *deployFixture) *clusterv1.ClusterCapacity {

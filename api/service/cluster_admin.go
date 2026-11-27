@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"time"
 
+	chClient "github.com/team-loco/loco/internal/clickhouse"
+
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -44,6 +46,7 @@ var (
 )
 
 type ClusterAdminServer struct {
+	clickhouse        *chClient.Client
 	pool              *pgxpool.Pool
 	queries           genDb.Querier
 	authz             *authz.Authorizer
@@ -56,8 +59,10 @@ func NewClusterAdminServer(
 	pool *pgxpool.Pool,
 	queries genDb.Querier,
 	joinTokenTTL, joinTokenMaxTTL, heartbeatInterval time.Duration,
+	clickhouse *chClient.Client,
 ) *ClusterAdminServer {
 	return &ClusterAdminServer{
+		clickhouse:        clickhouse,
 		pool:              pool,
 		queries:           queries,
 		authz:             authz.New(queries),

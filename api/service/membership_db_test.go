@@ -91,7 +91,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine))
 	adminv1connect.RegisterSystemRoleServiceHandler(server, NewSystemRoleServer(pool, queries))
 	tokenv1connect.RegisterTokenServiceHandler(server, NewTokenServer(pool, queries, machine, limits.Defaults()))
-	resources := NewResourceServer(pool, queries, testServiceDefaults(), time.Minute, limits.Defaults())
+	resources := NewResourceServer(pool, queries, testServiceDefaults(), time.Minute, limits.Defaults(), nil)
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

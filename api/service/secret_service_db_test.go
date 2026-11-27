@@ -959,7 +959,14 @@ func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("delete: code = %v, want NotFound", code)
 	}
-	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	resources := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	_, err = resources.ListResourceOutputs(ctx, &resourcev1.ListResourceOutputsRequest{EnvironmentId: other})
 	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("list resource outputs: code = %v, want NotFound", code)

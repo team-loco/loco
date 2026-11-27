@@ -15,7 +15,14 @@ func TestCreateResourceReturnsTheCredentialActor(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	creators := map[string]string{f.resourceID.String(): f.ownerID.String()}
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	for _, credential := range []genDb.DeploymentActorType{
 		genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken,
 	} {

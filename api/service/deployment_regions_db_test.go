@@ -61,7 +61,14 @@ func (f *deployFixture) scaleWorker(t *testing.T, req *resourcev1.ScaleResourceR
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{
 		ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: f.adminScopes(t),
 	})
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	if _, err := server.ScaleResource(ctx, req); err != nil {
 		t.Fatalf("scale: %v", err)
 	}

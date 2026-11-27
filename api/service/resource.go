@@ -8,6 +8,8 @@ import (
 	"slices"
 	"time"
 
+	chClient "github.com/team-loco/loco/internal/clickhouse"
+
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -83,6 +85,7 @@ var (
 )
 
 type ResourceServer struct {
+	clickhouse *chClient.Client
 	resourcev1connect.UnimplementedResourceServiceHandler
 	db                 *pgxpool.Pool
 	queries            genDb.Querier
@@ -99,8 +102,10 @@ func NewResourceServer(
 	defaults servicedefaults.Defaults,
 	clusterSilentAfter time.Duration,
 	counts *configv1.CountLimits,
+	clickhouse *chClient.Client,
 ) *ResourceServer {
 	return &ResourceServer{
+		clickhouse:         clickhouse,
 		db:                 db,
 		queries:            queries,
 		authz:              authz.New(queries),

@@ -124,7 +124,14 @@ func (tn tenant) renameEnvironment(t *testing.T, environmentID uuid.UUID, name s
 
 func (tn tenant) resource(t *testing.T, workspaceID uuid.UUID, name string, spec *resourcev1.ServiceSpec) uuid.UUID {
 	t.Helper()
-	server := NewResourceServer(tn.pool, tn.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		tn.pool,
+		tn.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	created, err := server.CreateResource(tn.owner(t), &resourcev1.CreateResourceRequest{
 		WorkspaceId: workspaceID.String(),
 		Name:        name,

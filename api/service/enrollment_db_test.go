@@ -40,7 +40,7 @@ func newEnrollmentFixture(t *testing.T) *enrollmentFixture {
 			f.queries,
 			testAgentConfig().JoinTokenTTL,
 			testAgentConfig().JoinTokenMaxTTL,
-			testHeartbeatInterval,
+			testHeartbeatInterval, nil,
 		),
 		agent: startSyncServer(t, f),
 	}

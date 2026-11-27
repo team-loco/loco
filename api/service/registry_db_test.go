@@ -703,7 +703,7 @@ func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
 		f.queries,
 		testAgentConfig().JoinTokenTTL,
 		testAgentConfig().JoinTokenMaxTTL,
-		testHeartbeatInterval,
+		testHeartbeatInterval, nil,
 	)
 	token, err := admin.IssueJoinToken(
 		systemAdminContext(t),

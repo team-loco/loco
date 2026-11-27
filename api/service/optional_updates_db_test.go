@@ -82,7 +82,14 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	for _, description := range []string{optionalChanged, ""} {
 		_, err := server.UpdateResource(
 			ctx,
@@ -274,7 +281,14 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 		}
 	}
 	environment := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
-	resource := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	resource := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	workspace := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	if _, err := environment.UpdateEnvironment(
 		ctx,

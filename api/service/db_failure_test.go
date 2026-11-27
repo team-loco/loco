@@ -18,7 +18,14 @@ import (
 func TestGetResourceReportsDatabaseFailure(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
-	server := NewResourceServer(pool, genDb.New(pool), testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		pool,
+		genDb.New(pool),
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
 	_, err := server.GetResource(ctx, &resourcev1.GetResourceRequest{
