@@ -430,6 +430,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             request["endTime"].replace("Z", "+00:00")
         ) <= failure_time + timedelta(minutes=5), request
 
+    context.unroute(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs", incident_history
+    )
     # A later cluster outage must not be replaced by this stale deployment problem.
     sql(
         state,
