@@ -66,10 +66,14 @@ func (s *ClusterAdminServer) ListWorkspaceAllocations(
 	if err != nil {
 		return nil, err
 	}
+	workspaceIDs := make([]string, 0, len(metadata))
+	for _, row := range metadata {
+		workspaceIDs = append(workspaceIDs, row.ID.String())
+	}
 	totals, samples, err := s.clickhouse.CapacityInventory(
 		ctx,
 		clusters,
-		ch.CapacityScope{Group: ch.CapacityByWorkspace, Organization: org.String()},
+		ch.CapacityScope{Group: ch.CapacityByWorkspace, Workspaces: workspaceIDs},
 	)
 	if err != nil {
 		return nil, err

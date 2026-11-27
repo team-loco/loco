@@ -38,6 +38,9 @@ const (
 	// ClusterAdminServiceGetClusterOperationsProcedure is the procedure name of the
 	// ClusterAdminService's GetClusterOperations RPC.
 	ClusterAdminServiceGetClusterOperationsProcedure = "/loco.cluster.v1.ClusterAdminService/GetClusterOperations"
+	// ClusterAdminServiceListClusterCapacitiesProcedure is the procedure name of the
+	// ClusterAdminService's ListClusterCapacities RPC.
+	ClusterAdminServiceListClusterCapacitiesProcedure = "/loco.cluster.v1.ClusterAdminService/ListClusterCapacities"
 	// ClusterAdminServiceListClusterNodesProcedure is the procedure name of the ClusterAdminService's
 	// ListClusterNodes RPC.
 	ClusterAdminServiceListClusterNodesProcedure = "/loco.cluster.v1.ClusterAdminService/ListClusterNodes"
@@ -91,6 +94,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("GetClusterOperations"),
 			Procedure:  ClusterAdminServiceGetClusterOperationsProcedure,
+		}
+	})
+	clusterAdminServiceListClusterCapacitiesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("ListClusterCapacities"),
+			Procedure:  ClusterAdminServiceListClusterCapacitiesProcedure,
 		}
 	})
 	clusterAdminServiceListClusterNodesSpec = sync.OnceValue(func() connect.Spec {
@@ -150,6 +160,7 @@ type ClusterAdminServiceClient interface {
 	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
 	GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error)
+	ListClusterCapacities(context.Context, *v1.ListClusterCapacitiesRequest) (*v1.ListClusterCapacitiesResponse, error)
 	ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error)
 	GetNodeAllocations(context.Context, *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error)
 	ListWorkspaceAllocations(context.Context, *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error)
@@ -172,6 +183,7 @@ type ClusterAdminServiceHandler interface {
 	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
 	GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error)
+	ListClusterCapacities(context.Context, *v1.ListClusterCapacitiesRequest) (*v1.ListClusterCapacitiesResponse, error)
 	ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error)
 	GetNodeAllocations(context.Context, *v1.GetNodeAllocationsRequest) (*v1.GetNodeAllocationsResponse, error)
 	ListWorkspaceAllocations(context.Context, *v1.ListWorkspaceAllocationsRequest) (*v1.ListWorkspaceAllocationsResponse, error)
@@ -190,6 +202,7 @@ func RegisterClusterAdminServiceHandler(server *connect.Server, svc ClusterAdmin
 		connect.Method{Spec: clusterAdminServiceIssueJoinTokenSpec(), Handler: adapter.issueJoinToken},
 		connect.Method{Spec: clusterAdminServiceListClustersSpec(), Handler: adapter.listClusters},
 		connect.Method{Spec: clusterAdminServiceGetClusterOperationsSpec(), Handler: adapter.getClusterOperations},
+		connect.Method{Spec: clusterAdminServiceListClusterCapacitiesSpec(), Handler: adapter.listClusterCapacities},
 		connect.Method{Spec: clusterAdminServiceListClusterNodesSpec(), Handler: adapter.listClusterNodes},
 		connect.Method{Spec: clusterAdminServiceGetNodeAllocationsSpec(), Handler: adapter.getNodeAllocations},
 		connect.Method{Spec: clusterAdminServiceListWorkspaceAllocationsSpec(), Handler: adapter.listWorkspaceAllocations},
@@ -217,6 +230,10 @@ func (UnimplementedClusterAdminServiceHandler) ListClusters(context.Context, *v1
 
 func (UnimplementedClusterAdminServiceHandler) GetClusterOperations(context.Context, *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.GetClusterOperations is not implemented")
+}
+
+func (UnimplementedClusterAdminServiceHandler) ListClusterCapacities(context.Context, *v1.ListClusterCapacitiesRequest) (*v1.ListClusterCapacitiesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.ListClusterCapacities is not implemented")
 }
 
 func (UnimplementedClusterAdminServiceHandler) ListClusterNodes(context.Context, *v1.ListClusterNodesRequest) (*v1.ListClusterNodesResponse, error) {
@@ -278,6 +295,14 @@ func (c *clusterAdminServiceClient) ListClusters(ctx context.Context, req *v1.Li
 func (c *clusterAdminServiceClient) GetClusterOperations(ctx context.Context, req *v1.GetClusterOperationsRequest) (*v1.GetClusterOperationsResponse, error) {
 	var res v1.GetClusterOperationsResponse
 	if err := c.client.CallUnary(ctx, clusterAdminServiceGetClusterOperationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *clusterAdminServiceClient) ListClusterCapacities(ctx context.Context, req *v1.ListClusterCapacitiesRequest) (*v1.ListClusterCapacitiesResponse, error) {
+	var res v1.ListClusterCapacitiesResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceListClusterCapacitiesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -383,6 +408,18 @@ func (h clusterAdminServiceHandler) getClusterOperations(ctx context.Context, _ 
 		return err
 	}
 	res, err := h.svc.GetClusterOperations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h clusterAdminServiceHandler) listClusterCapacities(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListClusterCapacitiesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListClusterCapacities(ctx, &req)
 	if err != nil {
 		return err
 	}

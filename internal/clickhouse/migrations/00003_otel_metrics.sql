@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_gauge
         SELECT WorkspaceId, ResourceAttributes['loco.cluster.id'] AS ClusterId,
                MetricName, TimeUnix, _part_offset
         ORDER BY (WorkspaceId, ClusterId, MetricName, TimeUnix)
+    ),
+    PROJECTION latest_system_node_capacity
+    (
+        SELECT WorkspaceId, ResourceAttributes['loco.cluster.id'], MetricName, Flags,
+               ResourceAttributes['k8s.node.name'],
+               argMax(Value, TimeUnix), max(TimeUnix),
+               argMax(ResourceAttributes['loco.collection.interval'], TimeUnix)
+        GROUP BY WorkspaceId, ResourceAttributes['loco.cluster.id'], MetricName, Flags,
+                 ResourceAttributes['k8s.node.name']
     )
 )
 ENGINE = MergeTree
