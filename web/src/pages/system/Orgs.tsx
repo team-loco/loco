@@ -4,7 +4,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
 import { Building2Icon, CircleDotIcon, SearchXIcon } from "lucide-react";
 import { parseAsBoolean, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { ErrorCard } from "@/components/ErrorCard";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
@@ -99,7 +99,11 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 		size: 105,
 		minSize: 90,
 		meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
-		cell: ({ row: { original: r } }) => count(r.organization?.workspaceCount),
+		cell: ({ row: { original: r } }) => (
+			<Link to={`/system/orgs/${r.organization?.id}#workspaces`} className="hover:underline">
+				{count(r.organization?.workspaceCount)}
+			</Link>
+		),
 	},
 	{
 		id: "resources",

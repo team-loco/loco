@@ -1,3 +1,6 @@
+import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
+import { listResourceAllocations } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { ReservationCoverage } from "@/components/ReservationCoverage";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
@@ -104,6 +107,17 @@ export function ResourceTable({
 		draftsOnly,
 	);
 	const resources = listed.query.data?.resources ?? [];
+	const reservations = useConnectQuery(
+		listResourceAllocations,
+		{
+			workspaceId,
+			environmentId: active?.id ?? "",
+			resourceIds: resources.map((resource) => resource.id).toSorted(),
+			pageSize: resources.length,
+		},
+		{ enabled: active !== undefined && resources.length > 0, refetchInterval: 30_000 },
+	);
+	const reservationRows = new Map((reservations.data?.resources ?? []).map((row) => [row.resourceId, row]));
 	const deployments = useCurrentDeployments(resources);
 	const serverRows = draftsOnly ? [] : buildRows(resources, deployments, environments, active?.id);
 	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }).length;
@@ -179,9 +193,32 @@ export function ResourceTable({
 				/>
 			}
 		>
+			<ReservationCoverage coverage={reservations.data?.coverage} />
+			{reservations.error !== null && (
+				<div className="px-5 py-3">
+					<ErrorState
+						error={reservations.error}
+						what="resource reservations"
+						rpc={listResourceAllocations}
+						onRetry={async () => await reservations.refetch()}
+					/>
+				</div>
+			)}
 			{listed.error === null ? (
 				<>
-					<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, creators }}>
+					<ResourceCellContext
+						value={{
+							orgId,
+							workspaceId,
+							environments,
+							active,
+							nowMs,
+							creators,
+							reservations: reservationRows,
+							reservationCoverage: reservations.data?.coverage,
+							reservationsLoading: reservations.isLoading,
+						}}
+					>
 						<DataTable
 							table={table}
 							label="Resources"

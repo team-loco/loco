@@ -242,6 +242,8 @@ describe("URL state", () => {
 		"env-production": true,
 		"env-staging": true,
 		size: true,
+		"reserved-cpu": true,
+		"reserved-memory": true,
 		replicas: false,
 		cost: true,
 		address: false,
@@ -270,7 +272,7 @@ describe("URL state", () => {
 			cols: { ...shown, "env-production": false, size: false, cost: false, image: true },
 		};
 		const written = serialize(state);
-		expect(new URLSearchParams(written).get("cols")).toBe("env-staging,image");
+		expect(new URLSearchParams(written).get("cols")).toBe("env-staging,reserved-cpu,reserved-memory,image");
 		expect(load(written)).toEqual(state);
 	});
 

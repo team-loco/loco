@@ -3,6 +3,7 @@ import re
 import time
 from urllib.parse import parse_qs, urlsplit
 
+from capacity_fixture import install_capacity
 from harness import copied_text, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
@@ -23,6 +24,12 @@ new MutationObserver(() => {
   if (document.querySelector('[data-slot="system-tag"], a[href="/system/clusters"]') !== null) window.__systemChrome = true;
 }).observe(document, { childList: true, subtree: true });
 """
+
+
+def system_page(*args, **kwargs):
+    context, page, errors = open_page(*args, **kwargs)
+    install_capacity(context, state)
+    return context, page, errors
 
 
 def hold(context, pattern):
@@ -56,7 +63,7 @@ def row_menu(page, name, item):
 with session(repo / "tests/ui/out/system") as browser:
     # Delayed fleet responses keep the sticky action column at its loaded width.
     for color in ("loco", "paper"):
-        context, page, errors = open_page(
+        context, page, errors = system_page(
             browser,
             user="admin",
             narrow=True,
@@ -89,7 +96,7 @@ with session(repo / "tests/ui/out/system") as browser:
         context.close()
 
     # A user without a system role never sees the switch.
-    context, page, errors = open_page(browser, user="member", state=state)
+    context, page, errors = system_page(browser, user="member", state=state)
     page.goto(ui + "/dashboard")
     expect(page.get_by_title("Switch organization", exact=True)).to_be_visible()
     open_menu(page)
@@ -111,7 +118,7 @@ with session(repo / "tests/ui/out/system") as browser:
             "/System/Clusters",
             "/system/clusters/new",
         ):
-            context, page, errors = open_page(browser, user="member", state=state)
+            context, page, errors = system_page(browser, user="member", state=state)
             context.add_init_script(SHELL_WATCH_JS)
             requests = []
             page.on("request", lambda request, seen=requests: seen.append(request.url))
@@ -130,7 +137,7 @@ with session(repo / "tests/ui/out/system") as browser:
             context.close()
 
     # A system admin switches in and out, and sees the clusters with their actions.
-    context, page, errors = open_page(browser, user="admin", state=state)
+    context, page, errors = system_page(browser, user="admin", state=state)
     page.goto(ui + "/dashboard")
     open_menu(page)
     switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
@@ -305,7 +312,6 @@ with session(repo / "tests/ui/out/system") as browser:
     for label, value in (
         ("Region", "us-ca-1"),
         ("Role", "Builds"),
-        ("State", "Degraded"),
         ("Agent version", "v0.0.217"),
         ("Last heartbeat", "UTC"),
     ):
@@ -327,23 +333,24 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
         "7.2 vCPU requested / 8 vCPU allocatable"
     )
-    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
-        "42 assigned / 220 allocatable"
-    )
     expect(
         page.get_by_text("The build controller is not ready.", exact=True)
     ).to_be_visible()
     expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", name="Events", exact=True)).to_be_visible()
-    expect(page.get_by_role("heading", name="CPU", exact=True)).to_be_visible()
-    metrics = page.get_by_role("region", name="Metrics", exact=True).get_by_role(
-        "link", name="Metrics", exact=True
+    expect(page.get_by_role("heading", name="CPU usage", exact=True)).to_be_visible()
+    sections = page.locator("main section[aria-labelledby]").evaluate_all(
+        "elements => elements.map(el => el.querySelector('h2')?.firstChild?.textContent).filter(Boolean)"
     )
-    metrics_url = urlsplit(metrics.get_attribute("href"))
-    assert metrics_url.path == "/system/metrics"
-    assert parse_qs(metrics_url.query).get("q") == [
-        "@cluster:" + urlsplit(page.url).path.rsplit("/", 1)[-1]
-    ]
+    assert sections == ["Details", "Issues", "Capacity", "Nodes", "Events"], sections
+    expect(page.get_by_role("region", name="Issues", exact=True)).to_contain_text(
+        "The build controller is not ready."
+    )
+    expect(
+        page.get_by_role("region", name="Issues", exact=True).get_by_text(
+            "No issues", exact=True
+        )
+    ).to_have_count(0)
     # A full UUID and its copy icon stay inside their fact, including at larger text sizes.
     cluster_id = page.url.rsplit("/", 1)[-1]
     id_fact = page.locator("dt", has_text="Cluster ID").locator(
@@ -432,7 +439,7 @@ with session(repo / "tests/ui/out/system") as browser:
     context.close()
 
     # A system reader sees the same pages with no change controls.
-    context, page, errors = open_page(browser, user="reader", state=state)
+    context, page, errors = system_page(browser, user="reader", state=state)
     page.goto(ui + "/dashboard")
     open_menu(page)
     page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
@@ -459,8 +466,12 @@ with session(repo / "tests/ui/out/system") as browser:
     )
     page.goto(ui + "/system/clusters")
     row(page, "us-ca-1").click()
-    expect(page.get_by_role("heading", name="Activity", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Retry", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("region", name="Issues", exact=True).get_by_role(
+            "button", name="Retry", exact=True
+        )
+    ).to_be_visible()
     context.unroute(operations)
     build_id = "b0000000-0000-4000-8000-000000000001"
     failure_at = int(time.time()) - 6 * 60 * 60
@@ -487,7 +498,9 @@ with session(repo / "tests/ui/out/system") as browser:
             }
         ),
     )
-    page.get_by_role("button", name="Retry", exact=True).click()
+    page.get_by_role("region", name="Issues", exact=True).get_by_role(
+        "button", name="Retry", exact=True
+    ).click()
     expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
     expect(
         page.get_by_text("The build failed while installing dependencies.", exact=True)
@@ -532,7 +545,7 @@ with session(repo / "tests/ui/out/system") as browser:
 
 # Synthetic metric responses verify request scope and prevent old samples leaking across cluster switches.
 with session(repo / "tests/ui/out/system-metric-scope") as browser:
-    context, page, errors = open_page(browser, user="reader", state=state)
+    context, page, errors = system_page(browser, user="reader", state=state)
     seen_metrics = []
     held_metrics = []
     hold_metrics = False
@@ -581,12 +594,12 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
         cluster["name"]: cluster["id"] for cluster in fleet.value.json()["clusters"]
     }
     row(page, "us-ca-1").click()
-    signals = page.locator('[data-slot="cluster-runtime-signal"]')
+    signals = page.locator('[data-slot="node-runtime-signal"]')
     expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
         2
     )
 
-    def assert_metric_scope(cluster_id):
+    def assert_metric_scope(cluster_id, node_name="node-0000"):
         assert {body["metricName"] for body in seen_metrics} == {
             "k8s.node.cpu.usage",
             "k8s.node.memory.working_set",
@@ -594,10 +607,39 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
         for body in seen_metrics:
             assert body["installation"] is True, body
             assert body.get("workspaceId", "") == "", body
-            assert body["attributes"] == {"cluster": cluster_id}, body
-            assert body["aggregation"] == "max", body
+            assert body["attributes"] == {"cluster": cluster_id, "node": node_name}, (
+                body
+            )
+            assert body["aggregation"] == "avg", body
 
     assert_metric_scope(clusters["us-ca-1"])
+    # Changing nodes also replaces the observer and must not paint the old node's samples.
+    seen_metrics.clear()
+    hold_metrics = True
+
+    def selected_node_metric(request, metric):
+        body = request.post_data_json or {}
+        return (
+            request.url.endswith("/QueryMetrics")
+            and body.get("attributes", {}).get("node") == "node-0001"
+            and body.get("metricName") == metric
+        )
+
+    with page.expect_request(
+        lambda request: selected_node_metric(request, "k8s.node.cpu.usage")
+    ):
+        with page.expect_request(
+            lambda request: selected_node_metric(request, "k8s.node.memory.working_set")
+        ):
+            page.get_by_role("row", name="Inspect node-0001", exact=True).click()
+    expect(signals.locator('[data-slot="skeleton"]')).to_have_count(2)
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        0
+    )
+    assert_metric_scope(clusters["us-ca-1"], "node-0001")
+    for route in held_metrics:
+        route.fulfill(json={})
+    held_metrics.clear()
     seen_metrics.clear()
     hold_metrics = True
     next_path = "/system/clusters/" + clusters["de-he-1"]
@@ -641,5 +683,62 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
             exact=True,
         )
     ).to_have_count(2)
+    hold_metrics = False
+    nodes_region = page.get_by_role("region", name="Nodes", exact=True)
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/ListClusterNodes",
+        lambda body: body.get("page") == 1,
+    ):
+        nodes_region.get_by_role("button", name="Next page", exact=True).first.click()
+    expect(
+        page.get_by_role("row", name="Inspect node-0010", exact=True)
+    ).to_be_visible()
+    page.get_by_role("textbox", name="Find a node", exact=True).fill("node-0999")
+    expect(
+        page.get_by_role("row", name="Inspect node-0999", exact=True)
+    ).to_be_visible()
+    page.get_by_role("row", name="Inspect node-0999", exact=True).click()
+    expect(page.locator('[data-slot="allocation-treemap"]')).to_have_count(1)
+    expect(page.locator('[data-slot="allocation-treemap"] > *')).to_have_count(15)
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/GetNodeAllocations",
+        lambda body: body.get("remainderOnly") is True,
+    ):
+        page.get_by_role("button", name=re.compile("^Inspect Other:")).click()
+    page.get_by_role("textbox", name="Search node consumers", exact=True).fill("0999")
+    consumers = page.get_by_role("table", name="Node consumers", exact=True)
+    expect(
+        consumers.get_by_role("button", name="Workspace 0999", exact=True)
+    ).to_be_visible()
+    expect(consumers.get_by_role("row")).to_have_count(2)
+    page.get_by_role("button", name=re.compile("^Inspect Workspace 0000:")).click()
+    expect(
+        consumers.get_by_role("columnheader", name="Resource", exact=True)
+    ).to_be_visible()
+    resource_link = consumers.get_by_role("link", name="Resource 0000", exact=True)
+    expect(resource_link).to_have_attribute(
+        "href",
+        re.compile(r"^/org/.+/wks/.+/resource/c0000000-0000-4000-8000-000000000000"),
+    )
+
+    # Native node usage remains available while pod reservations have never reported.
+    context.route(
+        "**/loco.cluster.v1.ClusterAdminService/ListClusterNodes",
+        lambda route: route.fulfill(
+            json={
+                "nodes": [{"name": "node-without-sample", "ready": True}],
+                "totalCount": 1,
+            }
+        ),
+    )
+    seen_metrics.clear()
+    page.goto(ui + "/system/clusters/" + clusters["us-ca-1-builds"])
+    expect(page.get_by_text("Reservations not reported", exact=True)).to_be_visible()
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        2
+    )
+    assert_metric_scope(clusters["us-ca-1-builds"], "node-without-sample")
     assert not errors, errors
     context.close()
