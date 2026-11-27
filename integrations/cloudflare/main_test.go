@@ -22,6 +22,7 @@ type coreFixture struct {
 	lists                  int
 	pageSize               int
 	rejectRenewal, loseAck bool
+	rewindOnRenewal        bool
 }
 
 func (f *coreFixture) ListRouteIntents(
@@ -29,6 +30,9 @@ func (f *coreFixture) ListRouteIntents(
 	req *routingv1.ListRouteIntentsRequest,
 ) (*routingv1.ListRouteIntentsResponse, error) {
 	f.lists++
+	if f.rewindOnRenewal && f.lists == 2 {
+		f.intents = nil
+	}
 	if f.rejectRenewal && f.lists > 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, "writer session lost")
 	}
@@ -209,5 +213,17 @@ func TestPublisherLoadsAllPagesAndDoesNotStarveBehindFailures(t *testing.T) {
 	}
 	if len(seen) != 3 || len(p.publications) != 3 || p.cursor != 3 || dns.writes != 0 {
 		t.Fatalf("reports=%v cursor=%d", core.reports, p.cursor)
+	}
+}
+
+func TestPublisherSkipsIntentRemovedDuringLeaseRenewal(t *testing.T) {
+	p, core, dns := newPublisherFixture(t)
+	core.rewindOnRenewal = true
+	budget := 3
+	if _, err := p.runOnce(t.Context(), config{PollSeconds: 1, AuditSeconds: 100}, &budget); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.publications) != 0 || p.cursor != 0 || dns.writes != 0 || len(core.reports) != 0 {
+		t.Fatal("removed intent still published after resnapshot")
 	}
 }

@@ -184,6 +184,10 @@ func (p *publisher) runOnce(ctx context.Context, c config, budget *int) (time.Ti
 			return time.Time{}, err
 		}
 		item = p.publications[key]
+		// Resnapshot during renewal can remove a key captured above.
+		if item == nil {
+			continue
+		}
 		intent := item.intent
 		if !intent.GetWithdrawing() && len(intent.GetClusterIds()) == 0 {
 			continue
