@@ -77,6 +77,12 @@ with session(repo / "tests/ui/out/system-people") as browser:
     drawer = page.get_by_role("dialog")
     expect(drawer).to_contain_text("guest@acme.test")
     expect(drawer.get_by_text("Not a member of any organization.")).to_be_visible()
+    page.set_viewport_size({"width": 390, "height": 844})
+    copy_id = drawer.get_by_title("Copy user ID", exact=True)
+    expect(copy_id).to_be_visible()
+    copy_box, drawer_box = copy_id.bounding_box(), drawer.bounding_box()
+    assert copy_box["x"] + copy_box["width"] <= drawer_box["x"] + drawer_box["width"]
+    page.set_viewport_size({"width": 1280, "height": 800})
     expect(page.get_by_role("button", name="Suspend", exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Reinstate", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
