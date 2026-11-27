@@ -20,8 +20,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -109,11 +111,19 @@ var _ = Describe("Environment infrastructure", func() {
 		provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 		otel.SetTracerProvider(provider)
 		DeferCleanup(func() { otel.SetTracerProvider(previous); Expect(provider.Shutdown(ctx)).To(Succeed()) })
+		app := isolationTestApplication("ws-env-watch", "env-watch")
+		cacheOptions := CacheOptions(testNamespace, "", false)
+		cacheOptions.DefaultNamespaces = map[string]cache.Config{
+			testNamespace: {}, testEnvironmentNamespace(app): {},
+		}
+		cacheOptions.ByObject[&loco.Application{}] = cache.ByObject{
+			Field: fields.OneTermEqualSelector("metadata.name", app.Name),
+		}
 		mgr, err := ctrl.NewManager(
 			cfg,
 			ctrl.Options{
 				Scheme:     k8sClient.Scheme(),
-				Cache:      CacheOptions(testNamespace, "", false),
+				Cache:      cacheOptions,
 				Controller: config.Controller{SkipNameValidation: new(true)},
 				Metrics: metricsserver.Options{
 					BindAddress: disabledListener,
@@ -140,7 +150,6 @@ var _ = Describe("Environment infrastructure", func() {
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Telemetry:                testTelemetry(),
 		}
-		app := isolationTestApplication("ws-env-watch", "env-watch")
 		app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		key := client.ObjectKeyFromObject(app)
@@ -165,6 +174,8 @@ var _ = Describe("Environment infrastructure", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(BeZero(), "fixture must have no rollout timer that can mask a missing watch")
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
+		queuedBefore, _, err := environmentControllerWork()
+		Expect(err).NotTo(HaveOccurred())
 		managerCtx, stop := context.WithCancel(ctx)
 		done := make(chan error, 1)
 		go func() { done <- mgr.Start(managerCtx) }()
@@ -178,7 +189,7 @@ var _ = Describe("Environment infrastructure", func() {
 			routeManagerPoll,
 		).Should(Succeed())
 		Eventually(
-			func() error { return environmentControllersIdle(recorder) },
+			func() error { return environmentControllersIdle(recorder, queuedBefore) },
 			routeManagerWait,
 			routeManagerPoll,
 		).Should(Succeed())
@@ -431,7 +442,7 @@ func (t *policyWriteTransport) RoundTrip(req *http.Request) (*http.Response, err
 func (t *policyWriteTransport) reset()     { t.mu.Lock(); defer t.mu.Unlock(); t.writes = 0 }
 func (t *policyWriteTransport) count() int { t.mu.Lock(); defer t.mu.Unlock(); return t.writes }
 
-func environmentControllersIdle(recorder *tracetest.SpanRecorder) error {
+func environmentControllersIdle(recorder *tracetest.SpanRecorder, queuedBefore float64) error {
 	seen := make(map[string]bool)
 	for _, span := range recorder.Ended() {
 		seen[span.Name()] = true
@@ -439,36 +450,39 @@ func environmentControllersIdle(recorder *tracetest.SpanRecorder) error {
 	if !seen[reconcileSpan] {
 		return errors.New("initial reconciliations have not completed")
 	}
-	families, err := ctrlmetrics.Registry.Gather()
+	queued, active, err := environmentControllerWork()
 	if err != nil {
 		return err
 	}
-	var gauges int
+	if queued != queuedBefore || active != 0 {
+		return fmt.Errorf("controller work remains: queued=%g (baseline=%g), active=%g", queued, queuedBefore, active)
+	}
+	return nil
+}
+
+// Stopped managers can leave queued items in the process-wide metrics registry.
+// Compare depth with the pre-start value so earlier specs cannot keep this manager busy.
+func environmentControllerWork() (queued, active float64, err error) {
+	families, err := ctrlmetrics.Registry.Gather()
+	if err != nil {
+		return 0, 0, err
+	}
 	for _, family := range families {
-		switch family.GetName() {
-		case "controller_runtime_active_workers", "workqueue_depth":
-		default:
+		if family.GetName() != "controller_runtime_active_workers" && family.GetName() != "workqueue_depth" {
 			continue
 		}
 		for _, metric := range family.GetMetric() {
-			relevant := false
 			for _, label := range metric.GetLabel() {
-				switch label.GetValue() {
-				case "application", "environment":
-					relevant = true
+				if label.GetValue() != "application" && label.GetValue() != "environment" {
+					continue
 				}
-			}
-			if !relevant {
-				continue
-			}
-			gauges++
-			if metric.GetGauge().GetValue() != 0 {
-				return fmt.Errorf("controller work remains: %s", family.GetName())
+				if family.GetName() == "workqueue_depth" {
+					queued += metric.GetGauge().GetValue()
+				} else {
+					active += metric.GetGauge().GetValue()
+				}
 			}
 		}
 	}
-	if gauges == 0 {
-		return errors.New("controller queue metrics are missing")
-	}
-	return nil
+	return queued, active, nil
 }
