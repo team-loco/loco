@@ -816,6 +816,6 @@ with session(repo / "tests/ui/out/system-allocations") as browser:
     page.goto(ui + "/system/clusters")
     expect(page.get_by_role("table", name="Clusters", exact=True)).to_be_visible()
     expect(page.get_by_role("alert")).to_contain_text("Capacity source unavailable")
-    expect(page.get_by_role("button", name="Add cluster", exact=True)).to_be_visible()
+    expect(page.get_by_role("link", name="Add cluster", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()
