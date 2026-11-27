@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -119,15 +120,18 @@ func testDesiredSpecAt(
 type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
 
 func testRenderer(resourceSpec *resourcev1.ResourceSpec, hostname string) placementRenderer {
-	return placementRenderer{
+	r := placementRenderer{
 		resource:        testServiceResource(),
 		organizationID:  uuid.New(),
 		resourceSpec:    resourceSpec,
-		hostname:        hostname,
 		environmentID:   uuid.New(),
 		environmentName: "prod",
 		defaults:        testServiceDefaults(),
 	}
+	if hostname != "" {
+		r.hostnames = []string{hostname}
+	}
+	return r
 }
 
 func (r placementRenderer) specFor(spec *deploymentv1.DeploymentSpec, region string) desiredSpecFunc {
@@ -260,8 +264,12 @@ func TestDesiredSpecRoutesTheHostnameWithDefaultsWhenRoutingIsUnset(t *testing.T
 	t.Parallel()
 	buildSpec := testDesiredSpec(t, 8080)
 	payload := applicationPayload(t, buildSpec)
-	want := &locoControllerV1.RoutingSpec{HostName: testHostname, PathPrefix: "/", IdleTimeout: testIdleTimeout}
-	if got := payload.AppSpec.ServiceSpec.Routing; got == nil || *got != *want {
+	want := &locoControllerV1.RoutingSpec{
+		Hostnames:   []string{testHostname},
+		PathPrefix:  "/",
+		IdleTimeout: testIdleTimeout,
+	}
+	if got := payload.AppSpec.ServiceSpec.Routing; got == nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("routing = %+v, want %+v", got, want)
 	}
 }

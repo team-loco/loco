@@ -95,7 +95,7 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		key := client.ObjectKey{Namespace: namespace, Name: getRouteName(app)}
 		Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
 		originalUID := route.UID
-		hostname := v1Gateway.Hostname(app.Spec.ServiceSpec.Routing.HostName)
+		hostname := v1Gateway.Hostname(app.Spec.ServiceSpec.Routing.Hostnames[0])
 		Expect(route.Spec.Hostnames).To(ConsistOf(hostname))
 
 		Expect(k8sClient.Delete(ctx, route)).To(Succeed())
@@ -133,7 +133,10 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		acceptRoute := func() {
 			Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
 			conditions := make([]metav1.Condition, 0, 2)
-			for _, kind := range []string{"Accepted", "ResolvedRefs"} {
+			for _, kind := range []string{
+				string(v1Gateway.RouteConditionAccepted),
+				string(v1Gateway.RouteConditionResolvedRefs),
+			} {
 				conditions = append(conditions, metav1.Condition{Type: kind, Status: metav1.ConditionTrue,
 					ObservedGeneration: route.Generation, Reason: kind, LastTransitionTime: metav1.Now()})
 			}
@@ -149,7 +152,7 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 
 		previousGeneration := route.Generation
-		app.Spec.ServiceSpec.Routing.HostName = "changed.example.com"
+		app.Spec.ServiceSpec.Routing.Hostnames = []string{"changed.example.com"}
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "2"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		Eventually(func(g Gomega) {

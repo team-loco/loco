@@ -114,7 +114,7 @@ func TestIngress(t *testing.T) {
 			},
 		)
 	})
-	t.Run("the gateway serves fallback pages without replacing application responses", func(t *testing.T) {
+	t.Run("the gateway serves aliases and fallback pages without replacing application responses", func(t *testing.T) {
 		checkApplicationFallback(t, w, publicID, publicHost)
 	})
 	t.Run("only the public app is routed", func(t *testing.T) {
@@ -276,7 +276,7 @@ func checkApplicationFallback(t *testing.T, w *platform.Workspace, publicID, pub
 		want       string
 	}{
 		{w.Host("missing"), "/example", http.StatusNotFound, "Application not found"},
-		{secondaryHost, "/", http.StatusNotFound, "Application unavailable"},
+		{secondaryHost, "/", http.StatusOK, "Welcome to nginx!"},
 		{publicHost, "/", http.StatusOK, "Welcome to nginx!"},
 		{publicHost, "/missing-test-page", http.StatusNotFound, "404 Not Found"},
 	} {

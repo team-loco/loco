@@ -42,7 +42,7 @@ var testRestartPolicy = locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.Restar
 const testDeployTimeout = 600
 
 func testRouting() *locov1alpha1.RoutingSpec {
-	return &locov1alpha1.RoutingSpec{HostName: testHostName, PathPrefix: "/", IdleTimeout: 60}
+	return &locov1alpha1.RoutingSpec{Hostnames: []string{testHostName}, PathPrefix: "/", IdleTimeout: 60}
 }
 
 func testApplication() *locov1alpha1.Application {
@@ -257,7 +257,12 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	app.Spec.ServiceSpec.Routing = nil
 	namespace := testEnvironmentNamespace(app)
 	routeName := getRouteName(app)
-	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
+	existing := &v1Gateway.HTTPRoute{
+		Name:        routeName,
+		Namespace:   namespace,
+		Labels:      managedLabels(app),
+		Annotations: ownerAnnotations(app),
+	}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 	r := &ApplicationReconciler{
 		Client:                   kubeClient,

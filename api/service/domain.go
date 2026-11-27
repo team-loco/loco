@@ -551,7 +551,7 @@ func (s *DomainServer) refreshDomainRouting(
 	if len(placements) == 0 {
 		return nil
 	}
-	hostname, err := primaryHostname(ctx, qtx, resourceID, environmentID)
+	hostnames, err := routingHostnames(ctx, qtx, resourceID, environmentID)
 	if err != nil {
 		return err
 	}
@@ -572,17 +572,17 @@ func (s *DomainServer) refreshDomainRouting(
 			return errPlacementNotService
 		}
 		service := payload.AppSpec.ServiceSpec
-		if service.Routing == nil && hostname == "" {
+		if service.Routing == nil && len(hostnames) == 0 {
 			continue
 		}
-		if service.Routing != nil && service.Routing.HostName == hostname {
+		if service.Routing != nil && slices.Equal(service.Routing.Hostnames, hostnames) {
 			continue
 		}
 		switch {
-		case hostname == "":
+		case len(hostnames) == 0:
 			service.Routing = nil
 		case service.Routing != nil:
-			service.Routing.HostName = hostname
+			service.Routing.Hostnames = hostnames
 		default:
 			deployment, err := qtx.GetDeploymentByID(ctx, *placement.DeploymentID)
 			if err != nil {
@@ -593,7 +593,7 @@ func (s *DomainServer) refreshDomainRouting(
 				return fmt.Errorf("decode deployment routing: %w", err)
 			}
 			routing := deploymentRouting(resourceSpec.GetService(), deploymentService)
-			service.Routing = converter.ProtoToRoutingSpec(routing, hostname, s.defaults)
+			service.Routing = converter.ProtoToRoutingSpec(routing, hostnames, s.defaults)
 		}
 		if err := rewritePlacement(ctx, qtx, placement, payload); err != nil {
 			return err

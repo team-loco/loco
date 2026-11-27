@@ -22,7 +22,7 @@ var (
 	errCommandEntryEmpty      = errors.New("command entries must not be empty")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
 	errHealthPathNoSlash      = errors.New("healthCheck.path must start with '/'")
-	errHostnameMissing        = errors.New("routing.hostname must be set")
+	errHostnameMissing        = errors.New("routing.hostnames must be set")
 	errPathPrefixNoSlash      = errors.New("routing.pathPrefix must start with '/'")
 	errIdleTimeoutNotPositive = errors.New("routing.idleTimeout must be positive")
 	errResourcesMissing       = errors.New("serviceSpec.resources must be set")
@@ -401,7 +401,7 @@ func (spec *ResourcesSpec) Validate() error {
 
 // validateRoutingSpec validates the RoutingSpec
 func validateRoutingSpec(spec *RoutingSpec) error {
-	if spec.HostName == "" {
+	if len(spec.Hostnames) == 0 || slices.Contains(spec.Hostnames, "") {
 		return errHostnameMissing
 	}
 

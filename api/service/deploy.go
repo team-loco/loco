@@ -10,7 +10,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -301,7 +300,7 @@ type placementRenderer struct {
 	resource        genDb.Resource
 	organizationID  uuid.UUID
 	resourceSpec    *resourcev1.ResourceSpec
-	hostname        string
+	hostnames       []string
 	environmentID   uuid.UUID
 	environmentName string
 	defaults        servicedefaults.Defaults
@@ -327,7 +326,7 @@ func newPlacementRenderer(
 	if err != nil {
 		return placementRenderer{}, err
 	}
-	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
+	hostnames, err := routingHostnames(ctx, qtx, resource.ID, env.ID)
 	if err != nil {
 		return placementRenderer{}, err
 	}
@@ -335,7 +334,7 @@ func newPlacementRenderer(
 		resource:        resource,
 		organizationID:  owner.OrgID,
 		resourceSpec:    resourceSpec,
-		hostname:        hostname,
+		hostnames:       hostnames,
 		environmentID:   env.ID,
 		environmentName: env.Slug,
 		defaults:        defaults,
@@ -351,7 +350,7 @@ func (r placementRenderer) payload(
 		r.resource,
 		r.organizationID,
 		r.resourceSpec,
-		r.hostname,
+		r.hostnames,
 		spec,
 		region,
 		r.environmentID,
@@ -371,21 +370,22 @@ func (r placementRenderer) payload(
 
 var errDesiredSpec = errors.New("build desired spec")
 
-func primaryHostname(
+func routingHostnames(
 	ctx context.Context,
 	queries genDb.Querier,
-	resourceID uuid.UUID,
-	environmentID uuid.UUID,
-) (string, error) {
-	params := genDb.GetPrimaryResourceDomainParams{ResourceID: resourceID, EnvironmentID: environmentID}
-	hostname, err := queries.GetPrimaryResourceDomain(ctx, params)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
-	}
+	resourceID, environmentID uuid.UUID,
+) ([]string, error) {
+	rows, err := queries.ListEnvironmentResourceDomains(ctx, genDb.ListEnvironmentResourceDomainsParams{
+		ResourceIds: []uuid.UUID{resourceID}, EnvironmentID: environmentID,
+	})
 	if err != nil {
-		return "", fmt.Errorf("get primary domain: %w", err)
+		return nil, fmt.Errorf("list routing domains: %w", err)
 	}
-	return hostname, nil
+	hostnames := make([]string, 0, len(rows))
+	for _, row := range rows {
+		hostnames = append(hostnames, row.Domain)
+	}
+	return hostnames, nil
 }
 
 // buildApplicationSpec builds the ApplicationSpec a placement carries to the controller.
@@ -393,7 +393,7 @@ func buildApplicationSpec(
 	resource genDb.Resource,
 	organizationID uuid.UUID,
 	resourceSpec *resourcev1.ResourceSpec,
-	hostname string,
+	hostnames []string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
 	region string,
 	environmentID uuid.UUID,
@@ -431,7 +431,7 @@ func buildApplicationSpec(
 			Resources:  converter.ProtoToResourcesSpec(target),
 			Routing: converter.ProtoToRoutingSpec(
 				deploymentRouting(resourceService, deploymentService),
-				hostname,
+				hostnames,
 				defaults,
 			),
 		}
@@ -490,4 +490,11 @@ func placeDeployment(
 // storedResolution is the variables a recorded deployment resolved.
 func storedResolution(deployment genDb.Deployment) varref.Resolved {
 	return varref.Resolved{Plain: deployment.PlainEnv, Secret: deployment.SecretEnv}
+}
+
+func (r placementRenderer) primaryHostname() string {
+	if len(r.hostnames) == 0 {
+		return ""
+	}
+	return r.hostnames[0]
 }

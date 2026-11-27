@@ -170,8 +170,8 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 	if len(domains) != 2 || domains[0].Domain != applyAPIDomain || !domains[0].IsPrimary || domains[1].IsPrimary {
 		t.Fatalf("domains = %+v, want api primary and worker secondary", domains)
 	}
-	if routing := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Routing; routing.HostName != applyAPIDomain {
-		t.Fatalf("routed hostname = %s, want %s", routing.HostName, applyAPIDomain)
+	if routing := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Routing; routing.Hostnames[0] != applyAPIDomain {
+		t.Fatalf("routed hostname = %s, want %s", routing.Hostnames[0], applyAPIDomain)
 	}
 	wantCleanPlan(t, f, planFileHeader+twoDomains)
 

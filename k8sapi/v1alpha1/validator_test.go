@@ -107,7 +107,7 @@ func TestPortlessServiceTakesNoTrafficOrHealthCheck(t *testing.T) {
 		t.Fatalf("portless service rejected: %v", err)
 	}
 	routed := worker()
-	routed.Routing = &RoutingSpec{HostName: "worker.example.com", PathPrefix: "/", IdleTimeout: 60}
+	routed.Routing = &RoutingSpec{Hostnames: []string{"worker.example.com"}, PathPrefix: "/", IdleTimeout: 60}
 	if err := validateServiceSpec(routed); !errors.Is(err, errRoutingWithoutPort) {
 		t.Errorf("routed portless service error = %v, want %v", err, errRoutingWithoutPort)
 	}

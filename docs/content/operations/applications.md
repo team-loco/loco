@@ -133,7 +133,7 @@ A stderr line that names no level is `ERROR`; one that names a level, such as `I
 
 ## Public, private and worker applications
 
-An application with a domain is public: the gateway routes its hostname to the application. An application with a `port` and without a domain is private: it accepts connections only from inside its workspace, through its [private hostname](../deployment/loco-yaml.md#private-service-discovery). To deploy a private application, leave `domains` off the service in `loco.yaml`:
+An application with domains is public: the gateway routes every assigned hostname to the application. The primary domain controls its displayed URL and `LOCO_PUBLIC_DOMAIN`; secondary domains reach the same application. An application with a `port` and without a domain is private: it accepts connections only from inside its workspace, through its [private hostname](../deployment/loco-yaml.md#private-service-discovery). To deploy a private application, leave `domains` off the service in `loco.yaml`:
 
 ```yaml
 services:
@@ -154,7 +154,7 @@ services:
       us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
-`loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
+`loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. Adding or removing a domain updates the running application's routes. Removing its last domain makes it private.
 
 The Loco gateway serves a branded HTTP 404 page when no application route matches a hostname under an app domain. The page distinguishes an unknown application domain from a registered domain with no matching route. The browser URL stays unchanged. Responses from deployed applications, including their own 404 pages, pass through without replacement.
 

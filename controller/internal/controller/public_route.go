@@ -17,32 +17,27 @@ import (
 
 const envoyGatewayController gatewayv1.GatewayController = "gateway.envoyproxy.io/gatewayclass-controller"
 
-func (r *ApplicationReconciler) observePublicRoute(
+func (r *ApplicationReconciler) publicRouteAccepted(
 	ctx context.Context,
 	app *loco.Application,
+	routeName string,
 	desired *gatewayac.HTTPRouteSpecApplyConfiguration,
-) error {
-	revision, _ := app.PlacementRevision()
-	observation := &loco.PublicRouteStatus{
-		Revision:  revision,
-		Hostnames: []string{app.Spec.ServiceSpec.Routing.HostName},
-	}
-	app.Status.PublicRoute = observation
+) (bool, error) {
 	current := &gatewayv1.HTTPRoute{}
-	key := client.ObjectKey{Namespace: r.environmentNamespace(app), Name: getRouteName(app)}
+	key := client.ObjectKey{Namespace: r.environmentNamespace(app), Name: routeName}
 	if err := r.APIReader.Get(ctx, key, current); err != nil {
-		return fmt.Errorf("read public route %s: %w", key, err)
+		return false, fmt.Errorf("read public route %s: %w", key, err)
 	}
 	encoded, err := json.Marshal(desired)
 	if err != nil {
-		return fmt.Errorf("encode desired public route: %w", err)
+		return false, fmt.Errorf("encode desired public route: %w", err)
 	}
 	var expected gatewayv1.HTTPRouteSpec
 	if err := json.Unmarshal(encoded, &expected); err != nil {
-		return fmt.Errorf("decode desired public route: %w", err)
+		return false, fmt.Errorf("decode desired public route: %w", err)
 	}
 	if !equality.Semantic.DeepEqual(current.Spec, expected) {
-		return nil
+		return false, nil
 	}
 	for _, parent := range current.Status.Parents {
 		if parent.ControllerName != envoyGatewayController {
@@ -62,11 +57,10 @@ func (r *ApplicationReconciler) observePublicRoute(
 			current.Generation,
 		)
 		if accepted && resolved {
-			observation.Ready = true
-			return nil
+			return true, nil
 		}
 	}
-	return nil
+	return false, nil
 }
 
 func currentRouteCondition(conditions []metav1.Condition, conditionType string, generation int64) bool {

@@ -52,11 +52,12 @@ type HealthCheckSpec struct {
 	StartupGracePeriod int32 `json:"startupGracePeriod,omitzero"` // seconds
 }
 
-// RoutingSpec exposes the service on the gateway at HostName.
+// RoutingSpec exposes the service on the gateway at Hostnames.
 type RoutingSpec struct {
 	// +required
-	// +kubebuilder:validation:MinLength=1
-	HostName string `json:"hostName"`
+	// +kubebuilder:validation:MinItems=1
+	// +listType=set
+	Hostnames []string `json:"hostnames"`
 	// +required
 	// +kubebuilder:validation:MinLength=1
 	PathPrefix string `json:"pathPrefix"`

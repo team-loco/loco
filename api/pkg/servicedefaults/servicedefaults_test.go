@@ -93,7 +93,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 				Replicas: locoControllerV1.ReplicasSpec{Min: d.MinReplicas, Max: d.MaxReplicas},
 			},
 			Routing: &locoControllerV1.RoutingSpec{
-				HostName:    "app.loco.test",
+				Hostnames:   []string{"app.loco.test"},
 				PathPrefix:  d.PathPrefix,
 				IdleTimeout: d.IdleTimeout,
 			},

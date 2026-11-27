@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -92,8 +94,16 @@ func TestPublicRouteRequiresCurrentGatewayAcceptance(t *testing.T) {
 				ParentRef:      route.Spec.ParentRefs[0],
 				ControllerName: "gateway.envoyproxy.io/gatewayclass-controller",
 				Conditions: []metav1.Condition{
-					{Type: "Accepted", Status: metav1.ConditionTrue, ObservedGeneration: route.Generation},
-					{Type: "ResolvedRefs", Status: metav1.ConditionTrue, ObservedGeneration: route.Generation},
+					{
+						Type:               string(gatewayv1.RouteConditionAccepted),
+						Status:             metav1.ConditionTrue,
+						ObservedGeneration: route.Generation,
+					},
+					{
+						Type:               string(gatewayv1.RouteConditionResolvedRefs),
+						Status:             metav1.ConditionTrue,
+						ObservedGeneration: route.Generation,
+					},
 				},
 			}}
 			tc.mutate(route)
@@ -114,5 +124,131 @@ func TestPublicRouteRequiresCurrentGatewayAcceptance(t *testing.T) {
 				t.Fatalf("hostnames = %v", got.Hostnames)
 			}
 		})
+	}
+}
+
+func TestPublicRouteIncludesAliases(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := gatewayv1.Install(scheme); err != nil {
+		t.Fatal(err)
+	}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&gatewayv1.HTTPRoute{}).Build()
+	app := testApplication()
+	app.Spec.ServiceSpec.Routing = testRouting()
+	app.Spec.ServiceSpec.Routing.Hostnames = []string{testHostName, "alias.example.com"}
+	r := &ApplicationReconciler{
+		Client:                   kube,
+		APIReader:                kube,
+		Gateway:                  testGateway,
+		LocoNamespace:            testLocoNamespace,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
+	if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+		t.Fatal(err)
+	}
+	route := &gatewayv1.HTTPRoute{}
+	if err := kube.Get(
+		t.Context(),
+		client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)},
+		route,
+	); err != nil {
+		t.Fatal(err)
+	}
+	want := []gatewayv1.Hostname{testHostName, "alias.example.com"}
+	if !slices.Equal(route.Spec.Hostnames, want) {
+		t.Fatalf("gateway hostnames = %v, want %v", route.Spec.Hostnames, want)
+	}
+	if !slices.Equal(app.Status.PublicRoute.Hostnames, app.Spec.ServiceSpec.Routing.Hostnames) {
+		t.Fatalf("reported hostnames = %v", app.Status.PublicRoute.Hostnames)
+	}
+}
+
+func TestPublicRouteBatchesAndPrunesHostnames(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := gatewayv1.Install(scheme); err != nil {
+		t.Fatal(err)
+	}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&gatewayv1.HTTPRoute{}).Build()
+	app := testApplication()
+	app.Spec.ServiceSpec.Routing = testRouting()
+	for i := range hostnamesPerRoute {
+		app.Spec.ServiceSpec.Routing.Hostnames = append(
+			app.Spec.ServiceSpec.Routing.Hostnames,
+			fmt.Sprintf("alias%d.example.com", i),
+		)
+	}
+	r := &ApplicationReconciler{
+		Client:                   kube,
+		APIReader:                kube,
+		Gateway:                  testGateway,
+		LocoNamespace:            testLocoNamespace,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
+	if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+		t.Fatal(err)
+	}
+	routes := &gatewayv1.HTTPRouteList{}
+	if err := kube.List(t.Context(), routes); err != nil {
+		t.Fatal(err)
+	}
+	if len(routes.Items) != 2 {
+		t.Fatalf("routes = %d, want 2", len(routes.Items))
+	}
+	for i := range routes.Items {
+		route := &routes.Items[i]
+		if err := kube.Get(t.Context(), client.ObjectKeyFromObject(route), route); err != nil {
+			t.Fatal(err)
+		}
+		if len(route.Spec.Hostnames) > hostnamesPerRoute {
+			t.Fatalf("too many route hostnames: %d", len(route.Spec.Hostnames))
+		}
+		route.Status.Parents = []gatewayv1.RouteParentStatus{
+			{
+				ParentRef:      route.Spec.ParentRefs[0],
+				ControllerName: envoyGatewayController,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(gatewayv1.RouteConditionAccepted),
+						Status:             metav1.ConditionTrue,
+						ObservedGeneration: route.Generation,
+					},
+					{
+						Type:               string(gatewayv1.RouteConditionResolvedRefs),
+						Status:             metav1.ConditionTrue,
+						ObservedGeneration: route.Generation,
+					},
+				},
+			},
+		}
+		if err := kube.Status().Update(t.Context(), route); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+			t.Fatal(err)
+		}
+		if app.Status.PublicRoute.Ready != (i == 1) {
+			t.Fatalf("ready after %d accepted routes = %v", i+1, app.Status.PublicRoute.Ready)
+		}
+	}
+	app.Spec.ServiceSpec.Routing.Hostnames = []string{testHostName}
+	if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+		t.Fatal(err)
+	}
+	if err := kube.List(t.Context(), routes); err != nil {
+		t.Fatal(err)
+	}
+	if len(routes.Items) != 1 {
+		t.Fatalf("routes after removing aliases = %d", len(routes.Items))
+	}
+
+	app.Spec.ServiceSpec.Routing = nil
+	if err := r.ensureHTTPRoute(t.Context(), app); err != nil {
+		t.Fatal(err)
+	}
+	if err := kube.List(t.Context(), routes); err != nil {
+		t.Fatal(err)
+	}
+	if len(routes.Items) != 0 || app.Status.PublicRoute != nil {
+		t.Fatalf("private app retains routes or observation: %d %+v", len(routes.Items), app.Status.PublicRoute)
 	}
 }
