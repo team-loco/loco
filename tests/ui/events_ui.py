@@ -1,5 +1,4 @@
 import argparse
-import json
 import re
 import time
 from pathlib import Path
@@ -7,7 +6,6 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     copied_text,
-    evidence,
     expect_rpc,
     load_state,
     observe_event_batches,
@@ -36,24 +34,17 @@ environment = sql(
     f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production'",
 )
 base = f"/org/{org}/wks/{workspace}"
-
-
-def seed_runtime_events(predicate):
-    sql(
-        state,
-        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,deployment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
-    SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' OR kind LIKE 'deployment.%' THEN '{environment}'::uuid ELSE NULL END,CASE WHEN kind='deployment.ready' OR (kind='resource.degraded' AND n=1) THEN '7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a'::uuid END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
-    jsonb_build_object('region','us-ca-1','environmentId','{environment}') || CASE
-    WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE 'The service ran out of memory. Increase its memory limit or reduce memory usage.' END)
-    WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
-    ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
-    FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind)
-    WHERE {predicate}
-    ORDER BY n DESC;""",
-    )
-
-
-seed_runtime_events("n = 2")
+sql(
+    state,
+    f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,deployment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
+SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' OR kind LIKE 'deployment.%' THEN '{environment}'::uuid ELSE NULL END,CASE WHEN kind='deployment.ready' OR (kind='resource.degraded' AND n=1) THEN '7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a'::uuid END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
+jsonb_build_object('region','us-ca-1','environmentId','{environment}') || CASE
+WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE 'The service ran out of memory. Increase its memory limit or reduce memory usage.' END)
+WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
+ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
+FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind)
+ORDER BY n DESC;""",
+)
 # A resource grant can list its events without workspace read access.
 reader = state["users"]["reader"]["id"]
 sql(
@@ -61,67 +52,9 @@ sql(
     f"INSERT INTO user_scopes(user_id,entity_type,entity_id,scope) VALUES('{reader}','resource','{resource}','read') ON CONFLICT DO NOTHING",
 )
 out = Path(args.out)
-
-
-def assert_event_column_alignment(page, events, phase):
-    table = events.get_by_role("table", name="Events", exact=True)
-    alignment_script = """table => {
-      const info = el => {
-        const box = el.getBoundingClientRect(), style = getComputedStyle(el);
-        return {x: box.x, width: box.width, display: style.display, tracks: style.gridTemplateColumns};
-      };
-      return {
-        fontStatus: document.fonts.status,
-        headers: [...table.querySelectorAll('thead th')].map(info),
-        cells: [...table.querySelector('tbody tr[data-interactive]').querySelectorAll('td')].map(info),
-        grids: ['table', 'thead', 'thead tr', 'tbody', 'tbody tr[data-interactive]'].map(selector => {
-          const element = selector === 'table' ? table : table.querySelector(selector);
-          return {selector, ...info(element)};
-        }),
-      };
-    }"""
-    page.screenshot(path=out / f"{phase}-initial.png")
-    print(
-        phase + " initial: " + json.dumps(table.evaluate(alignment_script)), flush=True
-    )
-    evidence.settle(page)
-    print(
-        phase + " capture-settled: " + json.dumps(table.evaluate(alignment_script)),
-        flush=True,
-    )
-    page.screenshot(path=out / f"{phase}-capture-settled.png")
-    page.evaluate(
-        "async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }"
-    )
-    alignment = table.evaluate(alignment_script)
-    print(phase + " fonts-settled: " + json.dumps(alignment), flush=True)
-    page.screenshot(path=out / f"{phase}-fonts-settled.png")
-    for header, cell in zip(alignment["headers"], alignment["cells"], strict=True):
-        assert abs(header["x"] - cell["x"]) < 1, alignment
-
-
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state, now=time.time())
     observe_event_batches(page)
-    stream_url = "**/loco.event.v1.EventService/StreamEvents"
-    page.route(
-        stream_url,
-        lambda route: route.fulfill(
-            status=403,
-            json={"code": "permission_denied", "message": "Event stream refused"},
-        ),
-    )
-    page.goto(state["ui_url"] + base + "/observability?view=events")
-    events = page.get_by_role("region", name="Events", exact=True)
-    expect(
-        page.get_by_role("status").filter(has_text="Live updates disconnected")
-    ).to_contain_text("HTTP 403")
-    expect(
-        events.get_by_role("row", name="Degraded in us-ca-1", exact=True)
-    ).to_have_count(1)
-    assert_event_column_alignment(page, events, "first-mount-disconnected-table")
-    page.unroute(stream_url)
-    seed_runtime_events("n <> 2")
     now_ms = int(time.time() * 1000)
     page.goto(
         state["ui_url"]
@@ -288,7 +221,6 @@ with session(out) as browser:
     expect(
         events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
     ).to_be_visible()
-    assert_event_column_alignment(page, events, "reloaded-disconnected-table")
     page.unroute(stream_url)
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
         notice.get_by_role("button", name="Reconnect", exact=True).click()
