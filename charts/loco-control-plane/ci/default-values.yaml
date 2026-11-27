@@ -36,6 +36,3 @@ openbao:
       bucket: loco-openbao-snapshots
       existingSecret:
         name: loco-openbao-snapshots-s3
-
-platformTelemetry:
-  region: us-ca-1
