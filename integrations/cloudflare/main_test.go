@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -19,6 +20,7 @@ type coreFixture struct {
 	intents                []*routingv1.RouteIntent
 	reports                []*routingv1.ReportPublicationRequest
 	lists                  int
+	pageSize               int
 	rejectRenewal, loseAck bool
 }
 
@@ -30,9 +32,20 @@ func (f *coreFixture) ListRouteIntents(
 	if f.rejectRenewal && f.lists > 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, "writer session lost")
 	}
+	var current int64
+	for _, intent := range f.intents {
+		current = max(current, intent.GetChangeSequence())
+	}
+	if req.GetAfterSequence() > current {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "routing cursor invalidated")
+	}
 	response := &routingv1.ListRouteIntentsResponse{NextSequence: req.GetAfterSequence(), SessionSeconds: 60}
 	for _, intent := range f.intents {
 		if intent.GetChangeSequence() > req.GetAfterSequence() {
+			if f.pageSize > 0 && len(response.GetIntents()) == f.pageSize {
+				response.HasMore = true
+				break
+			}
 			response.Intents = append(response.Intents, intent)
 			response.NextSequence = intent.GetChangeSequence()
 		}
@@ -149,5 +162,52 @@ func TestPublisherRecoversLostAcknowledgementAndReportsRateLimit(t *testing.T) {
 	}
 	if core.reports[len(core.reports)-1].GetOutcome() != routingv1.PublicationOutcome_PUBLICATION_OUTCOME_ERROR {
 		t.Fatal("rate limit did not block acknowledgement")
+	}
+}
+
+func TestPublisherResnapshotsInvalidatedCursor(t *testing.T) {
+	p, core, dns := newPublisherFixture(t)
+	p.cursor = 99
+	p.publications[testNY] = &publication{intent: &routingv1.RouteIntent{PublicationId: testNY, Revision: 9}}
+	budget := 3
+	if _, err := p.runOnce(t.Context(), config{PollSeconds: 1, AuditSeconds: 100}, &budget); err != nil {
+		t.Fatal(err)
+	}
+	if p.cursor != 1 || len(p.publications) != 1 || p.publications[testNY] != nil {
+		t.Fatal("invalidated snapshot was retained")
+	}
+	if dns.writes != 1 || len(core.reports) != 1 {
+		t.Fatal("resnapshot did not resume publication")
+	}
+}
+func TestPublisherLoadsAllPagesAndDoesNotStarveBehindFailures(t *testing.T) {
+	p, core, dns := newPublisherFixture(t)
+	core.pageSize = 1
+	core.intents = nil
+	for i, id := range []string{testPublicationID, testPublisherID, testNY} {
+		core.intents = append(
+			core.intents,
+			&routingv1.RouteIntent{
+				PublicationId:  id,
+				Revision:       1,
+				Hostname:       "web-" + strconv.Itoa(i) + ".apps.example.test",
+				ClusterIds:     []string{testCA, testNY},
+				Preference:     "nearest",
+				ChangeSequence: int64(i + 1),
+			},
+		)
+	}
+	for range 3 {
+		budget := 1
+		if _, err := p.runOnce(t.Context(), config{PollSeconds: 60, AuditSeconds: 100}, &budget); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seen := map[string]bool{}
+	for _, report := range core.reports {
+		seen[report.GetPublicationId()] = true
+	}
+	if len(seen) != 3 || len(p.publications) != 3 || p.cursor != 3 || dns.writes != 0 {
+		t.Fatalf("reports=%v cursor=%d", core.reports, p.cursor)
 	}
 }

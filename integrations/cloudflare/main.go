@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	routingv1 "github.com/team-loco/loco/gen/go/loco/routing/v1"
 	"github.com/team-loco/loco/internal/buildinfo"
@@ -131,6 +132,11 @@ func (p *publisher) refresh(ctx context.Context) (time.Time, error) {
 			},
 		)
 		if err != nil {
+			if connect.CodeOf(err) == connect.CodeInvalidArgument && p.cursor != 0 {
+				p.cursor = 0
+				p.publications = map[string]*publication{}
+				continue
+			}
 			return deadline, fmt.Errorf("read routing intent: %w", err)
 		}
 		if page.GetSessionSeconds() <= 0 {

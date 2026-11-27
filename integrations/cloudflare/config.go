@@ -68,13 +68,23 @@ func readConfig(path string) (config, error) {
 }
 func (c config) validate() error {
 	endpoint, err := url.Parse(c.APIURL)
-	if err != nil || endpoint.Scheme != "https" || endpoint.Host == "" || endpoint.User != nil ||
-		endpoint.RawQuery != "" ||
-		endpoint.Fragment != "" {
-		return errors.New("apiURL must be an HTTPS URL without credentials, query or fragment")
+	if err != nil {
+		return errors.New("apiURL must be a valid HTTPS URL")
 	}
-	if c.PollSeconds <= 0 || c.AuditSeconds < c.PollSeconds || c.BatchSize <= 0 || c.RequestSeconds <= 0 {
-		return errors.New("poll, audit, batch and request limits must be positive; audit must be at least one poll")
+	validHTTPS := endpoint.Scheme == "https" && endpoint.Host != ""
+	if !validHTTPS {
+		return errors.New("apiURL must be an HTTPS URL with a host")
+	}
+	hasURLCredentials := endpoint.User != nil
+	hasURLParameters := endpoint.RawQuery != "" || endpoint.Fragment != ""
+	if hasURLCredentials || hasURLParameters {
+		return errors.New("apiURL must not contain credentials, query or fragment")
+	}
+	if c.PollSeconds <= 0 || c.AuditSeconds < c.PollSeconds {
+		return errors.New("poll must be positive and audit must be at least one poll")
+	}
+	if c.BatchSize <= 0 || c.RequestSeconds <= 0 {
+		return errors.New("batch and request limits must be positive")
 	}
 	if len(c.Bindings) == 0 {
 		return errors.New("at least one binding is required")
