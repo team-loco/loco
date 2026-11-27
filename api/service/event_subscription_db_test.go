@@ -274,6 +274,15 @@ SELECT 'resource.updated',$1,'system' FROM generate_series(1,$2::int)`, f.orgID,
 	if after.GetTotalCount() != 1 {
 		t.Fatalf("late arrival after capped history = %v", after)
 	}
+	t.Logf(
+		"after_cursor=%s history_count=%d arrivals_before_commit=%d arrivals_after_commit=%d late_seq=%d prior_newest_seq=%d",
+		cursor,
+		history.GetTotalCount(),
+		before.GetTotalCount(),
+		after.GetTotalCount(),
+		after.GetEvents()[0].GetSeq(),
+		history.GetEvents()[0].GetSeq(),
+	)
 	request.AfterCursor = "malformed-arrival-cursor"
 	if _, err = f.events.ListEvents(f.owner, request); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("malformed arrival cursor = %v", err)
