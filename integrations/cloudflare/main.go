@@ -176,6 +176,9 @@ func (p *publisher) runOnce(ctx context.Context, c config, budget *int) (time.Ti
 			return time.Time{}, nil
 		}
 		item := p.publications[key]
+		if item == nil {
+			continue
+		}
 		if time.Now().Before(item.nextAttempt) {
 			continue
 		}

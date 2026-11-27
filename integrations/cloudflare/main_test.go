@@ -15,6 +15,8 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
+const testPreference = "nearest"
+
 type coreFixture struct {
 	routingv1connect.UnimplementedRoutingServiceHandler
 	intents                []*routingv1.RouteIntent
@@ -77,7 +79,7 @@ func newPublisherFixture(t *testing.T) (*publisher, *coreFixture, *dnsFixture) {
 				Revision:       1,
 				Hostname:       testHostname,
 				ClusterIds:     []string{testCA},
-				Preference:     "nearest",
+				Preference:     testPreference,
 				ChangeSequence: 1,
 			},
 		},
@@ -196,7 +198,7 @@ func TestPublisherLoadsAllPagesAndDoesNotStarveBehindFailures(t *testing.T) {
 				Revision:       1,
 				Hostname:       "web-" + strconv.Itoa(i) + ".apps.example.test",
 				ClusterIds:     []string{testCA, testNY},
-				Preference:     "nearest",
+				Preference:     testPreference,
 				ChangeSequence: int64(i + 1),
 			},
 		)
@@ -219,11 +221,25 @@ func TestPublisherLoadsAllPagesAndDoesNotStarveBehindFailures(t *testing.T) {
 func TestPublisherSkipsIntentRemovedDuringLeaseRenewal(t *testing.T) {
 	p, core, dns := newPublisherFixture(t)
 	core.rewindOnRenewal = true
+	core.intents = append(
+		core.intents,
+		&routingv1.RouteIntent{
+			PublicationId:  testNY,
+			Revision:       1,
+			Hostname:       "other.apps.example.test",
+			ClusterIds:     []string{testCA},
+			Preference:     testPreference,
+			ChangeSequence: 2,
+		},
+	)
 	budget := 3
 	if _, err := p.runOnce(t.Context(), config{PollSeconds: 1, AuditSeconds: 100}, &budget); err != nil {
 		t.Fatal(err)
 	}
-	if len(p.publications) != 0 || p.cursor != 0 || dns.writes != 0 || len(core.reports) != 0 {
+	if len(p.publications) != 0 || p.cursor != 0 {
+		t.Fatal("removed snapshot retained")
+	}
+	if dns.writes != 0 || len(core.reports) != 0 {
 		t.Fatal("removed intent still published after resnapshot")
 	}
 }
