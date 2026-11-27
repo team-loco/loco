@@ -9,6 +9,15 @@ templates:
   - templates/obs-proxy-ingest-deployment.yaml
   - templates/platform-telemetry-token.yaml
 tests:
+  - it: requires the control plane region when exporting platform telemetry
+    set:
+      platformTelemetry.enabled: true
+      platformTelemetry.region: ""
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: platformTelemetry.region is required when platform telemetry is enabled
+
   - it: exports nothing by default
     asserts:
       - notContains:
@@ -121,7 +130,7 @@ tests:
           content: {name: LOCO_POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID),loco.region=us-ca-1"}
 
   - it: refuses OTEL_RESOURCE_ATTRIBUTES in api.env as well
     set:
@@ -145,7 +154,7 @@ tests:
           content: {name: OTEL_EXPORTER_OTLP_HEADERS, value: "Authorization=Bearer%20$(LOCO_SYSTEM_INGEST_TOKEN)"}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID),loco.region=us-ca-1"}
 
   - it: exports proxy spans to the operator endpoint with its authentication
     set:

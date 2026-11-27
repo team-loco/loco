@@ -166,11 +166,12 @@ The E2E suite builds the dashboard, API and proxy images, installs the CloudNati
 
 ## Platform telemetry
 
-`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. Proxy logs remain on standard output and its runtime metrics are not exported over OTLP. It keeps writing its logs to standard output. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
+`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. Proxy logs remain on standard output and its runtime metrics are not exported over OTLP. It keeps writing its logs to standard output. `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
 
 ```yaml
 platformTelemetry:
   enabled: true
+  region: us-ca-1
 ```
 
 Without `platformTelemetry.exporter.endpoint`, the API and proxy send to `<release>-obs-proxy-ingest` on `obsProxy.ingest.httpPort`, which needs `obsProxy.enabled`. The chart generates a token in the Secret `<release>-system-ingest-token`, keeps it across upgrades, and gives it to the proxy as `SYSTEM_INGEST_TOKEN` and to both processes as their exporter bearer token. The proxy stores everything that token sends under the system tenant; see [platform telemetry](../../docs/content/operations/platform-telemetry.md).
@@ -180,6 +181,7 @@ With an endpoint, the API and proxy send only there, with `platformTelemetry.exp
 ```yaml
 platformTelemetry:
   enabled: true
+  region: us-ca-1
   exporter:
     endpoint: https://otel.example.com
     headers:

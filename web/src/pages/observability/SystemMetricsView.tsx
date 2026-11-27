@@ -17,17 +17,12 @@ import { maybeTsMs, formatHourMinute } from "@/lib/time";
 import { seriesColor, useObs } from "./context";
 import { MetricChart, type ChartSeries, type PinAction } from "./MetricChart";
 import { ObsHero } from "./ObsEmpty";
-import type { FieldKey } from "./query";
-import { QueryBar } from "./QueryBar";
+import { QueryBar, type ValueCounts } from "./QueryBar";
 import { slices, SYSTEM_GROUPS, visibleGroups, type SystemChart } from "./system-metrics";
 import { ViewHeader } from "./ViewHeader";
 
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
-
-function valueCounts(key: FieldKey): [string, number][] {
-	return key === "component" ? SYSTEM_GROUPS.flatMap((g) => (g.component === null ? [] : [[g.component, 0]])) : [];
-}
 
 /** The charts of the metrics Loco's own components export, grouped by component. */
 export function SystemMetricsView() {
@@ -40,7 +35,22 @@ export function SystemMetricsView() {
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const groups = visibleGroups(tokens);
 	const clusters = useQuery(listClusters, {});
-	const sliced = slices(tokens, [...new Set((clusters.data?.clusters ?? []).map((c) => c.region))]);
+	const regions = [...new Set((clusters.data?.clusters ?? []).map((c) => c.region))];
+	const sliced = slices(tokens, regions);
+	const valueCounts: ValueCounts = (key) => {
+		if (key === "component") {
+			return SYSTEM_GROUPS.flatMap((g) => (g.component === null ? [] : [[g.component, 0]]));
+		}
+		if (key === "cluster") {
+			// The proxy stamps this ID on control-plane telemetry; workers use their registered IDs.
+			return [
+				["control-plane", 0],
+				...(clusters.data?.clusters ?? []).map((c): [string, number, string] => [c.id, 0, c.name]),
+			];
+		}
+		if (key === "region") return regions.map((region) => [region, 0]);
+		return [];
+	};
 	const charts = groups.flatMap((group) =>
 		group.charts.map((chart) => ({ group, chart, key: `${group.key}/${chart.key}` })),
 	);

@@ -350,7 +350,7 @@ true
     fieldRef:
       fieldPath: metadata.uid
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: "service.instance.id=$(LOCO_POD_UID)"
+  value: {{ printf "service.instance.id=$(LOCO_POD_UID),loco.region=%s" (required "platformTelemetry.region is required when platform telemetry is enabled" .Values.platformTelemetry.region) | quote }}
 {{- end }}
 {{- end -}}
 {{- end -}}

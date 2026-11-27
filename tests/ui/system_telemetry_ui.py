@@ -3,7 +3,7 @@ import json
 import re
 from datetime import UTC, datetime, timedelta
 
-from harness import load_state, open_page, repo, session
+from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -208,6 +208,37 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     assert metrics and all(m.get("installation") is True for m in metrics), metrics
     assert all(m["attributes"]["component"] == "loco-api" for m in metrics), metrics
     assert not any("controller" in m["metricName"] for m in metrics), metrics
+
+    # Suggestions use the IDs ingestion stores, including the control plane, and selecting
+    # one sends that ID in each metric request. Cluster metadata comes from the seeded API.
+    with expect_rpc(page, "ListClusters", lambda body: True) as fleet:
+        page.goto(ui + "/system/metrics")
+    cluster = next(c for c in fleet.value.json()["clusters"] if c["name"] == "us-ca-1")
+    search = page.get_by_placeholder("Type @component or @cluster to filter")
+    search.fill("@cluster:")
+    expect(
+        page.get_by_role("option", name="@cluster:control-plane", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role(
+            "option", name=f"@cluster:{cluster['id']} {cluster['name']}", exact=True
+        )
+    ).to_be_visible()
+    search.fill("@cluster:us-ca-1")
+    expect(
+        page.get_by_role("option", name="@cluster:control-plane", exact=True)
+    ).to_have_count(0)
+    with expect_rpc(
+        page,
+        "QueryMetrics",
+        lambda body: body.get("attributes", {}).get("cluster") == cluster["id"],
+    ) as filtered:
+        page.get_by_role(
+            "option", name=f"@cluster:{cluster['id']} {cluster['name']}", exact=True
+        ).click()
+    page.locator("h1").click()
+    expect(page).to_have_url(re.compile(cluster["id"]))
+    assert filtered.value.request.post_data_json["installation"] is True
 
     # Clearing the filter shows every component's group.
     page.goto(ui + "/system/metrics")

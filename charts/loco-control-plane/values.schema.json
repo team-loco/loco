@@ -994,6 +994,9 @@
             }
           },
           "additionalProperties": false
+        },
+        "region": {
+          "type": "string"
         }
       },
       "additionalProperties": false

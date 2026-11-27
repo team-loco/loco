@@ -123,6 +123,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 	}
 	if p.Observability {
 		env = append(env,
+			"OTEL_RESOURCE_ATTRIBUTES=loco.region="+clusterRegion,
 			"OTEL_EXPORTER_OTLP_ENDPOINT="+p.OTLPURL,
 			"OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20"+systemIngestToken)
 	}
@@ -248,6 +249,7 @@ func (p *Platform) startObsProxy(ctx context.Context) error {
 	}
 	if p.Observability {
 		env = append(env,
+			"OTEL_RESOURCE_ATTRIBUTES=loco.region="+clusterRegion,
 			"OTEL_EXPORTER_OTLP_ENDPOINT="+p.OTLPURL,
 			"OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20"+systemIngestToken)
 	}

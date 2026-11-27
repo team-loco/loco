@@ -166,6 +166,8 @@ api:
 # @schema additionalProperties: false
 platformTelemetry:
   enabled: false
+  # Physical region of this control plane; required when enabled. Exported as loco.region.
+  region: ""
   # without an endpoint, the API sends to the observability proxy, which stores everything under
   # the system tenant; obsProxy.enabled is then required.
   # @schema additionalProperties: false

@@ -61,11 +61,12 @@ LIMIT 100
 
 ## Turn it on
 
-On the control plane:
+On the control plane, set its physical region. This is independent of the default region for new services:
 
 ```yaml
 platformTelemetry:
   enabled: true
+  region: us-ca-1
 ```
 
 On each worker, with the identity every platform record carries:
@@ -87,6 +88,7 @@ Each chart takes an OTLP/HTTP endpoint and headers for an operator's own collect
 # loco-control-plane
 platformTelemetry:
   enabled: true
+  region: us-ca-1
   exporter:
     endpoint: https://otel.example.com
     headers:
