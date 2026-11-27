@@ -1,0 +1,12 @@
+suite: platform telemetry explicit region
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/obs-proxy-ingest-deployment.yaml
+tests:
+  - it: requires an explicit region with the shared chart values
+    set:
+      platformTelemetry.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: platformTelemetry.region is required when platform telemetry is enabled
