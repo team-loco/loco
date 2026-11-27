@@ -91,7 +91,9 @@ export function EventsView() {
 		enabled,
 		placeholderData: keepPreviousData,
 	});
-	const initialCursor = page.query.isPlaceholderData ? "" : (page.query.data?.streamCursor ?? "");
+	const freshHistory = page.query.isSuccess && page.query.isFetchedAfterMount;
+	const historyReady = freshHistory && !page.query.isPlaceholderData;
+	const initialCursor = historyReady ? (page.query.data?.streamCursor ?? "") : "";
 	const stream = useEventStream({
 		orgId,
 		workspaceId,

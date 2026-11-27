@@ -195,6 +195,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 		live && enabled,
 		filterKey,
 	);
+	const freshHistory = query.isSuccess && query.isFetchedAfterMount;
 	const subscription = useEventSubscription(
 		{
 			orgId,
@@ -205,7 +206,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 			startTime: input.startTime,
 		},
 		live && enabled,
-		query.data?.streamCursor ?? "",
+		freshHistory ? query.data.streamCursor : "",
 		() => {
 			refresh();
 		},

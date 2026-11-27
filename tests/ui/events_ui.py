@@ -319,6 +319,18 @@ VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','
     events.get_by_role("button", name="Next page", exact=True).click()
     expect(events.get_by_text("Page 2", exact=True)).to_be_visible()
     historical_url = page.url.replace("&live=0", "")
+    # Let this page's successful history persist, then publish while the view is closed.
+    page.wait_for_timeout(1200)
+    page.goto("about:blank")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','before-remount','message','Published before remount'),NOW()-INTERVAL '2 minutes');""",
+    )
+    deadline = time.monotonic() + 10
+    while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
+        assert time.monotonic() < deadline, "pre-remount event was not published"
+        time.sleep(0.1)
     with expect_rpc(
         page, "ListEvents", lambda body: bool(body.get("afterCursor"))
     ) as historical_unread:
