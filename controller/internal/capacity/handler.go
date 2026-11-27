@@ -118,10 +118,7 @@ func (c *collection) pods(out io.Writer) (int, error) {
 			if !assignedActive(pod) {
 				continue
 			}
-			identity, err := c.identity(pod)
-			if err != nil {
-				return 0, err
-			}
+			identity := c.identity(pod)
 			// These status fields exist only when in-place resizing is enabled. Using
 			// them preserves requests still allocated while a resize is pending.
 			requests := podresource.PodRequests(
@@ -172,24 +169,15 @@ func assignedActive(pod *corev1.Pod) bool {
 	}
 }
 
-func (c *collection) identity(pod *corev1.Pod) ([]string, error) {
+func (c *collection) identity(pod *corev1.Pod) []string {
 	attrs := pod.Labels
 	org, workspace, environment, resource, build := "", "", "", "", ""
 	if attrs[locolabels.LabelManagedBy] == locolabels.ControllerManagedBy {
 		org, workspace = attrs[locolabels.LabelOrganizationID], attrs[locolabels.LabelWorkspaceID]
 		resource, build = attrs[locolabels.LabelResourceID], attrs[locolabels.LabelBuildID]
-		ids := []string{org, workspace, resource}
-		if build != "" {
-			ids = append(ids, build)
-		} else {
+
+		if build == "" {
 			environment = attrs[locolabels.LabelEnvironmentID]
-			ids = append(ids, environment)
-		}
-		for _, raw := range ids {
-			id, err := uuid.Parse(raw)
-			if err != nil || id == uuid.Nil {
-				return nil, fmt.Errorf("managed pod %s/%s has an invalid capacity identity", pod.Namespace, pod.Name)
-			}
 		}
 	}
 	return []string{
@@ -203,5 +191,5 @@ func (c *collection) identity(pod *corev1.Pod) ([]string, error) {
 		environment,
 		resource,
 		build,
-	}, nil
+	}
 }

@@ -56,8 +56,10 @@ global:
       block_on_overflow: true
       # @schema additionalProperties: false
       batch:
-        sizer: items
-        min_size: 100
+        # Keep protobuf exports below the ingest service's default decompressed limit.
+        sizer: bytes
+        min_size: 1048576
+        max_size: 4194304
         flush_timeout: 1s
     retry:
       initial_interval: 1s

@@ -623,6 +623,9 @@
                     "flush_timeout": {
                       "type": "string"
                     },
+                    "max_size": {
+                      "type": "integer"
+                    },
                     "min_size": {
                       "type": "integer"
                     },

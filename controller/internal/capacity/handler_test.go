@@ -151,8 +151,9 @@ func TestHandlerReportsEffectiveRequestsAndCompleteMembership(t *testing.T) {
 
 type interruptedReader struct {
 	client.Reader
-	calls int
-	pod   *corev1.Pod
+	calls  int
+	copies int
+	pod    *corev1.Pod
 }
 
 func (r *interruptedReader) List(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
@@ -164,14 +165,19 @@ func (r *interruptedReader) List(_ context.Context, list client.ObjectList, _ ..
 	if !ok {
 		return errors.New("unexpected list type")
 	}
-	pods.Items = []corev1.Pod{*r.pod}
+	for i := range max(1, r.copies) {
+		samplePod := r.pod.DeepCopy()
+		samplePod.UID = types.UID(uuid.NewString())
+		samplePod.Name += "-" + strconv.Itoa(i)
+		pods.Items = append(pods.Items, *samplePod)
+	}
 	pods.Continue = "next"
 	return nil
 }
 
 func TestHandlerNeverPublishesPartialOrUnelectedCollections(t *testing.T) {
 	t.Parallel()
-	reader := &interruptedReader{pod: assigned("first")}
+	reader := &interruptedReader{pod: assigned("first"), copies: 500}
 	response := httptest.NewRecorder()
 	Handler(
 		reader,
@@ -259,5 +265,30 @@ func TestHandlerPreservesReservationsDuringResize(t *testing.T) {
 				t.Fatalf("CPU reservation=%v want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestHandlerPreservesStandaloneBuildIdentity(t *testing.T) {
+	t.Parallel()
+	pod := assigned("standalone-build")
+	pod.Labels = map[string]string{
+		locolabels.LabelManagedBy:   locolabels.ControllerManagedBy,
+		locolabels.LabelWorkspaceID: "standalone-workspace",
+		locolabels.LabelResourceID:  "worker",
+		locolabels.LabelBuildID:     "build-one",
+	}
+	var out strings.Builder
+	c := collection{reader: &interruptedReader{pod: pod}, ctx: t.Context(), source: uuid.NewString(), at: time.Now()}
+	if _, err := c.pods(&out); err == nil || err.Error() != "list capacity pods: collection interrupted" {
+		t.Fatalf("identity rejected before final page: %v", err)
+	}
+	text := out.String()
+	for _, label := range []string{
+		`workspace_id="standalone-workspace"`, `resource_id="worker"`,
+		`build_id="build-one"`, `organization_id=""`,
+	} {
+		if !strings.Contains(text, label) {
+			t.Fatalf("lost valid standalone Build identity %s: %s", label, text)
+		}
 	}
 }
