@@ -34,6 +34,17 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, arg DeleteEventsBefore
 	return result.RowsAffected(), nil
 }
 
+const getEventStreamPosition = `-- name: GetEventStreamPosition :one
+SELECT position FROM event_stream_counter WHERE singleton
+`
+
+func (q *Queries) GetEventStreamPosition(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getEventStreamPosition)
+	var position int64
+	err := row.Scan(&position)
+	return position, err
+}
+
 const insertEvent = `-- name: InsertEvent :one
 INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
                     actor_token_name, actor_token_type, acted_as_operator)

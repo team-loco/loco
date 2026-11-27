@@ -129,6 +129,10 @@ func (s *EventServer) ListEvents(
 	if err != nil {
 		return nil, err
 	}
+	position, err := s.queries.GetEventStreamPosition(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read event publication boundary: %w", err)
+	}
 	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
 		counted := query
 		counted.Limit = limit
@@ -143,7 +147,11 @@ func (s *EventServer) ListEvents(
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
-	response := &eventv1.ListEventsResponse{Events: rows, TotalCount: total}
+	response := &eventv1.ListEventsResponse{
+		Events:       rows,
+		TotalCount:   total,
+		StreamCursor: eventPosition(position).encode(),
+	}
 	if req.GetIncludeFacets() {
 		faceted := query
 		faceted.BeforeSeq, faceted.Limit = 0, totalCountCap+1
@@ -425,7 +433,7 @@ func (s *EventServer) StreamEvents(
 	defer ticker.Stop()
 	for {
 		pollCtx, span := tracing.StartLinked(ctx, eventStreamPollSpan)
-		query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
+		query.Stream, query.AfterPosition, query.Limit = true, new(int64(position)), streamBatch
 		rows, readErr := events.ListAudit(pollCtx, s.db, query)
 		err = readErr
 		tracing.EndLive(ctx, span, err)
@@ -516,14 +524,14 @@ func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquer
 	}
 	if req.GetAfterCursor() != "" {
 		position, err := decodeEventPosition(req.GetAfterCursor())
-		if err != nil || position <= 0 {
+		if err != nil || position < 0 {
 			return events.AuditQuery{}, fieldError(
 				"after_cursor",
 				"invalid event cursor",
 				"",
 			)
 		}
-		query.AfterPosition = int64(position)
+		query.AfterPosition = new(int64(position))
 	}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID

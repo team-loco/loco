@@ -84,18 +84,20 @@ export function EventsView() {
 	const chips = EVENT_KEYS.flatMap((key) => liveTokens("events", tokens, key));
 	const resourceChips = chips.filter((t) => t.key === "resource");
 	const query = eventsQuery(chips, text);
+	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
+		enabled,
+		placeholderData: keepPreviousData,
+	});
+	const initialCursor = page.query.isPlaceholderData ? "" : (page.query.data?.streamCursor ?? "");
 	const stream = useEventStream({
 		orgId,
 		workspaceId,
-		openedAt,
+		startTime: resolveWindow(range, openedAt).from,
+		initialCursor,
 		on: live && enabled,
 		environmentId: environment?.id ?? "",
 		query,
 		onFirstPage: params.page.length === 0,
-	});
-	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
-		enabled,
-		placeholderData: keepPreviousData,
 	});
 	const facets = useQuery(
 		listEvents,
@@ -303,7 +305,8 @@ function useEventStream({
 	workspaceId,
 	environmentId,
 	query,
-	openedAt,
+	startTime,
+	initialCursor,
 	on,
 	onFirstPage,
 }: {
@@ -311,7 +314,8 @@ function useEventStream({
 	workspaceId: string;
 	environmentId: string;
 	query: string;
-	openedAt: number;
+	startTime: number;
+	initialCursor: string;
 	on: boolean;
 	onFirstPage: boolean;
 }) {
@@ -338,16 +342,19 @@ function useEventStream({
 			environmentId,
 			types: ENVIRONMENT_EVENT_TYPES,
 			readableResources: true,
-			startTime: msToTimestamp(openedAt),
+			startTime: msToTimestamp(startTime),
 		},
 		on,
+		initialCursor,
 		() => {
 			refreshCounts();
 			if (onFirstPage) refreshPage();
 		},
 	);
 	const firstPageAdvanced = onFirstPage && viewed.cursor !== subscription.cursor;
-	if (firstPageAdvanced || viewed.scope !== scope) setViewed({ scope, cursor: subscription.cursor });
+	const initialPosition = viewed.cursor === "" && subscription.cursor !== "";
+	const resetViewed = firstPageAdvanced || viewed.scope !== scope || initialPosition;
+	if (resetViewed) setViewed({ scope, cursor: subscription.cursor });
 	const received = useQuery(
 		listEvents,
 		{
@@ -357,12 +364,12 @@ function useEventStream({
 			query,
 			types: ENVIRONMENT_EVENT_TYPES,
 			readableResources: true,
-			startTime: msToTimestamp(openedAt),
+			startTime: msToTimestamp(startTime),
 			pageSize: 1,
 			includeTotalCount: true,
 			afterCursor: viewed.scope === scope ? viewed.cursor : "",
 		},
-		{ enabled: on && !onFirstPage },
+		{ enabled: on && !onFirstPage && viewed.cursor !== "" },
 	);
 	return { ...subscription, newEvents: received.data?.totalCount ?? 0 };
 }

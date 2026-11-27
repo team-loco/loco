@@ -396,3 +396,117 @@ SELECT 'resource.updated',$1,'system' FROM generate_series(1,$2::int)`, f.orgID,
 		t.Fatalf("malformed arrival cursor = %v", err)
 	}
 }
+
+func TestHistoryCursorPrecedesHistoryRead(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	publishEvents(t, f.pool)
+	position, err := f.queries.GetEventStreamPosition(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	held := &heldEventQuery{
+		DBTX:     f.pool,
+		entered:  make(chan struct{}),
+		release:  make(chan struct{}),
+		canceled: make(chan struct{}),
+	}
+	held.hold.Store(true)
+	f.events.db = held
+	result := make(chan *eventv1.ListEventsResponse, 1)
+	failed := make(chan error, 1)
+	go func() {
+		response, listErr := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
+		result <- response
+		failed <- listErr
+	}()
+	select {
+	case <-held.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("history read did not start")
+	}
+	org := uuid.MustParse(f.orgID)
+	if err = events.Record(
+		t.Context(),
+		f.queries,
+		events.Event{Type: events.ResourceUpdated, OrgID: &org, ActorType: events.ActorSystem},
+	); err != nil {
+		t.Fatal(err)
+	}
+	publishEvents(t, f.pool)
+	close(held.release)
+	history := <-result
+	if err = <-failed; err != nil {
+		t.Fatal(err)
+	}
+	if history.GetStreamCursor() != eventPosition(position).encode() {
+		t.Fatalf(
+			"history cursor = %q, boundary before read = %q",
+			history.GetStreamCursor(),
+			eventPosition(position).encode(),
+		)
+	}
+	arrivals, err := f.events.ListEvents(
+		f.owner,
+		&eventv1.ListEventsRequest{OrgId: f.orgID, AfterCursor: history.GetStreamCursor(), IncludeTotalCount: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if arrivals.GetTotalCount() != 1 {
+		t.Fatalf("publication during history read = %v", arrivals)
+	}
+	t.Logf("history_cursor=%s publications_during_read=%d", history.GetStreamCursor(), arrivals.GetTotalCount())
+}
+
+func TestZeroHistoryCursorExcludesUnpublishedEvents(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	if _, err := f.pool.Exec(
+		t.Context(),
+		"TRUNCATE events CASCADE; UPDATE event_stream_counter SET position = 0",
+	); err != nil {
+		t.Fatal(err)
+	}
+	org := uuid.MustParse(f.orgID)
+	if err := events.Record(
+		t.Context(),
+		f.queries,
+		events.Event{Type: events.ResourceUpdated, OrgID: &org, ActorType: events.ActorSystem},
+	); err != nil {
+		t.Fatal(err)
+	}
+	history, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history.GetEvents()) != 1 {
+		t.Fatalf("unpublished history = %v", history)
+	}
+	request := &eventv1.ListEventsRequest{
+		OrgId:             f.orgID,
+		AfterCursor:       history.GetStreamCursor(),
+		IncludeTotalCount: true,
+	}
+	before, err := f.events.ListEvents(f.owner, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.GetTotalCount() != 0 {
+		t.Fatalf("unpublished arrivals = %v", before)
+	}
+	publishEvents(t, f.pool)
+	after, err := f.events.ListEvents(f.owner, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.GetTotalCount() != 1 {
+		t.Fatalf("first publication = %v", after)
+	}
+	t.Logf(
+		"zero_cursor=%s before_publish=%d after_publish=%d",
+		history.GetStreamCursor(),
+		before.GetTotalCount(),
+		after.GetTotalCount(),
+	)
+}

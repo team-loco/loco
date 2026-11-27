@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlparse
 from harness import (
     copied_text,
     load_state,
+    observe_event_batches,
     open_page,
     repo,
     session,
@@ -52,6 +53,7 @@ sql(
 out = Path(args.out)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
+    observe_event_batches(page)
     now_ms = int(time.time() * 1000)
     page.goto(
         state["ui_url"]
@@ -241,6 +243,60 @@ jsonb_build_object('region','us-ca-2','message','Recovered after reconnect'));""
     expect(
         events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
     ).to_be_visible(timeout=15000)
+    # Mount directly on an older page: published history is already viewed, not new.
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+SELECT 'resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','history','message','Published history '||n),NOW()-INTERVAL '3 minutes'
+FROM generate_series(1,30) n;""",
+    )
+    deadline = time.monotonic() + 10
+    while int(sql(state, "SELECT count(*) FROM events WHERE stream_position IS NULL")):
+        assert time.monotonic() < deadline, "fixture events were not published"
+        time.sleep(0.1)
+    page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
+    events.get_by_role("button", name="Next page", exact=True).click()
+    expect(events.get_by_text("Page 2", exact=True)).to_be_visible()
+    older_url = page.url.replace("&live=0", "")
+    with page.expect_response(
+        lambda response: (
+            response.url.endswith("/ListEvents")
+            and bool(response.request.post_data_json.get("afterCursor"))
+        )
+    ) as unread:
+        page.goto(older_url)
+    assert unread.value.json().get("totalCount", 0) == 0, unread.value.json()
+    expect(
+        events.get_by_role("button", name=re.compile(r"^\d+ new events?$"))
+    ).to_have_count(0)
+    # An event whose transaction timestamp predates mount still counts after publication.
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','late-commit','message','Late transaction'),NOW()-INTERVAL '2 minutes');""",
+    )
+    events.get_by_role("button", name="1 new event", exact=True).click(timeout=15000)
+    expect(
+        events.get_by_role("row", name="Recovered in late-commit", exact=True)
+    ).to_be_visible()
+    batches = page.evaluate("window.__eventStreamBatches")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system',jsonb_build_object('region','paused-update','message','Paused update'));""",
+    )
+    page.wait_for_function(
+        "before => window.__eventStreamBatches > before", arg=batches
+    )
+    page.locator("[data-live-button]").click()
+    page.wait_for_timeout(2500)
+    expect(
+        events.get_by_role("row", name="Recovered in paused-update", exact=True)
+    ).to_have_count(0)
+    page.locator("[data-live-button]").click()
+    expect(
+        events.get_by_role("row", name="Recovered in paused-update", exact=True)
+    ).to_be_visible(timeout=15000)
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, state=state, now=time.time())
@@ -266,7 +322,9 @@ jsonb_build_object('region','us-ca-2','message','Recovered after reconnect'));""
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, user="reader", state=state)
-    page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
+    page.goto(
+        state["ui_url"] + base + "/observability?view=events&live=0&q=@region:us-ca-1"
+    )
     page.get_by_role("region", name="Events", exact=True).get_by_role(
         "row", name="Degraded in us-ca-1", exact=True
     ).first.click()

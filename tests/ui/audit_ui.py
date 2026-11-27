@@ -10,6 +10,7 @@ from harness import (
     evidence,
     expect_rpc,
     load_state,
+    observe_event_batches,
     open_page as new_page,
     repo,
     session,
@@ -84,6 +85,7 @@ out.mkdir(parents=True, exist_ok=True)
 
 def open_page(browser, user, path=None):
     context, page, errors = new_page(browser, user, state=state)
+    observe_event_batches(page)
     calls = []
 
     def record(response):
@@ -228,6 +230,28 @@ with session(out) as browser:
     expect(rows.first).to_contain_text(
         "Changed the workspace description", timeout=15000
     )
+    # Synthetic earlier created_at models a transaction begun before the page mounted.
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,actor_type,data,created_at)
+VALUES('workspace.created','{org}','{shared}','system',jsonb_build_object('name','late audit transaction'),NOW()-INTERVAL '2 minutes');""",
+    )
+    expect(events).to_contain_text("late audit transaction", timeout=15000)
+    # Pause after the real batch arrives, before its delayed history refresh can run.
+    batches = page.evaluate("window.__eventStreamBatches")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,actor_type,data)
+VALUES('workspace.created','{org}','{shared}','system',jsonb_build_object('name','paused audit update'));""",
+    )
+    page.wait_for_function(
+        "before => window.__eventStreamBatches > before", arg=batches
+    )
+    page.get_by_role("button", name="Pause", exact=True).click()
+    page.wait_for_timeout(2500)
+    expect(events).not_to_contain_text("paused audit update")
+    page.get_by_role("button", name="Live", exact=True).click()
+    expect(events).to_contain_text("paused audit update", timeout=15000)
     # A refused live subscription leaves history visible and offers an explicit reconnect.
     stream_url = "**/loco.event.v1.EventService/StreamEvents"
     page.route(
@@ -240,7 +264,7 @@ with session(out) as browser:
     page.reload()
     notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
     expect(notice).to_contain_text("HTTP 403")
-    expect(rows.first).to_contain_text("Changed the workspace description")
+    expect(events).to_contain_text("paused audit update")
     page.unroute(stream_url)
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
         notice.get_by_role("button", name="Reconnect", exact=True).click()

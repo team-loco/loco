@@ -27,7 +27,7 @@ type AuditQuery struct {
 	Start, End    *time.Time
 	// BeforeSeq, when positive, selects events with a lower seq.
 	BeforeSeq     int64
-	AfterPosition int64
+	AfterPosition *int64
 	Stream        bool
 	// Types, when set, keeps events of these types.
 	Types  []string
@@ -163,8 +163,12 @@ func auditWhere(q AuditQuery, b *binder) string {
 	if q.BeforeSeq > 0 {
 		sql += " AND e.seq < " + b.bind(q.BeforeSeq)
 	}
-	if q.Stream || q.AfterPosition > 0 {
-		sql += " AND e.stream_position > " + b.bind(q.AfterPosition)
+	if q.Stream || q.AfterPosition != nil {
+		var position int64
+		if q.AfterPosition != nil {
+			position = *q.AfterPosition
+		}
+		sql += " AND e.stream_position > " + b.bind(position)
 	}
 	if q.Filter != nil {
 		sql += " AND " + querySQL(q.Filter, b)

@@ -91,7 +91,11 @@ func TestConcurrentPublishersAssignGapFreePositions(t *testing.T) {
 	if err = events.Publish(t.Context(), pool); err != nil {
 		t.Fatal(err)
 	}
-	rows, err = events.ListAudit(t.Context(), pool, events.AuditQuery{Stream: true, AfterPosition: 1000, Limit: 1})
+	rows, err = events.ListAudit(
+		t.Context(),
+		pool,
+		events.AuditQuery{Stream: true, AfterPosition: new(int64(1000)), Limit: 1},
+	)
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("duplicate publication: %v (%v)", rows, err)
 	}
@@ -122,7 +126,7 @@ func TestPublisherStreamsLateCommitOnce(t *testing.T) {
 	if err != nil || len(rows) != 1 || rows[0].Type != second.Type {
 		t.Fatalf("first batch = %v (%v)", rows, err)
 	}
-	query.AfterPosition = *rows[0].StreamPosition
+	query.AfterPosition = rows[0].StreamPosition
 	if err = tx.Commit(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +137,7 @@ func TestPublisherStreamsLateCommitOnce(t *testing.T) {
 	if err != nil || len(rows) != 1 || rows[0].Type != first.Type {
 		t.Fatalf("late batch = %v (%v)", rows, err)
 	}
-	query.AfterPosition = *rows[0].StreamPosition
+	query.AfterPosition = rows[0].StreamPosition
 	rows, err = events.ListAudit(t.Context(), pool, query)
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("duplicates = %v (%v)", rows, err)

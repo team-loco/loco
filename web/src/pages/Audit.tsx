@@ -202,9 +202,10 @@ export function Audit({ system = false }: { system?: boolean }) {
 			resourceId,
 			environmentId,
 			installationOnly,
-			startTime: msToTimestamp(openedAt),
+			startTime: input.startTime,
 		},
 		live && enabled,
+		query.data?.streamCursor ?? "",
 		() => {
 			refresh();
 		},

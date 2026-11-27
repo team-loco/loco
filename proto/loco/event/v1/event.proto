@@ -128,6 +128,9 @@ message ListEventsResponse {
   // Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
   // scope, time range and types match, ignoring query and page_token.
   repeated EventFacet facets = 4;
+  // Publication boundary captured before reading history. Resume StreamEvents or count arrivals
+  // with after_cursor from here; transactions published after this boundary cannot be skipped.
+  string stream_cursor = 5;
 }
 
 message StreamEventsRequest {

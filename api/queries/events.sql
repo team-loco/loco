@@ -14,6 +14,9 @@ WHERE seq IN (
     LIMIT sqlc.arg('batch_size')
 );
 
+-- name: GetEventStreamPosition :one
+SELECT position FROM event_stream_counter WHERE singleton;
+
 -- name: LockEventStreamCounter :one
 SELECT position FROM event_stream_counter WHERE singleton FOR UPDATE;
 

@@ -1,26 +1,31 @@
 import { create, fromJsonString, toJsonString, type MessageInitShape } from "@bufbuild/protobuf";
 import { createClient } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
-import { EventService, StreamEventsRequestSchema, type Event } from "@gen/loco/event/v1/event_pb";
+import { EventService, StreamEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import { followEvents } from "@/lib/follow-events";
 
-/** Owns the live subscription; history remains in the caller's paginated query. */
+/** Resumes after history’s publication boundary and refreshes on connection and event batches. */
 export function useEventSubscription(
 	request: MessageInitShape<typeof StreamEventsRequestSchema>,
 	enabled: boolean,
-	onEvents: (events: Event[]) => void,
+	initialCursor: string,
+	onRefresh: () => void,
 ) {
 	const transport = useTransport();
 	const input = toJsonString(StreamEventsRequestSchema, create(StreamEventsRequestSchema, request));
 	const [failure, setFailure] = useState<{ input: string; error: unknown } | null>(null);
 	const [attempt, setAttempt] = useState(0);
-	const handle = useEffectEvent(onEvents);
+	const handle = useEffectEvent(onRefresh);
+	const ready = enabled && initialCursor !== "";
 	const [position, setPosition] = useState({ input, cursor: "" });
-	const resumeCursor = useEffectEvent(() => (position.input === input ? position.cursor : ""));
+	const resumeCursor = useEffectEvent(() => {
+		if (position.input === input && position.cursor !== "") return position.cursor;
+		return initialCursor;
+	});
 	useEffect(() => {
-		if (!enabled) return;
+		if (!ready) return;
 		const abort = new AbortController();
 		const client = createClient(EventService, transport);
 		const scoped = fromJsonString(StreamEventsRequestSchema, input);
@@ -33,12 +38,13 @@ export function useEventSubscription(
 						onHeader: () => {
 							if (abort.signal.aborted) return;
 							setFailure(null);
+							handle();
 						},
 					},
 				),
-			(events, cursor) => {
+			(_events, cursor) => {
 				setPosition({ input, cursor });
-				handle(events);
+				handle();
 			},
 			abort.signal,
 			{
@@ -52,10 +58,10 @@ export function useEventSubscription(
 		return () => {
 			abort.abort();
 		};
-	}, [enabled, input, transport, attempt]);
+	}, [ready, input, transport, attempt]);
 	return {
-		cursor: position.input === input ? position.cursor : "",
-		error: enabled && failure?.input === input ? failure.error : null,
+		cursor: (position.input === input ? position.cursor : "") || initialCursor,
+		error: ready && failure?.input === input ? failure.error : null,
 		retry: () => {
 			setAttempt((value) => value + 1);
 		},

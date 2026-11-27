@@ -552,7 +552,10 @@ type ListEventsResponse struct {
 	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	// Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
 	// scope, time range and types match, ignoring query and page_token.
-	Facets        []*EventFacet `protobuf:"bytes,4,rep,name=facets,proto3" json:"facets,omitempty"`
+	Facets []*EventFacet `protobuf:"bytes,4,rep,name=facets,proto3" json:"facets,omitempty"`
+	// Publication boundary captured before reading history. Resume StreamEvents or count arrivals
+	// with after_cursor from here; transactions published after this boundary cannot be skipped.
+	StreamCursor  string `protobuf:"bytes,5,opt,name=stream_cursor,json=streamCursor,proto3" json:"stream_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -613,6 +616,13 @@ func (x *ListEventsResponse) GetFacets() []*EventFacet {
 		return x.Facets
 	}
 	return nil
+}
+
+func (x *ListEventsResponse) GetStreamCursor() string {
+	if x != nil {
+		return x.StreamCursor
+	}
+	return ""
 }
 
 type StreamEventsRequest struct {
@@ -869,13 +879,14 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x06values\x18\x02 \x03(\v2\x1e.loco.event.v1.EventFacetValueR\x06values\"=\n" +
 	"\x0fEventFacetValue\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\xbe\x01\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xe3\x01\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
 	"totalCount\x121\n" +
-	"\x06facets\x18\x04 \x03(\v2\x19.loco.event.v1.EventFacetR\x06facets\"\xae\x04\n" +
+	"\x06facets\x18\x04 \x03(\v2\x19.loco.event.v1.EventFacetR\x06facets\x12#\n" +
+	"\rstream_cursor\x18\x05 \x01(\tR\fstreamCursor\"\xae\x04\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
 	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12\"\n" +
 	"\x06org_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12.\n" +

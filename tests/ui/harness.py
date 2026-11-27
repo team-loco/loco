@@ -250,3 +250,25 @@ LINE_STARTS_JS = """node => {
 def line_starts(locator):
     """The first visible character of every rendered line of the element."""
     return locator.evaluate(LINE_STARTS_JS)
+
+
+def observe_event_batches(page):
+    """Observe real streaming response chunks without changing their contents or timing."""
+    page.add_init_script("""
+window.__eventStreamBatches = 0;
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+  const response = await originalFetch(...args);
+  const url = args[0] instanceof Request ? args[0].url : String(args[0]);
+  if (!url.endsWith('/StreamEvents') || !response.body) return response;
+  const body = response.body.pipeThrough(new TransformStream({
+    transform(chunk, controller) {
+      window.__eventStreamBatches++;
+      controller.enqueue(chunk);
+    },
+  }));
+  return new Response(body, {
+    status: response.status, statusText: response.statusText, headers: response.headers,
+  });
+};
+""")
