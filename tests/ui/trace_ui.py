@@ -484,7 +484,9 @@ with session(out) as browser:
         "([el, w]) => el.getBoundingClientRect().width > w",
         arg=[drawer.element_handle(), narrow + 150],
     )
-    details_grip = drawer.get_by_role("separator", name="Resize span details")
+    details_grip = drawer.get_by_role(
+        "separator", name="Resize span details", include_hidden=True
+    )
     details_panel = details_grip.locator("../..")
     initial_width = details_panel.bounding_box()["width"]
     box = details_grip.bounding_box()
