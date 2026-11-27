@@ -9,6 +9,7 @@ import (
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -296,6 +297,16 @@ func TestDeploymentOutcomePreservesInitiatingActor(t *testing.T) {
 			t.Parallel()
 			f := newDeployFixture(t)
 			f.nameUser(t)
+			otherAdmin, createErr := f.queries.CreateUser(t.Context(), genDb.CreateUserParams{
+				Email: "other-admin@example.test",
+			})
+			if createErr != nil {
+				t.Fatal(createErr)
+			}
+			if roleErr := authz.ApplyRoles(t.Context(), f.queries, otherAdmin.ID,
+				authz.OrgRoleScopes(f.tenant.orgID, genDb.OrgRoleAdmin), nil); roleErr != nil {
+				t.Fatal(roleErr)
+			}
 			actorID := f.userID
 			wantName, wantEmail, wantTokenType := failedDeployUser, deployFixtureEmail, ""
 			if kind == genDb.DeploymentActorTypeApiToken {
@@ -303,7 +314,9 @@ func TestDeploymentOutcomePreservesInitiatingActor(t *testing.T) {
 				wantName, wantEmail, wantTokenType = "ci", "", string(genDb.EntityTypeResource)
 			}
 			id := f.deployAs(t, kind, actorID)
-			if _, err := f.pool.Exec(t.Context(), "DELETE FROM user_scopes WHERE user_id = $1", f.userID); err != nil {
+			if err := f.queries.RemoveOrgMember(t.Context(), genDb.RemoveOrgMemberParams{
+				UserID: f.userID, OrgID: f.tenant.orgID,
+			}); err != nil {
 				t.Fatal(err)
 			}
 			if kind == genDb.DeploymentActorTypeApiToken {
