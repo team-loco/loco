@@ -9,7 +9,6 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
 import { ROLE_LABEL, systemAccess } from "@/lib/system";
 
-import { Capacity } from "./Capacity";
 import { ClusterNodes } from "./ClusterNodes";
 import { ClusterOperations } from "./ClusterOperations";
 import { ClusterActionButtons } from "./ClusterActions";
@@ -98,9 +97,7 @@ export function SystemClusterDetail() {
 				</dl>
 			</Section>
 			<ClusterOperations clusterId={cluster.id} section="issues" healthMessage={cluster.healthMessage} />
-			<Section title="Capacity">
-				<Capacity capacity={cluster.capacity} />
-			</Section>
+
 			<ClusterNodes key={cluster.id} clusterId={cluster.id} />
 			<ClusterOperations clusterId={cluster.id} section="events" />
 		</Page>

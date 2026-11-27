@@ -269,7 +269,7 @@ function ReservationCell({ row, memory }: { row: ListRow; memory: boolean }) {
 			<span>{reservationLabel(value, memory, reservationCoverage)}</span>
 			{builds > 0n && (
 				<span className="text-[11px] text-fg3" title="Workspace build reservations across all environments">
-					Builds {reservationLabel(builds, memory, reservationCoverage)}
+					Workspace builds {reservationLabel(builds, memory, reservationCoverage)}
 				</span>
 			)}
 		</div>
@@ -293,9 +293,9 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 		{
 			id: "size",
 			header: "Configured size",
-			size: 140,
-			minSize: 120,
-			maxSize: 220,
+			size: 170,
+			minSize: 140,
+			maxSize: 240,
 			meta: { fit: true },
 			accessorFn: (row) => row.cpuMilli,
 			sortDescFirst: true,

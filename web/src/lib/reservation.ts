@@ -1,10 +1,9 @@
 import type { AllocationCoverage } from "@gen/loco/capacity/v1/capacity_pb";
 
-import { formatCpu } from "./quantity";
-import { formatBytes } from "./traffic";
+import { BYTES_PER_MI, formatCpu, formatMemory } from "./quantity";
 
 export function reservationQuantity(value: bigint | number, memory: boolean): string {
-	return memory ? formatBytes(Number(value)) : formatCpu(Number(value));
+	return memory ? `${formatMemory(Number(value) / BYTES_PER_MI)}B` : formatCpu(Number(value));
 }
 
 export function reservationLabel(value: bigint, memory: boolean, coverage: AllocationCoverage | undefined): string {

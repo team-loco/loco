@@ -2,12 +2,14 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import { getNodeAllocations, listClusterNodes } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
 import type { AllocationConsumer, GetNodeAllocationsResponse, NodeCapacity } from "@gen/loco/cluster/v1/cluster_pb";
+import { keepPreviousData } from "@tanstack/react-query";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { parseAsBoolean, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
-import { ErrorState } from "@/components/design/ErrorState";
+import { ErrorState, PartialError } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -15,12 +17,14 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { StatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { reservationQuantity as allocationQuantity } from "@/lib/reservation";
+import { getErrorMessage } from "@/lib/error-handler";
 import { pageParser, pageRangeLabel } from "@/lib/paging";
 import { resourcePath } from "@/lib/routes";
 import { seriesColor } from "@/pages/observability/context";
 import { SpanTip, SpanTipTrigger } from "@/pages/observability/trace-viewer/SpanTip";
 
 import { allocationRects, allocationTiles } from "./node-allocation";
+import { Capacity } from "./Capacity";
 import { NodeRuntimeSignals } from "./RuntimeSignals";
 import { SystemTime } from "./shared";
 
@@ -86,7 +90,7 @@ function consumerColumns(workspace: string, choose: (id: string) => void): DataC
 			minSize: 120,
 			meta: { primary: true, grow: true },
 			cell: ({ row: { original } }) => {
-				if (original.kind === "resource")
+				if (original.kind === "resource" && original.resourceLinkAvailable)
 					return (
 						<CellText
 							text={original.name}
@@ -114,19 +118,21 @@ function consumerColumns(workspace: string, choose: (id: string) => void): DataC
 			minSize: 90,
 			meta: { hideOnMobile: true },
 			cell: ({ row: { original } }) =>
-				original.orgId === "" ? (
-					"—"
+				!original.orgLinkAvailable ? (
+					<CellText text={original.orgName || "—"} />
 				) : (
-					<Link className="text-fg3 hover:underline" to={`/system/orgs/${original.orgId}`}>
-						{original.orgName}
-					</Link>
+					<CellText
+						text={original.orgName}
+						render={<Link to={`/system/orgs/${original.orgId}`} />}
+						className="text-fg3"
+					/>
 				),
 		},
 		{
 			id: "resources",
 			header: "Resources",
-			size: 75,
-			minSize: 65,
+			size: 110,
+			minSize: 100,
 			meta: { hideOnMobile: true, align: "end" },
 			cell: ({ row: { original } }) => original.resourceCount.toLocaleString(),
 		},
@@ -194,7 +200,7 @@ function AllocationMap({
 							}}
 						/>
 					);
-				else if (consumer?.kind === "resource")
+				else if (consumer?.kind === "resource" && consumer.resourceLinkAvailable)
 					render = (
 						<Link
 							style={style}
@@ -235,20 +241,22 @@ function AllocationPager({
 	total,
 	count,
 	loading,
+	placeholder,
 	onPage,
 }: {
 	page: number;
 	total: number;
 	count: number;
 	loading: boolean;
+	placeholder: boolean;
 	onPage: (page: number) => void;
 }) {
 	const label = count === 0 ? `0 of ${total}` : pageRangeLabel(page, PAGE_SIZE, total);
 	const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+	const shown = useShownPage(page, label, placeholder);
 	return (
 		<Pager
-			label={label}
-			page={page}
+			{...shown}
 			total={total}
 			pageSizes={[PAGE_SIZE]}
 			loading={loading}
@@ -280,7 +288,7 @@ export function ClusterNodes({ clusterId }: { clusterId: string }) {
 			page: params.nodesPage,
 			memory: params.metric === "memory",
 		},
-		{ refetchInterval: 30_000 },
+		{ refetchInterval: 30_000, placeholderData: keepPreviousData },
 	);
 	const firstNode = nodes.data?.nodes[0]?.name ?? "";
 	const selected = params.node === "" ? firstNode : params.node;
@@ -297,7 +305,17 @@ export function ClusterNodes({ clusterId }: { clusterId: string }) {
 			page: params.consumersPage,
 			remainderOnly: params.others,
 		},
-		{ enabled: selected !== "" && sample !== undefined },
+		{
+			enabled: selected !== "" && sample !== undefined,
+			placeholderData: (previous) => {
+				const nodeMatches = previous?.node?.name === selected;
+				const filterMatches =
+					previous?.workspaceId === params.workspace && previous.memory === (params.metric === "memory");
+				const scopeMatches = nodeMatches && filterMatches;
+				const sampleMatches = previous?.sample?.id === sample?.id;
+				return scopeMatches && sampleMatches ? previous : undefined;
+			},
+		},
 	);
 	const data = inspector.data;
 	const node = data?.node;
@@ -325,229 +343,239 @@ export function ClusterNodes({ clusterId }: { clusterId: string }) {
 		else await inspector.refetch();
 	};
 	return (
-		<Section
-			title="Nodes"
-			count={nodes.data?.totalCount.toLocaleString()}
-			actions={
-				<ToggleGroup
-					variant="segmented"
-					aria-label="Node allocation metric"
-					value={[params.metric]}
-					onValueChange={(values) => {
-						const metric = values[0];
-						if (metric === "cpu" || metric === "memory") void setParams({ metric, nodesPage: 0, consumersPage: 0 });
-					}}
-				>
-					<ToggleGroupItem value="cpu">CPU</ToggleGroupItem>
-					<ToggleGroupItem value="memory">Memory</ToggleGroupItem>
-				</ToggleGroup>
-			}
-		>
-			<SpanTip />
-			{nodes.error !== null && (
-				<div className="p-5">
-					<ErrorState
-						error={nodes.error}
-						what="nodes"
-						rpc={listClusterNodes}
-						onRetry={async () => await nodes.refetch()}
-					/>
-				</div>
-			)}
-			<div className="grid min-w-0 grid-cols-1 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)]">
-				<div className="min-w-0 border-b border-line xl:border-r xl:border-b-0">
-					<div className="p-3">
-						<SearchInput
-							aria-label="Find a node"
-							placeholder="Find a node"
-							value={params.nodeQ}
-							onChange={(event) => {
-								void setParams({ nodeQ: event.target.value, nodesPage: 0 });
-							}}
-							onClear={() => {
-								void setParams({ nodeQ: "", nodesPage: 0 });
-							}}
+		<>
+			<Section title="Capacity">
+				{nodes.data === undefined && nodes.error === null && <Skeleton className="m-5 h-28" />}
+				{nodes.data !== undefined && <Capacity summary={nodes.data} />}
+			</Section>
+			<Section
+				title="Nodes"
+				count={nodes.data?.totalCount.toLocaleString()}
+				actions={
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Node allocation metric"
+						value={[params.metric]}
+						onValueChange={(values) => {
+							const metric = values[0];
+							if (metric === "cpu" || metric === "memory") void setParams({ metric, nodesPage: 0, consumersPage: 0 });
+						}}
+					>
+						<ToggleGroupItem value="cpu">CPU</ToggleGroupItem>
+						<ToggleGroupItem value="memory">Memory</ToggleGroupItem>
+					</ToggleGroup>
+				}
+			>
+				<SpanTip />
+				{nodes.error !== null && (
+					<div className="p-5">
+						<ErrorState
+							error={nodes.error}
+							what="nodes"
+							rpc={listClusterNodes}
+							onRetry={async () => await nodes.refetch()}
 						/>
 					</div>
-					<DataTable
-						table={nodeTable}
-						activeRowId={selected}
-						empty={
-							<p className="m-0 px-5 py-5 text-[13px] text-fg3">
-								{params.nodeQ !== "" ? "No nodes match" : "No nodes reported"}
-							</p>
-						}
-						label="Nodes"
-						band
-						loading={nodes.isLoading}
-						rowAction="open"
-						rowLabel={({ original }) => `Inspect ${original.name}`}
-						onRowClick={({ original }) => {
-							void setParams({
-								node: original.name,
-								workspace: "",
-								consumersPage: 0,
-								consumerQ: "",
-								others: false,
-							});
-						}}
-					/>
-					<AllocationPager
-						page={params.nodesPage}
-						total={nodes.data?.totalCount ?? 0}
-						count={nodes.data?.nodes.length ?? 0}
-						loading={nodes.isFetching}
-						onPage={(nodesPage) => {
-							void setParams({ nodesPage });
-						}}
-					/>
-				</div>
-				<div className="min-w-0 p-4" data-node={node?.name}>
-					{sample === undefined && !nodes.isLoading && (
-						<p className="m-0 text-[13px] text-fg3">Reservations not reported</p>
-					)}
-					{inspector.isLoading && <Skeleton className="h-96 w-full" />}
-					{inspector.error !== null && (
-						<ErrorState
-							error={inspector.error}
-							what="node reservations"
-							rpc={getNodeAllocations}
-							onRetry={retryInspector}
-						/>
-					)}
-					{data !== undefined && node !== undefined && (
-						<>
-							<div className="mb-3 flex flex-wrap items-center gap-3">
-								<h3 className="m-0 font-mono text-[13px] font-medium">{node.name}</h3>
-								<NodeReady node={node} />
-								<span className="ml-auto font-mono text-[11.5px] text-fg3">
-									{node.resourceCount.toLocaleString()} resources
-								</span>
-							</div>
-							<div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[12px]">
-								<span>
-									CPU {allocationQuantity(node.cpuMillicoresRequested, false)}
-									<span className="text-fg3">
-										{" "}
-										/{" "}
-										{node.cpuMillicoresAllocatable === undefined
-											? "Not reported"
-											: allocationQuantity(node.cpuMillicoresAllocatable, false)}
-									</span>
-								</span>
-								<span>
-									Memory {allocationQuantity(node.memoryBytesRequested, true)}
-									<span className="text-fg3">
-										{" "}
-										/{" "}
-										{node.memoryBytesAllocatable === undefined
-											? "Not reported"
-											: allocationQuantity(node.memoryBytesAllocatable, true)}
-									</span>
-								</span>
-							</div>
-							<div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-fg3">
-								<span>{data.sample?.stale ? "Reservations stale" : "Reservations"}</span>
-								<SystemTime ts={data.sample?.reportedAt} />
-								<span className={node.capacityStale ? "text-warn-fg" : ""}>
-									{node.capacityStale ? "Capacity stale" : "Capacity"}
-								</span>
-								<SystemTime ts={node.capacityReportedAt} />
-							</div>
-							<div className="mb-3 flex min-h-7 flex-wrap items-center gap-2 text-[12px]">
-								<Button
-									variant="plain-link"
-									onClick={() => {
-										choose("");
-									}}
-								>
-									All workspaces
-								</Button>
-								{data.workspaceId !== "" && (
-									<>
-										<span className="text-fg3">/</span>
-										<span className="font-mono">{data.workspaceName}</span>
-									</>
-								)}
-							</div>
-							<AllocationMap
-								data={data}
-								choose={choose}
-								onOthers={() => {
-									void setParams({
-										others: true,
-										consumersPage: 0,
-										consumerQ: "",
-									});
-									document.getElementById("node-consumers")?.scrollIntoView({ block: "nearest" });
-								}}
-							/>
-						</>
-					)}
-					{selected !== "" && (
-						<div className="mt-4">
-							<div className="mb-2 text-[12px] text-fg2">Usage · {selected} · 1h</div>
-							<NodeRuntimeSignals clusterId={clusterId} nodeName={selected} />
-						</div>
-					)}
-				</div>
-			</div>
-			{data !== undefined && node !== undefined && (
-				<div className="border-t border-line" id="node-consumers">
-					<div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-						<h3 className="m-0 text-[13px] font-medium">
-							{data.workspaceId === "" ? "Workspaces" : "Resources"} on {node.name}
-							<span className="ml-2 font-mono text-[11.5px] font-normal text-fg3">
-								{data.totalCount.toLocaleString()}
-								{params.others ? " in remainder" : ""}
-							</span>
-						</h3>
-						<div className="flex items-center gap-2">
-							{params.others && (
-								<Button
-									variant="ghost"
-									size="xs"
-									onClick={() => {
-										void setParams({ others: false, consumersPage: 0 });
-									}}
-								>
-									Show all
-								</Button>
-							)}
+				)}
+				<div className="grid min-w-0 grid-cols-1 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)]">
+					<div className="min-w-0 border-b border-line xl:border-r xl:border-b-0">
+						<div className="p-3">
 							<SearchInput
-								className="w-56 max-sm:w-full"
-								aria-label="Search node consumers"
-								placeholder="Find reservations"
-								value={params.consumerQ}
+								aria-label="Find a node"
+								placeholder="Find a node"
+								value={params.nodeQ}
 								onChange={(event) => {
-									void setParams({
-										consumerQ: event.target.value,
-										consumersPage: 0,
-									});
+									void setParams({ nodeQ: event.target.value, nodesPage: 0 });
 								}}
 								onClear={() => {
-									void setParams({ consumerQ: "", consumersPage: 0 });
+									void setParams({ nodeQ: "", nodesPage: 0 });
 								}}
 							/>
 						</div>
+						<DataTable
+							table={nodeTable}
+							activeRowId={selected}
+							empty={
+								nodes.isSuccess ? (
+									<p className="m-0 px-5 py-5 text-[13px] text-fg3">
+										{params.nodeQ !== "" ? "No nodes match" : "No nodes reported"}
+									</p>
+								) : null
+							}
+							label="Nodes"
+							band
+							loading={nodes.isLoading}
+							rowAction="open"
+							rowLabel={({ original }) => `Inspect ${original.name}`}
+							onRowClick={({ original }) => {
+								void setParams({
+									node: original.name,
+									workspace: "",
+									consumersPage: 0,
+									consumerQ: "",
+									others: false,
+								});
+							}}
+						/>
+						<AllocationPager
+							page={params.nodesPage}
+							total={nodes.data?.totalCount ?? 0}
+							count={nodes.data?.nodes.length ?? 0}
+							loading={nodes.isFetching}
+							placeholder={nodes.isPlaceholderData}
+							onPage={(nodesPage) => {
+								void setParams({ nodesPage });
+							}}
+						/>
 					</div>
-					<DataTable
-						table={consumerTable}
-						label="Node consumers"
-						band
-						empty={<p className="m-0 px-5 py-5 text-[13px] text-fg3">No reservations match</p>}
-					/>
-					<AllocationPager
-						page={params.consumersPage}
-						total={data.totalCount}
-						count={data.consumers.length}
-						loading={inspector.isFetching}
-						onPage={(consumersPage) => {
-							void setParams({ consumersPage });
-						}}
-					/>
+					<div className="min-w-0 p-4" data-node={node?.name}>
+						{sample === undefined && nodes.isSuccess && (
+							<p className="m-0 text-[13px] text-fg3">Reservations not reported</p>
+						)}
+						{inspector.isLoading && <Skeleton className="h-96 w-full" />}
+						{inspector.error !== null && (
+							<PartialError
+								title="Node reservations unavailable"
+								detail={getErrorMessage(inspector.error, "Failed to load node reservations")}
+								error={inspector.error}
+								onRetry={retryInspector}
+							/>
+						)}
+						{data !== undefined && node !== undefined && (
+							<>
+								<div className="mb-3 flex flex-wrap items-center gap-3">
+									<h3 className="m-0 font-mono text-[13px] font-medium">{node.name}</h3>
+									<NodeReady node={node} />
+									<span className="ml-auto font-mono text-[11.5px] text-fg3">
+										{node.resourceCount.toLocaleString()} resources
+									</span>
+								</div>
+								<div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[12px]">
+									<span>
+										CPU {allocationQuantity(node.cpuMillicoresRequested, false)}
+										<span className="text-fg3">
+											{" "}
+											/{" "}
+											{node.cpuMillicoresAllocatable === undefined
+												? "Not reported"
+												: allocationQuantity(node.cpuMillicoresAllocatable, false)}
+										</span>
+									</span>
+									<span>
+										Memory {allocationQuantity(node.memoryBytesRequested, true)}
+										<span className="text-fg3">
+											{" "}
+											/{" "}
+											{node.memoryBytesAllocatable === undefined
+												? "Not reported"
+												: allocationQuantity(node.memoryBytesAllocatable, true)}
+										</span>
+									</span>
+								</div>
+								<div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-fg3">
+									<span>{data.sample?.stale ? "Reservations stale" : "Reservations"}</span>
+									<SystemTime ts={data.sample?.reportedAt} />
+									<span className={node.capacityStale ? "text-warn-fg" : ""}>
+										{node.capacityStale ? "Capacity stale" : "Capacity"}
+									</span>
+									<SystemTime ts={node.capacityReportedAt} />
+								</div>
+								<div className="mb-3 flex min-h-7 flex-wrap items-center gap-2 text-[12px]">
+									<Button
+										variant="plain-link"
+										onClick={() => {
+											choose("");
+										}}
+									>
+										All workspaces
+									</Button>
+									{data.workspaceId !== "" && (
+										<>
+											<span className="text-fg3">/</span>
+											<span className="font-mono">{data.workspaceName}</span>
+										</>
+									)}
+								</div>
+								<AllocationMap
+									data={data}
+									choose={choose}
+									onOthers={() => {
+										void setParams({
+											others: true,
+											consumersPage: 0,
+											consumerQ: "",
+										});
+										document.getElementById("node-consumers")?.scrollIntoView({ block: "nearest" });
+									}}
+								/>
+							</>
+						)}
+						{selected !== "" && (
+							<div className="mt-4">
+								<div className="mb-2 text-[12px] text-fg2">Usage · {selected} · 1h</div>
+								<NodeRuntimeSignals clusterId={clusterId} nodeName={selected} />
+							</div>
+						)}
+					</div>
 				</div>
-			)}
-		</Section>
+				{data !== undefined && node !== undefined && (
+					<div className="border-t border-line" id="node-consumers" aria-busy={inspector.isFetching}>
+						<div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+							<h3 className="m-0 text-[13px] font-medium">
+								{data.workspaceId === "" ? "Workspaces" : "Resources"} on {node.name}
+								<span className="ml-2 font-mono text-[11.5px] font-normal text-fg3">
+									{data.totalCount.toLocaleString()}
+									{data.remainderOnly ? " in remainder" : ""}
+								</span>
+							</h3>
+							<div className="flex items-center gap-2">
+								{data.remainderOnly && (
+									<Button
+										variant="ghost"
+										size="xs"
+										onClick={() => {
+											void setParams({ others: false, consumersPage: 0 });
+										}}
+									>
+										Show all
+									</Button>
+								)}
+								<SearchInput
+									className="w-56 max-sm:w-full"
+									aria-label="Search node consumers"
+									placeholder="Find reservations"
+									value={params.consumerQ}
+									onChange={(event) => {
+										void setParams({
+											consumerQ: event.target.value,
+											consumersPage: 0,
+										});
+									}}
+									onClear={() => {
+										void setParams({ consumerQ: "", consumersPage: 0 });
+									}}
+								/>
+							</div>
+						</div>
+						<DataTable
+							table={consumerTable}
+							label="Node consumers"
+							band
+							empty={<p className="m-0 px-5 py-5 text-[13px] text-fg3">No reservations match</p>}
+						/>
+						<AllocationPager
+							page={params.consumersPage}
+							total={data.totalCount}
+							count={data.consumers.length}
+							loading={inspector.isFetching}
+							placeholder={inspector.isPlaceholderData}
+							onPage={(consumersPage) => {
+								void setParams({ consumersPage });
+							}}
+						/>
+					</div>
+				)}
+			</Section>
+		</>
 	);
 }

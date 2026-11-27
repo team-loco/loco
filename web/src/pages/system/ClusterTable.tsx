@@ -6,6 +6,7 @@ import { Badge } from "@/components/design/Badge";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { agentBehind, clusterPath, ROLE_LABEL, type ClusterState } from "@/lib/system";
 
+import type { CapacitySummary } from "./capacity-model";
 import { CapacityCell } from "./Capacity";
 import { ClusterRowMenu } from "./ClusterActions";
 import { ClusterStateBadge, SystemTime } from "./shared";
@@ -29,7 +30,12 @@ export function AgentVersion({ cluster, apiVersion }: { cluster: Cluster; apiVer
 	);
 }
 
-function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>[] {
+function columns(
+	apiVersion: string,
+	canChange: boolean,
+	capacities: ReadonlyMap<string, CapacitySummary>,
+	capacityLoading: boolean,
+): DataColumn<ClusterRow>[] {
 	return [
 		{
 			id: "name",
@@ -51,7 +57,9 @@ function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>
 			header: "Capacity",
 			size: 225,
 			minSize: 180,
-			cell: ({ row: { original: r } }) => <CapacityCell capacity={r.cluster.capacity} />,
+			cell: ({ row: { original: r } }) => (
+				<CapacityCell summary={capacities.get(r.cluster.id)} loading={capacityLoading} />
+			),
 		},
 		{
 			id: "role",
@@ -93,6 +101,8 @@ function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>
 
 /** Clusters as a table; with `byRegion` each region opens its own group. */
 export function ClusterTable({
+	capacities,
+	capacityLoading,
 	rows,
 	apiVersion,
 	canChange,
@@ -101,6 +111,8 @@ export function ClusterTable({
 	empty,
 	label,
 }: {
+	capacities: ReadonlyMap<string, CapacitySummary>;
+	capacityLoading: boolean;
 	rows: ClusterRow[];
 	apiVersion: string;
 	canChange: boolean;
@@ -111,7 +123,7 @@ export function ClusterTable({
 }) {
 	const navigate = useNavigate();
 	const table = useDataTable("system-clusters", {
-		columns: columns(apiVersion, canChange),
+		columns: columns(apiVersion, canChange, capacities, capacityLoading),
 		data: rows,
 		getRowId: (r) => r.cluster.id,
 	});

@@ -3,7 +3,7 @@ import re
 import time
 from urllib.parse import parse_qs, urlsplit
 
-from capacity_fixture import install_capacity
+from capacity_fixture import install_capacity, install_inventory
 from harness import copied_text, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
@@ -328,10 +328,10 @@ with session(repo / "tests/ui/out/system") as browser:
         page.get_by_role("button", name="Issue join token", exact=True)
     ).to_be_visible()
     expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
-        "0.8 vCPU unreserved"
+        "1887 vCPU unreserved"
     )
     expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
-        "7.2 vCPU requested / 8 vCPU allocatable"
+        "6113 vCPU requested / 8000 vCPU allocatable"
     )
     expect(
         page.get_by_text("The build controller is not ready.", exact=True)
@@ -717,11 +717,16 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
     expect(
         consumers.get_by_role("columnheader", name="Resource", exact=True)
     ).to_be_visible()
-    resource_link = consumers.get_by_role("link", name="Resource 0000", exact=True)
+    resource_link = consumers.get_by_role("link", name="capacity-api", exact=True)
     expect(resource_link).to_have_attribute(
         "href",
-        re.compile(r"^/org/.+/wks/.+/resource/c0000000-0000-4000-8000-000000000000"),
+        re.compile(
+            r"^/org/.+/wks/.+/resource/"
+            + re.escape(state["resources"]["acme/shared/capacity-api"])
+        ),
     )
+    resource_link.click()
+    expect(page.get_by_role("heading", name="capacity-api", exact=True)).to_be_visible()
 
     # Native node usage remains available while pod reservations have never reported.
     context.route(
@@ -740,5 +745,72 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
         2
     )
     assert_metric_scope(clusters["us-ca-1-builds"], "node-without-sample")
+    assert not errors, errors
+    context.close()
+
+# Synthetic reservation replies exercise bounded tables and real workspace/resource routes.
+with session(repo / "tests/ui/out/system-allocations") as browser:
+    context, page, errors = system_page(browser, user="admin", state=state)
+    inventory_calls = install_inventory(context, state)
+    org = state["orgs"]["acme"]["id"]
+    page.goto(f"{ui}/system/orgs/{org}")
+    workspaces = page.get_by_role("region", name="Workspaces", exact=True)
+    table = workspaces.get_by_role("table", name="Workspaces", exact=True)
+    expect(table.get_by_role("row")).to_have_count(26)
+    expect(table.get_by_role("row").nth(1)).to_contain_text("shared")
+    expect(workspaces).to_contain_text("Partial reservations")
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/ListWorkspaceAllocations",
+        lambda body: body.get("page") == 1,
+    ):
+        workspaces.get_by_role("button", name="Next page", exact=True).click()
+    expect(table.get_by_role("row")).to_have_count(7)
+    # Sorting applies before paging and resets the page, rather than sorting its six rows.
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/ListWorkspaceAllocations",
+        lambda body: body.get("memory") is True and body.get("page", 0) == 0,
+    ):
+        table.get_by_role(
+            "columnheader", name="Reserved memory", exact=True
+        ).get_by_role("button").click()
+    expect(table.get_by_role("row")).to_have_count(26)
+    first_name = "Workspace 0030"
+    if inventory_calls[-1][1].get("ascending"):
+        first_name = "shared"
+    expect(table.get_by_role("row").nth(1)).to_contain_text(first_name)
+    search = workspaces.get_by_role("textbox", name="Search workspaces", exact=True)
+    search.fill("Workspace 0030")
+    expect(table.get_by_role("row")).to_have_count(2)
+    expect(table.get_by_role("row").nth(1)).to_contain_text("Workspace 0030")
+    search.fill("shared")
+    expect(table.get_by_role("row")).to_have_count(2)
+    table.get_by_role("link", name="shared", exact=True).click()
+    resources = page.get_by_role("table", name="Resources", exact=True)
+    expect(
+        resources.get_by_role("columnheader", name="Configured size", exact=True)
+    ).to_be_visible()
+    row = resources.get_by_role("row").filter(
+        has=page.get_by_role("link", name="capacity-api", exact=True)
+    )
+    expect(row).to_contain_text("0.125 vCPU")
+    expect(row).to_contain_text("64 MiB")
+    expect(row).to_contain_text("Workspace builds 0.3 vCPU")
+    expect(row).to_contain_text("Workspace builds 128 MiB")
+    assert any(kind == "resources" for kind, _ in inventory_calls), inventory_calls
+    # Telemetry failure must leave cluster management and navigation usable.
+    context.route(
+        "**/loco.cluster.v1.ClusterAdminService/ListClusterCapacities",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"code":"unavailable","message":"Capacity source unavailable"}',
+        ),
+    )
+    page.goto(ui + "/system/clusters")
+    expect(page.get_by_role("table", name="Clusters", exact=True)).to_be_visible()
+    expect(page.get_by_role("alert")).to_contain_text("Capacity source unavailable")
+    expect(page.get_by_role("button", name="Add cluster", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()

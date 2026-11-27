@@ -1,6 +1,6 @@
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
+import { listClusterCapacities, listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
 import { getOrg, getOrgLimits, listOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
@@ -90,4 +90,9 @@ export async function refreshOrgs(queryClient: QueryClient): Promise<void> {
 			queryKey: createConnectQueryKey({ schema: getOrgLimits, cardinality: undefined }),
 		}),
 	]);
+}
+
+export function useClusterCapacities() {
+	const query = useQuery(listClusterCapacities, {}, { refetchInterval: POLL_MS });
+	return { query, byCluster: new Map((query.data?.capacities ?? []).map((summary) => [summary.clusterId, summary])) };
 }
