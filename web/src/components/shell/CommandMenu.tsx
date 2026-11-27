@@ -1,3 +1,4 @@
+import { useInSystem } from "@/hooks/useInSystem";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
@@ -632,15 +633,17 @@ export function useOpenPalette(): () => void {
 }
 
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
+	const system = useInSystem();
 	const [open, setOpen] = useState(false);
 	const [pageItems, setPageItems] = useState<readonly PaletteItem[]>([]);
-	const items = usePaletteItems(open, pageItems);
+	const items = usePaletteItems(open && !system, pageItems);
 	const openPalette = useCallback(() => {
 		setOpen(true);
 	}, []);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
+			if (system) return;
 			if (event.key.toLowerCase() !== SHORTCUT_KEY || !(event.metaKey || event.ctrlKey)) return;
 			event.preventDefault();
 			setOpen((was) => !was);
@@ -649,12 +652,12 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 		return () => {
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, []);
+	}, [system]);
 
 	return (
 		<OpenPaletteContext value={openPalette}>
 			<PageItemsContext value={setPageItems}>{children}</PageItemsContext>
-			<CommandDialog open={open} onOpenChange={setOpen} title="Command palette" description={PLACEHOLDER}>
+			<CommandDialog open={open && !system} onOpenChange={setOpen} title="Command palette" description={PLACEHOLDER}>
 				<PaletteBody
 					items={items}
 					onClose={() => {
