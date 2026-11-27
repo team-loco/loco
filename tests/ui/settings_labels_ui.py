@@ -353,6 +353,7 @@ with session(out) as browser:
                 row = workspaces.get_by_role("link", name="shared", exact=True).locator(
                     "xpath=ancestor::tr"
                 )
+                row.scroll_into_view_if_needed()
                 page.mouse.move(0, 0)
                 cell = row.get_by_role("cell").first.bounding_box()
                 assert cell is not None
