@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/tests/e2e/platform"
@@ -210,8 +211,10 @@ func exerciseInstalledPublisher(t *testing.T, w *platform.Workspace, dir, bindin
 		"placement deletion after publisher ACK and drain",
 		func(ctx context.Context) error {
 			var deleted bool
-			if err := p.DB.QueryRow(ctx, caPlacementDeletedSQL, w.ID).
-				Scan(&deleted); err != nil {
+			if err := p.DB.QueryRow(ctx, caPlacementDeletedSQL, w.ID).Scan(&deleted); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil
+				}
 				return err
 			}
 			if !deleted {
