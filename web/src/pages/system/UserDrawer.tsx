@@ -76,7 +76,10 @@ function Organizations({ userId }: { userId: string }) {
 				<ul aria-label="Organizations" className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
 					{orgs.data.orgs.map((org) => (
 						<li key={org.id} className="flex items-center gap-2">
-							<Link to={orgPath(org.id)} className="min-w-0 truncate text-link hover:underline">
+							<Link
+								to={orgPath(org.id)}
+								className="min-w-0 truncate text-fg2 underline decoration-line2 underline-offset-4 hover:decoration-current"
+							>
 								{org.name}
 							</Link>
 							{org.suspendedAt !== undefined && (
@@ -140,23 +143,17 @@ function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 				</dl>
 				<Organizations userId={user.id} />
 				{canChange && !self && (
-					<div className="flex flex-col gap-2">
-						<span className="text-[12.5px] text-fg3">
-							Suspending blocks sign-in and API access. Reinstating lets the user back in.
-						</span>
-						<div className="flex gap-2">
-							<Button
-								variant={STATUS_COPY[status].variant}
-								size="sm"
-								onClick={() => {
-									setPending(status);
-								}}
-							>
-								{STATUS_COPY[status].icon}
-								{STATUS_COPY[status].label}
-							</Button>
-						</div>
-					</div>
+					<Button
+						variant={STATUS_COPY[status].variant}
+						size="sm"
+						className="self-start"
+						onClick={() => {
+							setPending(status);
+						}}
+					>
+						{STATUS_COPY[status].icon}
+						{STATUS_COPY[status].label}
+					</Button>
 				)}
 			</SheetBody>
 			<ConfirmDialog
