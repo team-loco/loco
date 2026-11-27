@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -189,25 +188,21 @@ type eventScope struct {
 	workspaceID uuid.UUID
 	resourceID  uuid.UUID
 	// resourceIDs, when set, narrows a workspace scope to the resources the caller can list.
-	resourceIDs []uuid.UUID
+	resourceIDs   []uuid.UUID
+	resourcesOnly bool
 }
 
-// readableResources are the workspace's resources whose events the caller can list, by the checks a
-// ListEvents for one resource makes. A caller without a scope on the workspace or its organization
-// reads a resource only through a grant on it, so only those resources are checked.
-func (s *EventServer) readableResources(
+// readableResourceGrants are the workspace resources readable through direct grants.
+func (s *EventServer) readableResourceGrants(
 	ctx context.Context,
-	orgID uuid.UUID,
 	workspaceID uuid.UUID,
 ) ([]uuid.UUID, error) {
 	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
 	granted := grantedResourceIDs(p.Scopes)
-	scoped := allWorkspaces || slices.Contains(workspaceIDs, workspaceID)
-	if !scoped && len(granted) == 0 {
+	if len(granted) == 0 {
 		return nil, nil
 	}
 	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, workspaceID)
@@ -216,7 +211,7 @@ func (s *EventServer) readableResources(
 	}
 	var readable []uuid.UUID
 	for _, row := range rows {
-		if !scoped && !slices.Contains(granted, row.ID) {
+		if !slices.Contains(granted, row.ID) {
 			continue
 		}
 		if authorize(ctx, s.authz, actions.ListResourceAuditEvents, row.ID) == nil ||
@@ -313,22 +308,28 @@ func (s *EventServer) authorizeEventScope(
 		}
 		denied := authorize(ctx, s.authz, workspaceAction, workspaceID)
 		resources := requested
+		resourcesOnly := false
 		if denied != nil {
 			if !req.GetReadableResources() {
 				return eventScope{}, denied
 			}
-			readable, readErr := s.readableResources(ctx, orgID, workspaceID)
-			if readErr != nil {
-				return eventScope{}, readErr
-			}
-			if len(readable) == 0 {
-				return eventScope{}, denied
-			}
-			resources = readable
-			if requested != nil {
-				resources = slices.DeleteFunc(readable, func(id uuid.UUID) bool {
-					return !slices.Contains(requested, id)
-				})
+			resourcesOnly = true
+			workspaceReadable := authorize(ctx, s.authz, actions.ListResources, workspaceID) == nil
+			if !workspaceReadable {
+				readable, readErr := s.readableResourceGrants(ctx, workspaceID)
+				if readErr != nil {
+					return eventScope{}, readErr
+				}
+				if len(readable) == 0 {
+					return eventScope{}, denied
+				}
+				resources = readable
+				if requested != nil {
+					resources = slices.DeleteFunc(
+						readable,
+						func(id uuid.UUID) bool { return !slices.Contains(requested, id) },
+					)
+				}
 			}
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
@@ -342,7 +343,11 @@ func (s *EventServer) authorizeEventScope(
 			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
 		return eventScope{
-			kind: eventScopeWorkspace, orgID: orgID, workspaceID: workspaceID, resourceIDs: resources,
+			kind:          eventScopeWorkspace,
+			orgID:         orgID,
+			workspaceID:   workspaceID,
+			resourceIDs:   resources,
+			resourcesOnly: resourcesOnly,
 		}, nil
 	}
 	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
@@ -390,17 +395,14 @@ func (s *EventServer) StreamEvents(
 	if err != nil {
 		return err
 	}
-	var access atomic.Pointer[eventScope]
-	access.Store(&scope)
 	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
 		current, checkErr := s.authorizeListScope(check, scoped)
 		if checkErr != nil {
 			return checkErr
 		}
-		if lostEventResourceAccess(access.Load().resourceIDs, current.resourceIDs) {
+		if eventScopeNarrowed(scope, current) {
 			return connect.NewError(connect.CodeAborted, "event subscription access changed")
 		}
-		access.Store(&current)
 		return nil
 	})
 	if err != nil {
@@ -423,7 +425,6 @@ func (s *EventServer) StreamEvents(
 	defer ticker.Stop()
 	for {
 		pollCtx, span := tracing.StartLinked(ctx, eventStreamPollSpan)
-		query.ResourceIDs = access.Load().resourceIDs
 		query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
 		rows, readErr := events.ListAudit(pollCtx, s.db, query)
 		err = readErr
@@ -464,21 +465,24 @@ func (s *EventServer) StreamEvents(
 }
 
 // A nil resource set grants every resource; an empty non-nil set grants none.
-func lostEventResourceAccess(previous, current []uuid.UUID) bool {
-	if current == nil {
-		return false
-	}
-	if previous == nil {
+func eventScopeNarrowed(previous, current eventScope) bool {
+	if current.resourcesOnly && !previous.resourcesOnly {
 		return true
 	}
-	if slices.Equal(previous, current) {
+	if current.resourceIDs == nil {
 		return false
 	}
-	allowed := make(map[uuid.UUID]bool, len(current))
-	for _, id := range current {
+	if previous.resourceIDs == nil {
+		return true
+	}
+	if slices.Equal(previous.resourceIDs, current.resourceIDs) {
+		return false
+	}
+	allowed := make(map[uuid.UUID]bool, len(current.resourceIDs))
+	for _, id := range current.resourceIDs {
 		allowed[id] = true
 	}
-	for _, id := range previous {
+	for _, id := range previous.resourceIDs {
 		if !allowed[id] {
 			return true
 		}
@@ -528,6 +532,7 @@ func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquer
 		query.ResourceID = &scope.resourceID
 	}
 	query.ResourceIDs = scope.resourceIDs
+	query.ResourcesOnly = scope.resourcesOnly
 	if req.GetEnvironmentId() != "" {
 		id, err := parseID("environment_id", req.GetEnvironmentId())
 		if err != nil {

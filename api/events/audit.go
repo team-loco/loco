@@ -20,7 +20,9 @@ type AuditQuery struct {
 	WorkspaceID      *uuid.UUID
 	ResourceID       *uuid.UUID
 	// ResourceIDs, when set, keeps events of these resources.
-	ResourceIDs   []uuid.UUID
+	ResourceIDs []uuid.UUID
+	// ResourcesOnly keeps events of resources currently in the event's workspace.
+	ResourcesOnly bool
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
 	// BeforeSeq, when positive, selects events with a lower seq.
@@ -145,6 +147,9 @@ func auditWhere(q AuditQuery, b *binder) string {
 	}
 	if q.ResourceIDs != nil {
 		sql += " AND e.resource_id = ANY(" + b.bind(q.ResourceIDs) + ")"
+	}
+	if q.ResourcesOnly {
+		sql += " AND r.workspace_id = e.workspace_id"
 	}
 	if q.EnvironmentID != nil {
 		sql += " AND e.environment_id = " + b.bind(*q.EnvironmentID)

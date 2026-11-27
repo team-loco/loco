@@ -238,7 +238,7 @@ func TestReadableEventSubscriptionIncludesNewResources(t *testing.T) {
 	publishEvents(t, f.pool)
 	caller := auditScope(t, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeRead)
 	principal, _ := reqctx.PrincipalFrom(caller)
-	server := connect.NewServer(scopeInjector(func() []genDb.EntityScope { return principal.Scopes }).Interceptor)
+	server := connect.NewServer(eventPrincipalInjector{principal}.Interceptor)
 	eventv1connect.RegisterEventServiceHandler(server, f.events)
 	client := eventv1connect.NewEventServiceClient(connect.NewClient(connectinprocess.New(server)))
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
@@ -261,11 +261,18 @@ func TestReadableEventSubscriptionIncludesNewResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = events.Record(
-		f.owner,
-		f.queries,
-		events.Event{Type: events.ResourceUpdated, ResourceID: &resourceID},
-	); err != nil {
+	if err = withTx(t.Context(), f.pool, func(q *genDb.Queries) error {
+		for _, id := range []uuid.UUID{resourceID, f.resourceID} {
+			if recordErr := events.Record(
+				f.owner,
+				q,
+				events.Event{Type: events.ResourceUpdated, ResourceID: new(id)},
+			); recordErr != nil {
+				return recordErr
+			}
+		}
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 	publishEvents(t, f.pool)
@@ -273,8 +280,14 @@ func TestReadableEventSubscriptionIncludesNewResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetResourceId() != resourceID.String() {
-		t.Fatalf("new resource subscription = %v", next)
+	if len(next.GetEvents()) != 2 {
+		t.Fatalf("new/existing resource event batch = %v", next)
+	}
+	if next.GetEvents()[0].GetResourceId() != resourceID.String() {
+		t.Fatalf("new resource event = %v", next.GetEvents()[0])
+	}
+	if next.GetEvents()[1].GetResourceId() != f.resourceID.String() {
+		t.Fatalf("existing resource event = %v", next.GetEvents()[1])
 	}
 }
 
