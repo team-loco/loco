@@ -302,6 +302,11 @@ with session(out) as browser:
     expect(wrap).to_have_attribute("aria-pressed", "true")
     assert wrap.inner_text() == ""
     assert abs(raw_json.bounding_box()["y"] - raw_box["y"]) <= 2
+    later_line = raw_json.locator(".sh__line").nth(2).bounding_box()
+    copy_box = raw_event.get_by_role(
+        "button", name="Copy JSON", exact=True
+    ).bounding_box()
+    assert later_line["x"] + later_line["width"] > copy_box["x"]
     for control in (
         wrap,
         raw_event.get_by_role("button", name="Copy JSON", exact=True),
