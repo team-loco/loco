@@ -1,5 +1,9 @@
-import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { getUser, setUserStatus } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
+import { useAuth } from "@/auth/AuthProvider";
+import { orgPath } from "@/lib/system";
+import { createConnectQueryKey, useMutation, useQuery } from "@connectrpc/connect-query";
+import { getUser, listUsers, setUserStatus } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { UserStatus, type User } from "@gen/loco/user/v1/user_pb";
 import { BanIcon, RotateCcwIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -57,8 +61,6 @@ const STATUS_COPY = {
 	},
 } as const;
 
-const STATUSES = [UserStatus.SUSPENDED, UserStatus.ACTIVE] as const;
-
 function Organizations({ userId }: { userId: string }) {
 	const orgs = useQuery(listUserOrgs, { userId, pageSize: 200 });
 	return (
@@ -74,7 +76,9 @@ function Organizations({ userId }: { userId: string }) {
 				<ul aria-label="Organizations" className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
 					{orgs.data.orgs.map((org) => (
 						<li key={org.id} className="flex items-center gap-2">
-							<span className="min-w-0 truncate">{org.name}</span>
+							<Link to={orgPath(org.id)} className="min-w-0 truncate text-link hover:underline">
+								{org.name}
+							</Link>
 							{org.suspendedAt !== undefined && (
 								<Badge tone="bad" size="sm">
 									Suspended
@@ -91,11 +95,21 @@ function Organizations({ userId }: { userId: string }) {
 function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 	const [pending, setPending] = useState<UserStatus.SUSPENDED | UserStatus.ACTIVE | null>(null);
 	const mutation = useMutation(setUserStatus);
+	const queryClient = useQueryClient();
+	const self = useAuth().user?.id === user.id;
+	const suspended = user.status === UserStatus.SUSPENDED;
+	const status = suspended ? UserStatus.ACTIVE : UserStatus.SUSPENDED;
 
 	const confirm = async () => {
 		if (pending === null) return;
 		try {
 			await mutation.mutateAsync({ key: { case: "userId", value: user.id }, status: pending });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getUser, cardinality: undefined }) }),
+				queryClient.invalidateQueries({
+					queryKey: createConnectQueryKey({ schema: listUsers, cardinality: undefined }),
+				}),
+			]);
 			toast(`${STATUS_COPY[pending].done} ${userLabel(user)}`);
 			setPending(null);
 		} catch (err) {
@@ -107,6 +121,11 @@ function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 		<>
 			<SheetBody>
 				<dl className="m-0 text-[13px]">
+					<Fact term="Status">
+						<Badge tone={suspended ? "bad" : "ok"} size="sm">
+							{suspended ? "Suspended" : "Active"}
+						</Badge>
+					</Fact>
 					<Fact term="Email">
 						<span className="font-mono text-[12.5px]">{user.email}</span>
 					</Fact>
@@ -120,25 +139,22 @@ function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 					</Fact>
 				</dl>
 				<Organizations userId={user.id} />
-				{canChange && (
+				{canChange && !self && (
 					<div className="flex flex-col gap-2">
 						<span className="text-[12.5px] text-fg3">
 							Suspending blocks sign-in and API access. Reinstating lets the user back in.
 						</span>
 						<div className="flex gap-2">
-							{STATUSES.map((status) => (
-								<Button
-									key={status}
-									variant={STATUS_COPY[status].variant}
-									size="sm"
-									onClick={() => {
-										setPending(status);
-									}}
-								>
-									{STATUS_COPY[status].icon}
-									{STATUS_COPY[status].label}
-								</Button>
-							))}
+							<Button
+								variant={STATUS_COPY[status].variant}
+								size="sm"
+								onClick={() => {
+									setPending(status);
+								}}
+							>
+								{STATUS_COPY[status].icon}
+								{STATUS_COPY[status].label}
+							</Button>
 						</div>
 					</div>
 				)}

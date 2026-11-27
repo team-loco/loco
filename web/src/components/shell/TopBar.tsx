@@ -17,7 +17,7 @@ export function TopBar() {
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
-			<CommandMenu />
+			{!system && <CommandMenu />}
 			{/* Each environment gets its own activity drawer, which starts watching for deploys when it mounts. */}
 			<div className="flex justify-end min-[761px]:flex-1 min-[761px]:basis-0">
 				{!system && <AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />}

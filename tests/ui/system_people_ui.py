@@ -193,6 +193,8 @@ with session(repo / "tests/ui/out/system-people") as browser:
     assert suspended.value.ok
     expect(confirm).to_have_count(0)
     expect(toast(page, "Suspended Gus Guest")).to_be_visible()
+    expect(drawer.get_by_text("Suspended", exact=True)).to_be_visible()
+    expect(drawer.get_by_role("button", name="Suspend", exact=True)).to_have_count(0)
     drawer.get_by_role("button", name="Reinstate", exact=True).click()
     with expect_rpc(
         page, SET_STATUS, lambda body: body.get("status") == "USER_STATUS_ACTIVE"
@@ -202,6 +204,36 @@ with session(repo / "tests/ui/out/system-people") as browser:
     expect(toast(page, "Reinstated Gus Guest")).to_be_visible()
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"user="))
+
+    # Search reaches the server, resets paging, and clears back to the full list.
+    search = page.get_by_role("textbox", name="Search users", exact=True)
+    with expect_rpc(page, LIST_USERS, lambda body: body.get("query") == "GUS"):
+        search.fill("GUS")
+    expect(row(page, "Open Gus Guest")).to_be_visible()
+    expect(row(page, "Open Max Member")).to_have_count(0)
+    page.get_by_role("button", name="Clear search", exact=True).click()
+    expect(row(page, "Open Max Member")).to_be_visible()
+    row(page, "Open Ada Admin").click()
+    drawer = page.get_by_role("dialog")
+    expect(drawer.get_by_text("Active", exact=True)).to_be_visible()
+    expect(drawer.get_by_role("button", name="Suspend", exact=True)).to_have_count(0)
+    expect(drawer.get_by_role("button", name="Reinstate", exact=True)).to_have_count(0)
+    page.keyboard.press("Escape")
+    row(page, "Open Max Member").click()
+    page.get_by_role("list", name="Organizations").get_by_role(
+        "link", name="acme", exact=True
+    ).click()
+    expect(page).to_have_url(re.compile(r"/system/orgs/"))
+    expect(page.get_by_role("heading", name="acme", exact=True)).to_be_visible()
+
+    # System has no palette control or shortcut; leaving it restores both.
+    expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
+    page.keyboard.press("ControlOrMeta+k")
+    expect(page.get_by_role("dialog", name="Command palette")).to_have_count(0)
+    page.goto(ui + "/dashboard")
+    page.keyboard.press("ControlOrMeta+k")
+    expect(page.get_by_role("dialog", name="Command palette")).to_be_visible()
+    page.keyboard.press("Escape")
 
     # Pages follow the API's page tokens, kept in the URL.
     page.route("**/" + LIST_USERS, listing)

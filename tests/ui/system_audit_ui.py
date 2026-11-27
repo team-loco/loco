@@ -84,6 +84,12 @@ with session(repo / "tests/ui/out/system-audit") as browser:
     expect(drawer.locator('[data-slot="operator-tag"]')).to_have_text("Loco admin")
     organization = drawer.locator("dt", has_text=re.compile("^Organization$"))
     expect(organization.locator("xpath=following-sibling::dd")).to_have_text("acme")
+    # JSON keys and string values use the normal application syntax colors.
+    code = drawer.locator("[data-slot=code-block] code")
+    colors = code.locator("span[style]").evaluate_all(
+        "els => [...new Set(els.map(el => getComputedStyle(el).color))]"
+    )
+    assert len(colors) >= 3, colors
     # Reloading keeps the drawer open on the same event.
     event_url = page.url
     page.reload()
