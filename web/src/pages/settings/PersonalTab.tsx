@@ -16,6 +16,7 @@ import { userLabel } from "@/lib/user";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { DeleteAccount } from "./DeleteAccount";
+import { LogsSection } from "./LogsSection";
 import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { ActiveSessions } from "./ActiveSessions";
@@ -110,6 +111,8 @@ export function PersonalTab({
 			<AppearanceSection />
 
 			<DateTimeSection />
+
+			<LogsSection />
 
 			<SettingsSection title="Access">
 				<SettingsCard>

@@ -1,3 +1,4 @@
+import { useLogPreferences } from "@/lib/use-log-preferences";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { withCode } from "@/components/design/InlineCode";
 import { useState, type ElementType, type ReactNode } from "react";
@@ -26,6 +27,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { SearchInput } from "@/components/design/SearchInput";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useCopy } from "@/hooks/useCopy";
 import { AROUND_MS, aroundWindow, MINUTE_MS } from "@/lib/obs-time";
@@ -39,6 +41,7 @@ import { useObs } from "./context";
 import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
 import { CLUSTER_ATTRIBUTE, COMPONENT_ATTRIBUTE, logJson, logMessageText, WORKLOAD_TITLE, type LogRow } from "./rows";
+import { parsedLogJson } from "./parsed-log-json";
 import { CopyButton, PanelNav, PlainCode } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
@@ -106,6 +109,7 @@ export function LogDetail({
 	const timePref = useTimePreferences();
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
 	const [attrQ, setAttrQ] = useState("");
+	const { parsedJson: preferParsedJson, setParsedJson } = useLogPreferences();
 	const [view, setView] = useStoredValue("loco:log-drawer-view", "attributes");
 	const [wrapJson, setWrapJson] = useStoredValue("loco:log-drawer-json-wrap", "on");
 	const showJson = view === "json";
@@ -125,7 +129,10 @@ export function LogDetail({
 		}
 		setQuery(withToken(tokens, t), text);
 	};
-	const json = logJson(row, timePref);
+	const originalJson = logJson(row, timePref);
+	const parsedJson = parsedLogJson(originalJson);
+	const showParsed = preferParsedJson && parsedJson !== null;
+	const json = showParsed ? parsedJson : originalJson;
 	const msgText = logMessageText(row);
 
 	return (
@@ -257,7 +264,7 @@ export function LogDetail({
 							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() => {
-									copy("json", json, "Copied as JSON");
+									copy("original-json", originalJson, "Copied as JSON");
 								}}
 							>
 								<CopyIcon />
@@ -298,6 +305,19 @@ export function LogDetail({
 							<ToggleGroupItem value="json">JSON</ToggleGroupItem>
 						</ToggleGroup>
 						<span className="flex-1" />
+						{showJson && parsedJson !== null && (
+							<ToggleChip
+								variant="button"
+								className="h-7 px-2 text-xs"
+								pressed={showParsed}
+								title="Preview JSON objects and arrays inside string attributes. Turn off to see the original values."
+								onPressedChange={(pressed) => {
+									setParsedJson(pressed);
+								}}
+							>
+								Parsed JSON
+							</ToggleChip>
+						)}
 						{!showJson && (
 							<SearchInput
 								value={attrQ}
@@ -313,10 +333,10 @@ export function LogDetail({
 					{showJson ? (
 						<PlainCode
 							copied={copied === "json"}
-							copyLabel="Copy JSON"
+							copyLabel={showParsed ? "Copy parsed JSON" : "Copy JSON"}
 							fill
 							onCopy={() => {
-								copy("json", json, "Copied as JSON");
+								copy("json", json, showParsed ? "Copied parsed JSON" : "Copied as JSON");
 							}}
 							wrap={wrapJson === "on"}
 							onWrap={(wrap) => {
