@@ -178,9 +178,7 @@ with session(out) as browser:
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     page.goto(base)
     incident = page.locator('section[aria-labelledby="incident-title"]')
-    expect(
-        incident.get_by_role("link", name="View replica logs", exact=True)
-    ).to_be_visible()
+    expect(incident.get_by_role("link", name="View logs", exact=True)).to_be_visible()
     expect(
         incident.get_by_label("Last log lines in us-ca-1", exact=True)
     ).to_be_visible()
