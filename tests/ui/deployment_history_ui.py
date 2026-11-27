@@ -404,21 +404,23 @@ with session(out) as browser:
     expect(
         spec_dialog.get_by_role("button", name="Deployment", exact=True)
     ).to_contain_text(older)
-    expect(spec_dialog.locator('[data-slot="spec-bar"]')).to_contain_text(
-        f"deployment-{older}.yaml"
-    )
-    bar = spec_dialog.locator('[data-slot="spec-bar"]')
-    for name in ("Wrap lines", "Download spec", "Copy spec", "Close"):
-        expect(bar.get_by_role("button", name=name, exact=True)).to_be_visible()
-    tops = bar.locator("button").evaluate_all(
-        "els => els.map(e => e.getBoundingClientRect().top)"
-    )
-    assert len(set(tops)) == 1, tops
-    wrap = bar.get_by_role("button", name="Wrap lines", exact=True)
+    expect(
+        spec_dialog.get_by_role("button", name="Download spec", exact=True)
+    ).to_have_attribute("title", f"Download deployment-{older}.yaml")
+    scroller = spec_dialog.locator('[data-slot="spec-body"]')
+    title_bar = spec_dialog.get_by_role("heading").locator("..").bounding_box()
+    assert abs(scroller.bounding_box()["y"] - title_bar["y"] - title_bar["height"]) <= 2
+    for name in ("Wrap lines", "Copy spec"):
+        control = spec_dialog.get_by_role("button", name=name, exact=True)
+        expect(control).to_be_visible()
+        assert control.inner_text() == ""
+        box = control.bounding_box()
+        code_box = scroller.bounding_box()
+        assert code_box["y"] <= box["y"] < code_box["y"] + code_box["height"]
+    wrap = spec_dialog.get_by_role("button", name="Wrap lines", exact=True)
     line = spec_dialog.locator(".sh__line").first
     expect(wrap).to_have_attribute("aria-pressed", "true")
     expect(line).to_have_css("white-space", "pre-wrap")
-    scroller = spec_dialog.locator('[data-slot="spec-body"]')
     sizes = "e => [e.scrollWidth, e.clientWidth]"
     scroll_width, client_width = scroller.evaluate(sizes)
     assert scroll_width == client_width, (scroll_width, client_width)
@@ -429,7 +431,7 @@ with session(out) as browser:
     assert scroll_width > client_width, (scroll_width, client_width)
     wrap.click()
     expect(line).to_have_css("white-space", "pre-wrap")
-    bar.get_by_role("button", name="Close", exact=True).click()
+    spec_dialog.get_by_role("button", name="Close", exact=True).click()
     expect(spec_dialog).to_have_count(0)
     spec_link = section.get_by_role(
         "button",

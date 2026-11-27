@@ -86,7 +86,11 @@ function Single({ text, wrap }: { text: string; wrap: boolean }) {
 	const digits = text.split("\n").length.toString().length;
 	return (
 		<pre className="m-0 text-(--sh-identifier)" style={{ "--code-digits": digits } as CSSProperties}>
-			<Code code={text} language="yaml" className={cn("code-lines", wrap && "code-wrap")} />
+			<Code
+				code={text}
+				language="yaml"
+				className={cn("code-lines [&>.sh__line:nth-child(-n+2)]:pr-[76px]", wrap && "code-wrap")}
+			/>
 		</pre>
 	);
 }
@@ -115,7 +119,7 @@ function Compare({ lines, diffOnly, wrap }: { lines: DiffLine[]; diffOnly: boole
 	return (
 		<div
 			className={cn(
-				"grid",
+				"grid [&>div:nth-child(-n+2)>span:last-child]:pr-[76px]",
 				wrap
 					? "grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)]"
 					: "w-max min-w-full grid-cols-[40px_max-content_40px_max-content]",
@@ -222,18 +226,29 @@ export function SpecDialogContent({
 						</Button>
 					</>
 				)}
+				<div className="ml-auto flex items-center gap-1">
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						aria-label="Download spec"
+						title={`Download ${fileName(a)}`}
+						onClick={() => {
+							download(a, aText);
+						}}
+					>
+						<DownloadIcon />
+					</Button>
+					<DialogClose render={<Button variant="ghost" size="icon-xs" aria-label="Close" title="Close" />}>
+						<XIcon />
+					</DialogClose>
+				</div>
 			</div>
-			<div
-				data-slot="spec-bar"
-				className="flex h-9 shrink-0 items-center gap-1 border-b border-line pr-1.5 pl-4 text-[12px] text-fg3"
-			>
-				<span className="truncate font-mono">{fileName(a)}</span>
-				<span className="flex-1" />
+			<div className="relative flex min-h-0 flex-1 flex-col bg-panel">
 				<ToggleChip
 					variant="button"
 					aria-label="Wrap lines"
 					title="Wrap lines"
-					className="size-7 min-w-0 border-0 bg-transparent px-0 text-fg3 hover:text-foreground aria-pressed:bg-panel2"
+					className="absolute top-1.5 right-[38px] z-10 size-6 min-w-0 border-0 bg-panel px-0 text-fg3 hover:text-foreground aria-pressed:bg-panel2"
 					pressed={wrap}
 					onPressedChange={setWrap}
 				>
@@ -241,18 +256,8 @@ export function SpecDialogContent({
 				</ToggleChip>
 				<Button
 					variant="ghost"
-					size="icon-sm"
-					aria-label="Download spec"
-					title="Download"
-					onClick={() => {
-						download(a, aText);
-					}}
-				>
-					<DownloadIcon />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon-sm"
+					size="icon-xs"
+					className="absolute top-1.5 right-1.5 z-10 bg-panel text-fg3"
 					aria-label={copiedKey === a.id ? "Copied" : "Copy spec"}
 					title="Copy"
 					onClick={() => {
@@ -261,16 +266,13 @@ export function SpecDialogContent({
 				>
 					{copiedKey === a.id ? <CheckIcon /> : <CopyIcon />}
 				</Button>
-				<DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" title="Close" />}>
-					<XIcon />
-				</DialogClose>
-			</div>
-			<div data-slot="spec-body" className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
-				{b === undefined || diff === undefined ? (
-					<Single text={aText} wrap={wrap} />
-				) : (
-					<Compare lines={diff.lines} diffOnly={diffOnly} wrap={wrap} />
-				)}
+				<div data-slot="spec-body" className="min-h-0 overflow-auto pt-2 pb-3 font-mono text-[12.5px] leading-5">
+					{b === undefined || diff === undefined ? (
+						<Single text={aText} wrap={wrap} />
+					) : (
+						<Compare lines={diff.lines} diffOnly={diffOnly} wrap={wrap} />
+					)}
+				</div>
 			</div>
 		</DialogContent>
 	);

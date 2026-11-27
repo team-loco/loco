@@ -300,6 +300,20 @@ with session(out) as browser:
     assert raw_json.evaluate("el => el.scrollWidth == el.clientWidth")
     wrap = drawer.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
+    assert wrap.inner_text() == ""
+    assert abs(raw_json.bounding_box()["y"] - raw_box["y"]) <= 2
+    later_line = raw_json.locator(".sh__line").nth(2).bounding_box()
+    copy_box = raw_event.get_by_role(
+        "button", name="Copy JSON", exact=True
+    ).bounding_box()
+    assert later_line["x"] + later_line["width"] > copy_box["x"]
+    for control in (
+        wrap,
+        raw_event.get_by_role("button", name="Copy JSON", exact=True),
+    ):
+        box = control.bounding_box()
+        assert box["y"] >= raw_json.bounding_box()["y"]
+        assert box["x"] + box["width"] <= raw_box["x"] + raw_box["width"]
     wrap.press("Space")
     expect(wrap).to_have_attribute("aria-pressed", "false")
     wrap.press("Space")
