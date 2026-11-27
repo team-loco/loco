@@ -114,7 +114,7 @@ export function Waterfall({
 						}
 					}}
 				/>
-				<div data-trace-lane className="relative min-w-[100px] flex-1">
+				<div data-trace-lane className="relative mx-2 min-w-[100px] flex-1">
 					<TimeAxis duration={trace.duration} zoom={zoom} onZoom={onZoom} highlight={highlight} />
 					{markers}
 				</div>
@@ -221,7 +221,7 @@ export function Waterfall({
 									type="button"
 									aria-label={`${span.name}, ${durationLabel(span.durationNanos)}`}
 									aria-pressed={selected.spanId === span.spanId}
-									className="relative min-w-[100px] flex-1 overflow-hidden text-left font-mono text-[10px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring"
+									className="relative mx-2 min-w-[100px] flex-1 overflow-hidden text-left font-mono text-[10px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring"
 									onClick={() => {
 										onSelect(span);
 									}}
@@ -250,7 +250,7 @@ export function Waterfall({
 									<span
 										className={cn(
 											"tv-span-bar absolute top-[8px] h-[14px] min-w-[2px] rounded-[3px]",
-											selected.spanId === span.spanId && "ring-1 ring-foreground",
+											selected.spanId === span.spanId && "ring-1 ring-inset ring-foreground",
 										)}
 										style={{
 											left: `${String(left * 100)}%`,
