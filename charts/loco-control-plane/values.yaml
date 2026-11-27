@@ -193,6 +193,13 @@ gateway:
   # milliseconds the upstream took. It shows every client per-request upstream timing, which
   # sharpens timing attacks. Keep it off in production.
   envoyHeaders: false
+  # Gateway spans use the built-in system ingest when platform telemetry is enabled.
+  # @schema additionalProperties: false
+  tracing:
+    # Percentage of ingress requests to trace.
+    # @schema minimum: 0
+    # @schema maximum: 100
+    samplingRate: 100
   # @schema additionalProperties: false
   tls:
     # -- Minimum client TLS version; empty keeps Envoy Gateway defaults.

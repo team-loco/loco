@@ -176,6 +176,10 @@ platformTelemetry:
 
 Without `platformTelemetry.exporter.endpoint`, the API and proxy send to `<release>-obs-proxy-ingest` on `obsProxy.ingest.httpPort`, which needs `obsProxy.enabled`. The chart generates a token in the Secret `<release>-system-ingest-token`, keeps it across upgrades, and gives it to the proxy as `SYSTEM_INGEST_TOKEN` and to both processes as their exporter bearer token. The proxy stores everything that token sends under the system tenant; see [platform telemetry](../../docs/content/operations/platform-telemetry.md).
 
+The chart's gateway also exports traces to the system ingest over OTLP/gRPC as `loco-gateway`. The API starts its own trace and links back to the gateway span, preserving the public request boundary. `gateway.tracing.samplingRate` defaults to 100 percent. The gateway reads the bearer token from its Secret through an environment variable; the EnvoyProxy contains only the variable reference. If `gatewayNamespace` differs from the release namespace, the chart copies the token Secret there and grants the gateway access to the ingest Service. Gateway exports go directly to the internal Service, so they do not pass through the gateway again.
+
+Gateway tracing is enabled only with the built-in system ingest. With an external endpoint, configure gateway tracing separately against an OTLP/gRPC collector; `platformTelemetry.exporter.endpoint` configures OTLP/HTTP SDK exporters.
+
 With an endpoint, the API and proxy send only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
 
 ```yaml

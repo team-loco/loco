@@ -546,6 +546,17 @@
         },
         "tlsSecretName": {
           "type": "string"
+        },
+        "tracing": {
+          "type": "object",
+          "properties": {
+            "samplingRate": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 
 	"github.com/team-loco/loco/internal/clusterassertion"
+	"github.com/team-loco/loco/internal/systemtenant"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -106,6 +107,11 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 			}
 		}
 	}
+	traceID := platform.RandomHex(16)
+	cp.request(t, http.MethodPost, api, "/loco.config.v1.ConfigService/GetConfig", "{}", http.Header{
+		"Traceparent": {"00-" + traceID + "-" + platform.RandomHex(8) + "-01"},
+	}).expect(t, http.StatusOK)
+
 	pod := c.MustKubectl(t, "-n", cp.namespace, "get", "pods", "-l", "clickhouse.altinity.com/chi",
 		"-o", "jsonpath={.items[0].metadata.name}")
 	platform.Eventually(t, ingestTimeout, "the log row in ClickHouse", func(ctx context.Context) error {
@@ -117,4 +123,32 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		}
 		return err
 	})
+	platform.Eventually(
+		t,
+		ingestTimeout,
+		"the API trace linked to an Envoy span in the system tenant",
+		func(ctx context.Context) error {
+			count, err := c.Kubectl(ctx, "-n", cp.namespace, "exec", pod, "-c", "clickhouse", "--", "clickhouse-client",
+				"--user", reader, "--password", readerPassword,
+				"-q", fmt.Sprintf(`SELECT count() FROM
+				(SELECT WorkspaceId, arrayJoin(arrayZip("Links.TraceId", "Links.SpanId")) AS link
+				 FROM loco_obs.otel_traces WHERE ServiceName = 'loco-api') AS api
+				INNER JOIN loco_obs.otel_traces AS gateway
+				ON api.link.1 = gateway.TraceId AND api.link.2 = gateway.SpanId
+				WHERE gateway.TraceId = '%s' AND gateway.ServiceName = 'loco-gateway'
+				AND api.WorkspaceId = '%s' AND gateway.WorkspaceId = '%s'`,
+					traceID, systemtenant.WorkspaceID, systemtenant.WorkspaceID))
+			if err == nil && strings.TrimSpace(count) == "0" {
+				return fmt.Errorf("no API trace links to an Envoy span in trace %s", traceID)
+			}
+			if err == nil {
+				t.Logf(
+					"gateway trace %s: %s API spans link to stored gateway spans in the system tenant",
+					traceID,
+					strings.TrimSpace(count),
+				)
+			}
+			return err
+		},
+	)
 }

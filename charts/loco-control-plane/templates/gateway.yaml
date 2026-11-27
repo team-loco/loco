@@ -1,4 +1,5 @@
 {{- if .Values.gateway.create }}
+{{- $systemTracing := include "loco-control-plane.systemIngest" . }}
 {{- $listeners := include "loco-control-plane.listeners" . | fromJsonArray }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -24,6 +25,14 @@ spec:
           topologySpreadConstraints:
             {{- include "loco-control-plane.spreadByNode" (dict "gateway.envoyproxy.io/owning-gateway-name" .Values.gateway.name "gateway.envoyproxy.io/owning-gateway-namespace" .Values.gatewayNamespace) | nindent 12 }}
         container:
+          {{- if $systemTracing }}
+          env:
+            - name: LOCO_SYSTEM_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "loco-control-plane.systemIngestSecret" . }}
+                  key: token
+          {{- end }}
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
       {{- with .Values.gateway.autoscaling }}
@@ -46,6 +55,25 @@ spec:
       envoyService:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+  {{- if $systemTracing }}
+  telemetry:
+    tracing:
+      samplingRate: {{ .Values.gateway.tracing.samplingRate }}
+      provider:
+        type: OpenTelemetry
+        serviceName: loco-gateway
+        backendRefs:
+          - name: {{ .Release.Name }}-obs-proxy-ingest
+            namespace: {{ .Release.Namespace }}
+            port: {{ .Values.obsProxy.ingest.grpcPort }}
+        openTelemetry:
+          headers:
+            - name: Authorization
+              value: "Bearer %ENVIRONMENT(LOCO_SYSTEM_INGEST_TOKEN)%"
+          resourceAttributes:
+            loco.telemetry.scope: platform
+            loco.region: {{ required "platformTelemetry.region is required when platform telemetry is enabled" .Values.platformTelemetry.region | quote }}
+  {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
