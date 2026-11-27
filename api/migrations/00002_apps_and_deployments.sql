@@ -769,18 +769,24 @@ CREATE TABLE public_routing_retirements (
 -- Requested targets survive build failure; staged retirement changes intent while
 -- the existing live view continues to describe workloads that are still serving.
 CREATE VIEW desired_deployment_placements AS
-SELECT latest.* FROM (
+WITH latest AS NOT MATERIALIZED (
     SELECT DISTINCT ON (d.resource_id, d.environment_id, dp.cluster_id)
         d.id AS deployment_id, d.resource_id, d.environment_id,
         dp.cluster_id, dp.region, dp.replicas, dp.status
     FROM deployment_placements dp JOIN deployments d ON d.id = dp.deployment_id
     ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC
-) latest
-JOIN clusters c ON c.id = latest.cluster_id
-WHERE latest.status NOT IN ('canceled', 'superseded') AND c.removed_at IS NULL
+), desired AS (
+    SELECT * FROM latest WHERE status NOT IN ('canceled', 'superseded')
+    UNION ALL
+    SELECT live.* FROM live_deployment_placements live JOIN latest
+        USING (resource_id, environment_id, cluster_id)
+    WHERE latest.status IN ('canceled', 'superseded')
+)
+SELECT desired.* FROM desired JOIN clusters c ON c.id = desired.cluster_id
+WHERE c.removed_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM public_routing_retirements r
-      WHERE r.resource_id = latest.resource_id AND r.environment_id = latest.environment_id
-        AND r.cluster_id = latest.cluster_id);
+      WHERE r.resource_id = desired.resource_id AND r.environment_id = desired.environment_id
+        AND r.cluster_id = desired.cluster_id);
 
 CREATE TABLE public_routing_dirty (
     next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -67,7 +67,7 @@ func TestManagedApplyRestoresDrainingRegions(t *testing.T) {
 			for _, p := range f.publications(t) {
 				f.ack(t, p)
 			}
-			if _, err = f.pool.Exec(
+			if _, err := f.pool.Exec(
 				t.Context(),
 				"UPDATE public_route_publications SET drain_until=NOW()-INTERVAL '1 second'",
 			); err != nil {
@@ -88,33 +88,7 @@ func TestManagedSourceMoveKeepsOldRouteThroughPendingAndFailedBuilds(t *testing.
 	f.serveDomains(t, testAppDomain)
 	source := strings.Replace(file, "image: nginx:1.27", "dockerfile: "+applyBuildDockerfile, 1)
 	source = strings.ReplaceAll(source, testRegion, otherRegion)
-	buildID := f.addRunningBuild(t, applyWorker)
-	planned, err := plan(t, f.deployFixture, source, f.workspaceReadScopes(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := reqctx.WithPrincipal(
-		t.Context(),
-		reqctx.Principal{
-			UserID:    f.userID,
-			ActorType: db.DeploymentActorTypeUser,
-			Method:    db.DeploymentMethodWeb,
-			Scopes:    f.adminScopes(t),
-		},
-	)
-	_, err = newPlanServer(
-		f.deployFixture,
-	).Apply(ctx, &planv1.ApplyRequest{
-		File:               []byte(source),
-		EnvironmentId:      f.envID.String(),
-		Revision:           f.revision(t, f.envID),
-		ConfirmDestructive: true,
-		Images:             planned.GetImages(),
-		Builds:             map[string]string{applyWorker: buildID.String()},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, buildID := applyPendingRoutingSource(t, f, source)
 	retained := func() {
 		t.Helper()
 		f.reconcile(t)
@@ -127,14 +101,14 @@ func TestManagedSourceMoveKeepsOldRouteThroughPendingAndFailedBuilds(t *testing.
 		}
 	}
 	retained()
-	if _, err = f.pool.Exec(
+	if _, err := f.pool.Exec(
 		t.Context(),
 		"UPDATE builds SET status='failed',finished_at=NOW() WHERE id=$1",
 		buildID,
 	); err != nil {
 		t.Fatal(err)
 	}
-	if err = withTx(
+	if err := withTx(
 		t.Context(),
 		f.pool,
 		func(q *db.Queries) error { return FinishBuildDeployments(t.Context(), q, buildID) },
@@ -151,5 +125,53 @@ func TestManagedSourceMoveKeepsOldRouteThroughPendingAndFailedBuilds(t *testing.
 	p := f.publications(t)[0]
 	if !p.Withdrawing {
 		t.Fatal("explicit stop after failed build did not withdraw")
+	}
+}
+
+func applyPendingRoutingSource(t *testing.T, f *routingFixture, source string) (string, uuid.UUID) {
+	t.Helper()
+	buildID := f.addRunningBuild(t, applyWorker)
+	planned, err := plan(t, f.deployFixture, source, f.workspaceReadScopes(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{
+			UserID:    f.userID,
+			ActorType: db.DeploymentActorTypeUser,
+			Method:    db.DeploymentMethodWeb,
+			Scopes:    f.adminScopes(t),
+		},
+	)
+	response, err := newPlanServer(
+		f.deployFixture,
+	).Apply(ctx, &planv1.ApplyRequest{
+		File:               []byte(source),
+		EnvironmentId:      f.envID.String(),
+		Revision:           f.revision(t, f.envID),
+		ConfirmDestructive: true,
+		Images:             planned.GetImages(),
+		Builds:             map[string]string{applyWorker: buildID.String()},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return response.GetDeployments()[0].GetDeploymentId(), buildID
+}
+
+func TestManagedCanceledBuildKeepsServingRoute(t *testing.T) {
+	t.Parallel()
+	f, file := routingAppliedImage(t, false)
+	source := strings.Replace(file, "image: nginx:1.27", "dockerfile: "+applyBuildDockerfile, 1)
+	deploymentID, _ := applyPendingRoutingSource(t, f, source)
+	if err := f.cancelDeployment(t, deploymentID); err != nil {
+		t.Fatal(err)
+	}
+	f.reconcile(t)
+	publication := f.publications(t)[0]
+	if publication.Withdrawing || !slices.Equal(publication.ClusterIds, []uuid.UUID{f.clusterID}) {
+		t.Fatalf("canceled replacement withdrew serving route: %+v", publication)
 	}
 }
