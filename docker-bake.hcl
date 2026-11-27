@@ -54,7 +54,7 @@ function "cache" {
 }
 
 group "default" {
-  targets = ["controller", "api", "agent", "builder", "obs-proxy", "ui", "api-failover", "installation-operator"]
+  targets = ["controller", "api", "agent", "builder", "obs-proxy", "cloudflare-publisher", "ui", "api-failover", "installation-operator"]
 }
 
 # Filled with the OCI labels by docker/metadata-action in CI.
@@ -89,6 +89,7 @@ target "service" {
       { name = "agent", dir = "agent" },
       { name = "builder", dir = "builder" },
       { name = "obs-proxy", dir = "observability-proxy" },
+      { name = "cloudflare-publisher", dir = "integrations/cloudflare" },
     ]
   }
   inherits   = ["_platform", "_go"]

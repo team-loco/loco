@@ -13,6 +13,7 @@ const (
 	apiModule        = "api"
 	controllerModule = "controller"
 	proxyModule      = "observability-proxy"
+	cloudflareModule = "integrations/cloudflare"
 	agentModule      = "agent"
 	cmdModule        = "cmd"
 	e2eModule        = "tests/e2e"
@@ -38,7 +39,17 @@ func repositoryModules(t *testing.T) moduleInputs {
 
 func TestModulesAChangeAffects(t *testing.T) {
 	modules := repositoryModules(t)
-	rootUsers := []string{".", agentModule, apiModule, "builder", cmdModule, controllerModule, proxyModule, e2eModule}
+	rootUsers := []string{
+		".",
+		agentModule,
+		apiModule,
+		"builder",
+		cmdModule,
+		controllerModule,
+		cloudflareModule,
+		proxyModule,
+		e2eModule,
+	}
 	for _, tc := range []struct {
 		name     string
 		files    []string
@@ -49,11 +60,11 @@ func TestModulesAChangeAffects(t *testing.T) {
 			[]string{proxyModule}},
 		{"an API change selects only the API", []string{"api/service/token.go"}, []string{apiModule}},
 		{"a shared package selects the modules importing it", []string{"internal/buildinfo/version.go"},
-			[]string{".", agentModule, apiModule, "builder", cmdModule, controllerModule, proxyModule}},
+			[]string{".", agentModule, apiModule, "builder", cmdModule, controllerModule, cloudflareModule, proxyModule}},
 		{"a shared package's test selects only its module", []string{"internal/envconfig/envconfig_test.go"},
 			[]string{"."}},
 		{"generated code selects the modules importing it", []string{"gen/go/loco/token/v1/token.pb.go"},
-			[]string{".", apiModule, cmdModule, proxyModule, e2eModule}},
+			[]string{".", apiModule, cmdModule, cloudflareModule, proxyModule, e2eModule}},
 		{"an embedded schema selects the modules importing its package", []string{"schemas/loco.v1.json"},
 			[]string{".", cmdModule}},
 		{"a file read by a root package's tests selects the root module",

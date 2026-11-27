@@ -5,10 +5,10 @@ root=$(git rev-parse --show-toplevel)
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 for architecture in amd64 arm64; do
-    for target in api:. agent:. controller:./cmd builder:. observability-proxy:.; do
+    for target in api:. agent:. controller:./cmd builder:. observability-proxy:. integrations/cloudflare:.; do
         module=${target%%:*}
         package=${target#*:}
-        binary="$workdir/$module-$architecture"
+        binary="$workdir/${module//\//-}-$architecture"
         echo "Building $module for linux/$architecture"
         (cd "$root/$module" && CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" go build -ldflags '-X main.version=architecture-check' -o "$binary" "$package")
         go -C "$root" run ./tools/platform-images binary "$binary" "linux/$architecture"

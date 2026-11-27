@@ -56,7 +56,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          targets=(controller api agent builder obs-proxy ui)
+          targets=(controller api agent builder obs-proxy cloudflare-publisher ui)
           docker buildx bake --call check \
             --set '*.args.BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all' "${targets[@]}"
           pull=true

@@ -1,0 +1,54 @@
+# Render with envsubst after setting PUBLISHER_IMAGE to the built image's tag@sha256:digest.
+# Supply both Secrets separately. No provider credentials belong in Loco's charts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loco-cloudflare-publisher
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: loco-cloudflare-publisher
+  template:
+    metadata:
+      labels:
+        app: loco-cloudflare-publisher
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: publisher
+          image: ${PUBLISHER_IMAGE}
+          env:
+            - name: PUBLISHER_CONFIG_FILE
+              value: /config/publisher.json
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tokens
+              mountPath: /tokens
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            secretName: loco-cloudflare-publisher-config
+        - name: tokens
+          secret:
+            secretName: loco-cloudflare-publisher-tokens

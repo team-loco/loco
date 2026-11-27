@@ -36,7 +36,7 @@ jobs:
           status=0
           for entry in api "cmd test:cli" ". test:shared" "controller test:controller" "agent test:agent" \
             "builder test:builder" "k8sapi test:k8sapi" "observability-proxy test:counter-metrics" "tests/e2e test:e2e-platform" \
-            "tools/terminal-evidence test:terminal-evidence"; do
+            "tools/terminal-evidence test:terminal-evidence" "integrations/cloudflare test:cloudflare-publisher"; do
             read -r module task <<<"$entry"
             jq -e --arg module "$module" 'any(.[]; . == $module)' <<<"$MODULES" >/dev/null || continue
             echo "::group::Lint $module"

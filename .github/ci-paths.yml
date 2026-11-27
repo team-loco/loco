@@ -117,7 +117,7 @@ controller-helm-chart:
 
 docker:
   go:
-    build: [api, agent, builder, controller/cmd, observability-proxy, tools/platform-images]
+    build: [api, agent, builder, controller/cmd, observability-proxy, integrations/cloudflare, tools/platform-images]
     test: [tools/platform-images]
   pull_request: &docker
     - "**/Dockerfile"
@@ -198,7 +198,7 @@ docs:
 e2e:
   go:
     build: [api, agent, builder, cmd/loco, cmd/locoadm, controller/cmd, observability-proxy, tools/pullimage]
-    test: [tests/e2e/apps, tests/e2e/builds, tests/e2e/routing, tests/e2e/telemetry]
+    test: [integrations/cloudflare, tests/e2e/apps, tests/e2e/builds, tests/e2e/routing, tests/e2e/telemetry]
   pull_request:
     - "{builder,controller,observability-proxy}/Dockerfile*"
     - "charts/loco-control-plane/**"

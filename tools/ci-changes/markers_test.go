@@ -172,3 +172,15 @@ func TestADispatchRunsEveryWorkflowAndReusesNoPass(t *testing.T) {
 	}
 	assert.JSONEq(t, `["apps","builds","routing","telemetry"]`, selected["e2e-shards"])
 }
+
+func TestPublisherChangesInvalidateInstalledRoutingCoverage(t *testing.T) {
+	workflows, _ := repository(t)
+	for _, file := range []string{"integrations/cloudflare/main.go", "integrations/cloudflare/installed_core_test.go"} {
+		selected := selectOwn(workflows, pullRequestEvent, []string{file})
+		assert.True(t, selected["e2e"], file)
+		matcher := workflows["e2e"].matcher(pullRequestEvent)
+		before := markerKey("e2e", matcher, []treeEntry{{path: file, line: "old blob"}})
+		after := markerKey("e2e", matcher, []treeEntry{{path: file, line: "new blob"}})
+		assert.NotEqual(t, before, after, "publisher changes must invalidate an installed-routing pass: %s", file)
+	}
+}

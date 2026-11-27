@@ -1,0 +1,19 @@
+{
+  "apiURL": "https://api.example.com",
+  "pollSeconds": 5,
+  "auditSeconds": 86400,
+  "batchSize": 3,
+  "requestSeconds": 10,
+  "bindings": [{
+    "appDomain": "apps.example.com",
+    "publisherID": "00000000-0000-7000-8000-000000000001",
+    "zoneID": "00000000000000000000000000000001",
+    "locoTokenFile": "/tokens/loco",
+    "cloudflareTokenFile": "/tokens/cloudflare",
+    "destinations": [
+      {"clusterIDs": ["00000000-0000-7000-8000-000000000002"], "hostname": "infra-ca.apps.example.com"},
+      {"clusterIDs": ["00000000-0000-7000-8000-000000000003"], "hostname": "infra-ny.apps.example.com"},
+      {"clusterIDs": ["00000000-0000-7000-8000-000000000002", "00000000-0000-7000-8000-000000000003"], "hostname": "infra-ca-ny.apps.example.com"}
+    ]
+  }]
+}
