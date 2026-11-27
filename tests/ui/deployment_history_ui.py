@@ -407,8 +407,9 @@ with session(out) as browser:
     expect(
         spec_dialog.get_by_role("button", name="Download spec", exact=True)
     ).to_have_attribute("title", f"Download deployment-{older}.yaml")
-    expect(spec_dialog.locator('[data-slot="spec-bar"]')).to_have_count(0)
     scroller = spec_dialog.locator('[data-slot="spec-body"]')
+    title_bar = spec_dialog.get_by_role("heading").locator("..").bounding_box()
+    assert abs(scroller.bounding_box()["y"] - title_bar["y"] - title_bar["height"]) <= 2
     for name in ("Wrap lines", "Copy spec"):
         control = spec_dialog.get_by_role("button", name=name, exact=True)
         expect(control).to_be_visible()
