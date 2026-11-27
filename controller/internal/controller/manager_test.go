@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -182,4 +184,56 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 			return apierrors.IsNotFound(k8sClient.Get(ctx, appKey, app))
 		}, routeManagerWait, routeManagerPoll).Should(BeTrue())
 	})
+	It("does not restore a garbage collector finalizer removed during cleanup", func() {
+		direct, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+		Expect(err).NotTo(HaveOccurred())
+		app := isolationTestApplication("ws-finalizer-race", "finalizer-race")
+		app.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup, metav1.FinalizerDeleteDependents}
+		Expect(direct.Create(ctx, app)).To(Succeed())
+		Expect(direct.Delete(ctx, app)).To(Succeed())
+		Expect(direct.Get(ctx, client.ObjectKeyFromObject(app), app)).To(Succeed())
+		raced := false
+		racing := interceptor.NewClient(
+			direct,
+			interceptor.Funcs{
+				Patch: func(
+					patchCtx context.Context,
+					base client.WithWatch,
+					obj client.Object,
+					patch client.Patch,
+					opts ...client.PatchOption,
+				) error {
+					if !raced {
+						raced = true
+						latest := &locov1alpha1.Application{}
+						if getErr := base.Get(patchCtx, client.ObjectKeyFromObject(app), latest); getErr != nil {
+							return getErr
+						}
+						controllerutil.RemoveFinalizer(latest, metav1.FinalizerDeleteDependents)
+						if updateErr := base.Update(patchCtx, latest); updateErr != nil {
+							return updateErr
+						}
+					}
+					return base.Patch(patchCtx, obj, patch, opts...)
+				},
+			},
+		)
+		r := &ApplicationReconciler{
+			Client:                   racing,
+			APIReader:                direct,
+			Scheme:                   direct.Scheme(),
+			LocoNamespace:            testNamespace,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
+		_, err = r.handleDeletion(ctx, app)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(raced).To(BeTrue())
+		Eventually(
+			func() bool { return apierrors.IsNotFound(direct.Get(ctx, client.ObjectKeyFromObject(app), app)) },
+			routeManagerWait,
+			routeManagerPoll,
+		).Should(BeTrue())
+	})
+
 })

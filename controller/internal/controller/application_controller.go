@@ -30,6 +30,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -392,10 +393,22 @@ func (r *ApplicationReconciler) handleDeletion(
 		return ctrl.Result{}, err
 	}
 
-	original := app.DeepCopy()
-	controllerutil.RemoveFinalizer(app, locov1alpha1.FinalizerAppResourcesCleanup)
-	patch := client.MergeFrom(original)
-	if err := r.Patch(ctx, app, patch); err != nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current := &locov1alpha1.Application{}
+		if err := r.APIReader.Get(ctx, client.ObjectKeyFromObject(app), current); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+		if current.UID != app.UID {
+			return nil
+		}
+		original := current.DeepCopy()
+		if !controllerutil.RemoveFinalizer(current, locov1alpha1.FinalizerAppResourcesCleanup) {
+			return nil
+		}
+		patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
+		return r.Patch(ctx, current, patch)
+	})
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
 	slog.InfoContext(ctx, "removed finalizer", "finalizer", locov1alpha1.FinalizerAppResourcesCleanup)
