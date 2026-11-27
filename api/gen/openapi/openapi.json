@@ -1641,6 +1641,67 @@
         }
       }
     },
+    "/loco.cluster.v1.ClusterAdminService/ListClusterCapacities": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "ListClusterCapacities",
+        "operationId": "loco.cluster.v1.ClusterAdminService.ListClusterCapacities",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.ListClusterCapacitiesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.ListClusterCapacitiesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.cluster.v1.ClusterAdminService/ListClusterNodes": {
       "post": {
         "tags": [
@@ -10860,6 +10921,15 @@
             "type": "integer",
             "title": "pods",
             "format": "int32"
+          },
+          "resourceLinkAvailable": {
+            "type": "boolean",
+            "title": "resource_link_available",
+            "description": "Links require an authoritative metadata record, independent of opaque CRD identities."
+          },
+          "orgLinkAvailable": {
+            "type": "boolean",
+            "title": "org_link_available"
           }
         },
         "title": "AllocationConsumer",
@@ -10997,6 +11067,65 @@
         "title": "ClusterCapacity",
         "additionalProperties": false,
         "description": "ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.\n Requested resources cover assigned, non-terminal pods including init containers and overhead.\n Aggregate headroom does not guarantee a workload can be scheduled on an individual node."
+      },
+      "loco.cluster.v1.ClusterCapacitySummary": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id"
+          },
+          "sample": {
+            "title": "sample",
+            "$ref": "#/components/schemas/loco.capacity.v1.AllocationSample"
+          },
+          "cpuMillicoresRequested": {
+            "type": "string",
+            "title": "cpu_millicores_requested",
+            "format": "int64"
+          },
+          "memoryBytesRequested": {
+            "type": "string",
+            "title": "memory_bytes_requested",
+            "format": "int64"
+          },
+          "cpuMillicoresAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cpu_millicores_allocatable",
+            "format": "int64"
+          },
+          "memoryBytesAllocatable": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "memory_bytes_allocatable",
+            "format": "int64"
+          },
+          "capacityReportedAt": {
+            "title": "capacity_reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "capacityStale": {
+            "type": "boolean",
+            "title": "capacity_stale"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32"
+          },
+          "nodeCount": {
+            "type": "integer",
+            "title": "node_count",
+            "format": "int32"
+          }
+        },
+        "title": "ClusterCapacitySummary",
+        "additionalProperties": false
       },
       "loco.cluster.v1.ClusterRole": {
         "type": "string",
@@ -11229,7 +11358,7 @@
           "workspaceId": {
             "type": "string",
             "title": "workspace_id",
-            "format": "uuid"
+            "maxLength": 63
           },
           "memory": {
             "type": "boolean",
@@ -11311,6 +11440,10 @@
           "workspaceName": {
             "type": "string",
             "title": "workspace_name"
+          },
+          "remainderOnly": {
+            "type": "boolean",
+            "title": "remainder_only"
           }
         },
         "title": "GetNodeAllocationsResponse",
@@ -11361,6 +11494,26 @@
           }
         },
         "title": "JoinToken",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.ListClusterCapacitiesRequest": {
+        "type": "object",
+        "title": "ListClusterCapacitiesRequest",
+        "additionalProperties": false,
+        "description": "Fleet capacity is a separate read so a telemetry outage never hides cluster management."
+      },
+      "loco.cluster.v1.ListClusterCapacitiesResponse": {
+        "type": "object",
+        "properties": {
+          "capacities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.ClusterCapacitySummary"
+            },
+            "title": "capacities"
+          }
+        },
+        "title": "ListClusterCapacitiesResponse",
         "additionalProperties": false
       },
       "loco.cluster.v1.ListClusterNodesRequest": {

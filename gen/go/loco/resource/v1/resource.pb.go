@@ -3543,7 +3543,7 @@ var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\x1a\x1floco/capacity/v1/capacity.proto\"\x94\x02\n" +
+	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1floco/capacity/v1/capacity.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"\x94\x02\n" +
 	"\rRoutingConfig\x12\x17\n" +
 	"\x04port\x18\x01 \x01(\x05H\x00R\x04port\x88\x01\x01\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +

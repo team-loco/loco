@@ -15,6 +15,7 @@ service ClusterAdminService {
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
   rpc GetClusterOperations(GetClusterOperationsRequest) returns (GetClusterOperationsResponse);
+  rpc ListClusterCapacities(ListClusterCapacitiesRequest) returns (ListClusterCapacitiesResponse);
   rpc ListClusterNodes(ListClusterNodesRequest) returns (ListClusterNodesResponse);
   rpc GetNodeAllocations(GetNodeAllocationsRequest) returns (GetNodeAllocationsResponse);
   rpc ListWorkspaceAllocations(ListWorkspaceAllocationsRequest) returns (ListWorkspaceAllocationsResponse);
@@ -269,6 +270,9 @@ message AllocationConsumer {
   int64 memory_bytes = 8;
   int32 resource_count = 9;
   int32 pods = 10;
+  // Links require an authoritative metadata record, independent of opaque CRD identities.
+  bool resource_link_available = 11;
+  bool org_link_available = 12;
 }
 message GetNodeAllocationsRequest {
   string cluster_id = 1 [(buf.validate.field).string.uuid = true];
@@ -278,7 +282,7 @@ message GetNodeAllocationsRequest {
   }];
   string workspace_id = 3 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
-    (buf.validate.field).string.uuid = true
+    (buf.validate.field).string.max_len = 63
   ];
   bool memory = 4;
   string query = 5 [(buf.validate.field).string.max_len = 200];
@@ -304,6 +308,7 @@ message GetNodeAllocationsResponse {
   bool memory = 8;
   string workspace_id = 9;
   string workspace_name = 10;
+  bool remainder_only = 11;
 }
 message ListWorkspaceAllocationsRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
@@ -328,4 +333,22 @@ message ListWorkspaceAllocationsResponse {
   int32 total_count = 2;
   loco.capacity.v1.AllocationCoverage coverage = 3;
   bool memory = 4;
+}
+
+// Fleet capacity is a separate read so a telemetry outage never hides cluster management.
+message ListClusterCapacitiesRequest {}
+message ClusterCapacitySummary {
+  string cluster_id = 1;
+  loco.capacity.v1.AllocationSample sample = 2;
+  int64 cpu_millicores_requested = 3;
+  int64 memory_bytes_requested = 4;
+  optional int64 cpu_millicores_allocatable = 5;
+  optional int64 memory_bytes_allocatable = 6;
+  google.protobuf.Timestamp capacity_reported_at = 7;
+  bool capacity_stale = 8;
+  int32 resource_count = 9;
+  int32 node_count = 10;
+}
+message ListClusterCapacitiesResponse {
+  repeated ClusterCapacitySummary capacities = 1;
 }

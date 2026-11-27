@@ -43,47 +43,53 @@ func capacitySample(s *ch.CapacitySample) *capacityv1.AllocationSample {
 	return &capacityv1.AllocationSample{Id: s.ID(), ReportedAt: timestamppb.New(s.At), Stale: s.Stale()}
 }
 
-func (s *ClusterAdminServer) nodeCapacity(
-	ctx context.Context,
-	cluster string,
-	sample *ch.CapacitySample,
-) ([]*clusterv1.NodeCapacity, error) {
-	native, err := s.clickhouse.NodeCapacities(ctx, cluster)
-	if err != nil {
-		return nil, err
+func clusterNodeResponse(data ch.CapacityCluster) *clusterv1.ListClusterNodesResponse {
+	out := &clusterv1.ListClusterNodesResponse{
+		ResourceCount:          data.Resources,
+		CpuMillicoresRequested: data.CPU,
+		MemoryBytesRequested:   data.Memory,
+		TotalCount:             int32(len(data.Nodes)),
 	}
-	nodes := map[string]*clusterv1.NodeCapacity{}
-	for _, n := range native {
-		nodes[n.Name] = &clusterv1.NodeCapacity{
-			Name:                     n.Name,
-			Ready:                    n.Ready,
-			CpuMillicoresAllocatable: n.CPU,
-			MemoryBytesAllocatable:   n.Memory,
-			CapacityReportedAt:       timestamppb.New(n.At),
-			CapacityStale:            n.Stale,
-		}
+	if data.Sample != nil {
+		out.Sample = capacitySample(data.Sample)
 	}
-	if sample != nil {
-		reservations, queryErr := s.clickhouse.CapacityTotals(ctx, *sample, ch.CapacityScope{Group: ch.CapacityByNode})
-		if queryErr != nil {
-			return nil, queryErr
+	if len(data.Nodes) > 0 {
+		out.CpuMillicoresAllocatable = new(int64(0))
+		out.MemoryBytesAllocatable = new(int64(0))
+	}
+	for _, node := range data.Nodes {
+		n := &clusterv1.NodeCapacity{
+			Name:                     node.Name,
+			Ready:                    node.Ready,
+			CpuMillicoresAllocatable: node.CPU,
+			MemoryBytesAllocatable:   node.Memory,
+			CapacityStale:            node.Stale,
+			CpuMillicoresRequested:   node.RequestedCPU,
+			MemoryBytesRequested:     node.RequestedMemory,
+			ResourceCount:            node.Resources,
 		}
-		for _, r := range reservations {
-			n := nodes[r.Node]
-			if n == nil {
-				n = &clusterv1.NodeCapacity{Name: r.Node, CapacityStale: true}
-				nodes[r.Node] = n
+		if !node.At.IsZero() {
+			n.CapacityReportedAt = timestamppb.New(node.At)
+		}
+		out.Nodes = append(out.Nodes, n)
+		if node.CPU == nil {
+			out.CpuMillicoresAllocatable = nil
+		} else if out.CpuMillicoresAllocatable != nil {
+			*out.CpuMillicoresAllocatable += *node.CPU
+		}
+		if node.Memory == nil {
+			out.MemoryBytesAllocatable = nil
+		} else if out.MemoryBytesAllocatable != nil {
+			*out.MemoryBytesAllocatable += *node.Memory
+		}
+		out.CapacityStale = out.GetCapacityStale() || node.Stale
+		if !node.At.IsZero() {
+			if out.GetCapacityReportedAt() == nil || node.At.Before(out.GetCapacityReportedAt().AsTime()) {
+				out.CapacityReportedAt = timestamppb.New(node.At)
 			}
-			n.CpuMillicoresRequested = r.CPU + r.BuildCPU
-			n.MemoryBytesRequested = r.Memory + r.BuildMemory
-			n.ResourceCount = r.Resources
 		}
 	}
-	out := make([]*clusterv1.NodeCapacity, 0, len(nodes))
-	for _, node := range nodes {
-		out = append(out, node)
-	}
-	return out, nil
+	return out
 }
 
 func (s *ClusterAdminServer) ListClusterNodes(
@@ -99,53 +105,12 @@ func (s *ClusterAdminServer) ListClusterNodes(
 		}
 		return nil, err
 	}
-	sample, err := s.clickhouse.CapacitySample(ctx, req.GetClusterId())
-	if err != nil && !errors.Is(err, ch.ErrCapacityUnavailable) {
-		return nil, err
-	}
-	nodes, err := s.nodeCapacity(ctx, req.GetClusterId(), sample)
+	data, err := s.clickhouse.CapacityClusters(ctx, []string{req.GetClusterId()})
 	if err != nil {
 		return nil, err
 	}
-	out := &clusterv1.ListClusterNodesResponse{}
-	if sample != nil {
-		out.Sample = capacitySample(sample)
-	}
-	if sample != nil {
-		totals, queryErr := s.clickhouse.CapacityTotals(ctx, *sample, ch.CapacityScope{Group: ch.CapacityByCluster})
-		if queryErr != nil {
-			return nil, queryErr
-		}
-		if len(totals) > 0 {
-			out.ResourceCount = totals[0].Resources
-			out.CpuMillicoresRequested = totals[0].CPU + totals[0].BuildCPU
-			out.MemoryBytesRequested = totals[0].Memory + totals[0].BuildMemory
-		}
-	}
-	if len(nodes) > 0 {
-		out.CpuMillicoresAllocatable = new(int64(0))
-		out.MemoryBytesAllocatable = new(int64(0))
-		for _, node := range nodes {
-			if node.CpuMillicoresAllocatable == nil {
-				out.CpuMillicoresAllocatable = nil
-			} else if out.CpuMillicoresAllocatable != nil {
-				*out.CpuMillicoresAllocatable += node.GetCpuMillicoresAllocatable()
-			}
-			if node.MemoryBytesAllocatable == nil {
-				out.MemoryBytesAllocatable = nil
-			} else if out.MemoryBytesAllocatable != nil {
-				*out.MemoryBytesAllocatable += node.GetMemoryBytesAllocatable()
-			}
-			out.CapacityStale = out.GetCapacityStale() || node.GetCapacityStale()
-			earlier := out.GetCapacityReportedAt() == nil
-			if node.GetCapacityReportedAt() != nil && out.GetCapacityReportedAt() != nil {
-				earlier = node.GetCapacityReportedAt().AsTime().Before(out.GetCapacityReportedAt().AsTime())
-			}
-			if node.GetCapacityReportedAt() != nil && earlier {
-				out.CapacityReportedAt = node.GetCapacityReportedAt()
-			}
-		}
-	}
+	out := clusterNodeResponse(data[0])
+	nodes := out.GetNodes()
 	filtered := make([]*clusterv1.NodeCapacity, 0, len(nodes))
 	for _, node := range nodes {
 		if allocationMatches(node.GetName(), req.GetQuery()) {
@@ -174,24 +139,23 @@ func (s *ClusterAdminServer) GetNodeAllocations(
 	if err := s.allocationRead(ctx, req); err != nil {
 		return nil, err
 	}
-	sample, err := s.clickhouse.CapacitySample(ctx, req.GetClusterId())
-	if errors.Is(err, ch.ErrCapacityUnavailable) {
+	data, err := s.clickhouse.CapacityClusterAt(ctx, req.GetClusterId(), req.GetSampleId())
+	if errors.Is(err, ch.ErrCapacitySampleID) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid capacity sample ID")
+	}
+	if errors.Is(err, ch.ErrCapacitySampleUnavailable) {
 		return nil, connect.NewError(connect.CodeAborted, "capacity collection unavailable; refresh the node list")
 	}
 	if err != nil {
 		return nil, err
 	}
-	if sample.ID() != req.GetSampleId() {
-		return nil, connect.NewError(connect.CodeAborted, "capacity collection changed; refresh the node list")
-	}
-	nodes, err := s.nodeCapacity(ctx, req.GetClusterId(), sample)
-	if err != nil {
-		return nil, err
-	}
+	sample := data.Sample
+	nodes := clusterNodeResponse(data).GetNodes()
 	out := &clusterv1.GetNodeAllocationsResponse{
-		Sample:      capacitySample(sample),
-		Memory:      req.GetMemory(),
-		WorkspaceId: req.GetWorkspaceId(),
+		Sample:        capacitySample(sample),
+		Memory:        req.GetMemory(),
+		WorkspaceId:   req.GetWorkspaceId(),
+		RemainderOnly: req.GetRemainderOnly(),
 	}
 	for _, node := range nodes {
 		if node.GetName() == req.GetNode() {
@@ -219,13 +183,23 @@ func (s *ClusterAdminServer) GetNodeAllocations(
 		return nil, err
 	}
 	if req.GetWorkspaceId() != "" {
-		ws, queryErr := s.queries.GetWorkspaceByIDQuery(ctx, uuid.MustParse(req.GetWorkspaceId()))
-		if queryErr != nil && !errors.Is(queryErr, pgx.ErrNoRows) {
-			return nil, queryErr
-		}
-		out.WorkspaceName = ws.Name
-		if errors.Is(queryErr, pgx.ErrNoRows) {
-			out.WorkspaceName = req.GetWorkspaceId()
+		workspaceID, parseErr := uuid.Parse(req.GetWorkspaceId())
+		out.WorkspaceName = req.GetWorkspaceId()
+		if parseErr == nil {
+			ws, queryErr := s.queries.GetWorkspaceByIDQuery(ctx, workspaceID)
+			if queryErr != nil && !errors.Is(queryErr, pgx.ErrNoRows) {
+				return nil, queryErr
+			}
+			out.WorkspaceName = ws.Name
+			if errors.Is(queryErr, pgx.ErrNoRows) {
+				out.WorkspaceName = req.GetWorkspaceId()
+			} else {
+				for _, consumer := range consumers {
+					consumer.OrgId = ws.OrgID.String()
+					consumer.OrgName = ws.OrgName
+					consumer.OrgLinkAvailable = true
+				}
+			}
 		}
 	}
 	var tenant []*clusterv1.AllocationConsumer
@@ -276,15 +250,14 @@ func (s *ClusterAdminServer) allocationConsumers(
 			raw = r.Resource
 		}
 		if raw != "" {
-			id, err := uuid.Parse(raw)
-			if err != nil {
-				return nil, err
+			if id, err := uuid.Parse(raw); err == nil {
+				ids = append(ids, id)
 			}
-			ids = append(ids, id)
 		}
 	}
 	names := map[string]string{}
 	orgNames := map[string]string{}
+	orgIDs := map[string]string{}
 	if workspace == "" {
 		rows, err := s.queries.ListAllocationWorkspaces(ctx, genDb.ListAllocationWorkspacesParams{Ids: ids})
 		if err != nil {
@@ -292,18 +265,20 @@ func (s *ClusterAdminServer) allocationConsumers(
 		}
 		for _, r := range rows {
 			names[r.ID.String()] = r.Name
+			orgIDs[r.ID.String()] = r.OrgID.String()
 			orgNames[r.OrgID.String()] = r.OrgName
 		}
-	} else {
+	} else if workspaceID, parseErr := uuid.Parse(workspace); parseErr == nil {
 		rows, err := s.queries.ListAllocationResources(
 			ctx,
-			genDb.ListAllocationResourcesParams{WorkspaceID: new(uuid.MustParse(workspace)), Ids: ids},
+			genDb.ListAllocationResourcesParams{WorkspaceID: &workspaceID, Ids: ids},
 		)
 		if err != nil {
 			return nil, err
 		}
 		for _, r := range rows {
 			names[r.ID.String()] = r.Name
+			orgIDs[r.ID.String()] = r.OrgID.String()
 		}
 	}
 	out := make([]*clusterv1.AllocationConsumer, 0, len(totals))
@@ -312,6 +287,7 @@ func (s *ClusterAdminServer) allocationConsumers(
 		if workspace != "" {
 			id, kind = r.Resource, allocationKindResource
 		}
+		_, resourceExists := names[id]
 		name := names[id]
 		if name == "" {
 			name = id
@@ -319,19 +295,26 @@ func (s *ClusterAdminServer) allocationConsumers(
 		if id == "" {
 			id, name, kind = allocationKindSystem, "System", allocationKindSystem
 		}
+		orgID := r.Organization
+		if canonical := orgIDs[id]; canonical != "" {
+			orgID = canonical
+		}
+		_, orgExists := orgNames[orgID]
 		out = append(
 			out,
 			&clusterv1.AllocationConsumer{
-				Id:            id,
-				Name:          name,
-				Kind:          kind,
-				OrgId:         r.Organization,
-				OrgName:       orgNames[r.Organization],
-				WorkspaceId:   r.Workspace,
-				CpuMillicores: r.CPU + r.BuildCPU,
-				MemoryBytes:   r.Memory + r.BuildMemory,
-				ResourceCount: r.Resources,
-				Pods:          r.Pods,
+				Id:                    id,
+				Name:                  name,
+				Kind:                  kind,
+				OrgId:                 orgID,
+				OrgName:               orgNames[orgID],
+				WorkspaceId:           r.Workspace,
+				CpuMillicores:         r.CPU + r.BuildCPU,
+				MemoryBytes:           r.Memory + r.BuildMemory,
+				ResourceCount:         r.Resources,
+				Pods:                  r.Pods,
+				ResourceLinkAvailable: kind == allocationKindResource && resourceExists,
+				OrgLinkAvailable:      orgExists,
 			},
 		)
 	}
@@ -370,4 +353,38 @@ func allocationPage[T any](rows []T, page, size int32) []T {
 	start := min(int64(page)*int64(size), int64(len(rows)))
 	end := min(start+int64(size), int64(len(rows)))
 	return rows[start:end]
+}
+
+func (s *ClusterAdminServer) ListClusterCapacities(
+	ctx context.Context,
+	req *clusterv1.ListClusterCapacitiesRequest,
+) (*clusterv1.ListClusterCapacitiesResponse, error) {
+	if err := s.allocationRead(ctx, req); err != nil {
+		return nil, err
+	}
+	clusters, err := allocationClusters(ctx, s.queries)
+	if err != nil {
+		return nil, err
+	}
+	data, err := s.clickhouse.CapacityClusters(ctx, clusters)
+	if err != nil {
+		return nil, err
+	}
+	out := &clusterv1.ListClusterCapacitiesResponse{}
+	for _, cluster := range data {
+		nodes := clusterNodeResponse(cluster)
+		out.Capacities = append(out.Capacities, &clusterv1.ClusterCapacitySummary{
+			ClusterId:                cluster.Cluster,
+			Sample:                   nodes.GetSample(),
+			CpuMillicoresRequested:   nodes.GetCpuMillicoresRequested(),
+			MemoryBytesRequested:     nodes.GetMemoryBytesRequested(),
+			CpuMillicoresAllocatable: nodes.CpuMillicoresAllocatable,
+			MemoryBytesAllocatable:   nodes.MemoryBytesAllocatable,
+			CapacityReportedAt:       nodes.GetCapacityReportedAt(),
+			CapacityStale:            nodes.GetCapacityStale(),
+			ResourceCount:            nodes.GetResourceCount(),
+			NodeCount:                nodes.GetTotalCount(),
+		})
+	}
+	return out, nil
 }

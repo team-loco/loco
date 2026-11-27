@@ -25,6 +25,11 @@ export const listClusters = ClusterAdminService.method.listClusters;
 export const getClusterOperations = ClusterAdminService.method.getClusterOperations;
 
 /**
+ * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusterCapacities
+ */
+export const listClusterCapacities = ClusterAdminService.method.listClusterCapacities;
+
+/**
  * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusterNodes
  */
 export const listClusterNodes = ClusterAdminService.method.listClusterNodes;

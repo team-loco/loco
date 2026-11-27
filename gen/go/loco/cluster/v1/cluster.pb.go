@@ -1955,8 +1955,11 @@ type AllocationConsumer struct {
 	MemoryBytes   int64  `protobuf:"varint,8,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
 	ResourceCount int32  `protobuf:"varint,9,opt,name=resource_count,json=resourceCount,proto3" json:"resource_count,omitempty"`
 	Pods          int32  `protobuf:"varint,10,opt,name=pods,proto3" json:"pods,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Links require an authoritative metadata record, independent of opaque CRD identities.
+	ResourceLinkAvailable bool `protobuf:"varint,11,opt,name=resource_link_available,json=resourceLinkAvailable,proto3" json:"resource_link_available,omitempty"`
+	OrgLinkAvailable      bool `protobuf:"varint,12,opt,name=org_link_available,json=orgLinkAvailable,proto3" json:"org_link_available,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *AllocationConsumer) Reset() {
@@ -2057,6 +2060,20 @@ func (x *AllocationConsumer) GetPods() int32 {
 		return x.Pods
 	}
 	return 0
+}
+
+func (x *AllocationConsumer) GetResourceLinkAvailable() bool {
+	if x != nil {
+		return x.ResourceLinkAvailable
+	}
+	return false
+}
+
+func (x *AllocationConsumer) GetOrgLinkAvailable() bool {
+	if x != nil {
+		return x.OrgLinkAvailable
+	}
+	return false
 }
 
 type GetNodeAllocationsRequest struct {
@@ -2172,6 +2189,7 @@ type GetNodeAllocationsResponse struct {
 	Memory        bool                   `protobuf:"varint,8,opt,name=memory,proto3" json:"memory,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,9,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	WorkspaceName string                 `protobuf:"bytes,10,opt,name=workspace_name,json=workspaceName,proto3" json:"workspace_name,omitempty"`
+	RemainderOnly bool                   `protobuf:"varint,11,opt,name=remainder_only,json=remainderOnly,proto3" json:"remainder_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2274,6 +2292,13 @@ func (x *GetNodeAllocationsResponse) GetWorkspaceName() string {
 		return x.WorkspaceName
 	}
 	return ""
+}
+
+func (x *GetNodeAllocationsResponse) GetRemainderOnly() bool {
+	if x != nil {
+		return x.RemainderOnly
+	}
+	return false
 }
 
 type ListWorkspaceAllocationsRequest struct {
@@ -2504,11 +2529,208 @@ func (x *ListWorkspaceAllocationsResponse) GetMemory() bool {
 	return false
 }
 
+// Fleet capacity is a separate read so a telemetry outage never hides cluster management.
+type ListClusterCapacitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClusterCapacitiesRequest) Reset() {
+	*x = ListClusterCapacitiesRequest{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClusterCapacitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClusterCapacitiesRequest) ProtoMessage() {}
+
+func (x *ListClusterCapacitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClusterCapacitiesRequest.ProtoReflect.Descriptor instead.
+func (*ListClusterCapacitiesRequest) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{35}
+}
+
+type ClusterCapacitySummary struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId                string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Sample                   *v11.AllocationSample  `protobuf:"bytes,2,opt,name=sample,proto3" json:"sample,omitempty"`
+	CpuMillicoresRequested   int64                  `protobuf:"varint,3,opt,name=cpu_millicores_requested,json=cpuMillicoresRequested,proto3" json:"cpu_millicores_requested,omitempty"`
+	MemoryBytesRequested     int64                  `protobuf:"varint,4,opt,name=memory_bytes_requested,json=memoryBytesRequested,proto3" json:"memory_bytes_requested,omitempty"`
+	CpuMillicoresAllocatable *int64                 `protobuf:"varint,5,opt,name=cpu_millicores_allocatable,json=cpuMillicoresAllocatable,proto3,oneof" json:"cpu_millicores_allocatable,omitempty"`
+	MemoryBytesAllocatable   *int64                 `protobuf:"varint,6,opt,name=memory_bytes_allocatable,json=memoryBytesAllocatable,proto3,oneof" json:"memory_bytes_allocatable,omitempty"`
+	CapacityReportedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=capacity_reported_at,json=capacityReportedAt,proto3" json:"capacity_reported_at,omitempty"`
+	CapacityStale            bool                   `protobuf:"varint,8,opt,name=capacity_stale,json=capacityStale,proto3" json:"capacity_stale,omitempty"`
+	ResourceCount            int32                  `protobuf:"varint,9,opt,name=resource_count,json=resourceCount,proto3" json:"resource_count,omitempty"`
+	NodeCount                int32                  `protobuf:"varint,10,opt,name=node_count,json=nodeCount,proto3" json:"node_count,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ClusterCapacitySummary) Reset() {
+	*x = ClusterCapacitySummary{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClusterCapacitySummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClusterCapacitySummary) ProtoMessage() {}
+
+func (x *ClusterCapacitySummary) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClusterCapacitySummary.ProtoReflect.Descriptor instead.
+func (*ClusterCapacitySummary) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ClusterCapacitySummary) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *ClusterCapacitySummary) GetSample() *v11.AllocationSample {
+	if x != nil {
+		return x.Sample
+	}
+	return nil
+}
+
+func (x *ClusterCapacitySummary) GetCpuMillicoresRequested() int64 {
+	if x != nil {
+		return x.CpuMillicoresRequested
+	}
+	return 0
+}
+
+func (x *ClusterCapacitySummary) GetMemoryBytesRequested() int64 {
+	if x != nil {
+		return x.MemoryBytesRequested
+	}
+	return 0
+}
+
+func (x *ClusterCapacitySummary) GetCpuMillicoresAllocatable() int64 {
+	if x != nil && x.CpuMillicoresAllocatable != nil {
+		return *x.CpuMillicoresAllocatable
+	}
+	return 0
+}
+
+func (x *ClusterCapacitySummary) GetMemoryBytesAllocatable() int64 {
+	if x != nil && x.MemoryBytesAllocatable != nil {
+		return *x.MemoryBytesAllocatable
+	}
+	return 0
+}
+
+func (x *ClusterCapacitySummary) GetCapacityReportedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CapacityReportedAt
+	}
+	return nil
+}
+
+func (x *ClusterCapacitySummary) GetCapacityStale() bool {
+	if x != nil {
+		return x.CapacityStale
+	}
+	return false
+}
+
+func (x *ClusterCapacitySummary) GetResourceCount() int32 {
+	if x != nil {
+		return x.ResourceCount
+	}
+	return 0
+}
+
+func (x *ClusterCapacitySummary) GetNodeCount() int32 {
+	if x != nil {
+		return x.NodeCount
+	}
+	return 0
+}
+
+type ListClusterCapacitiesResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Capacities    []*ClusterCapacitySummary `protobuf:"bytes,1,rep,name=capacities,proto3" json:"capacities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListClusterCapacitiesResponse) Reset() {
+	*x = ListClusterCapacitiesResponse{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListClusterCapacitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListClusterCapacitiesResponse) ProtoMessage() {}
+
+func (x *ListClusterCapacitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListClusterCapacitiesResponse.ProtoReflect.Descriptor instead.
+func (*ListClusterCapacitiesResponse) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ListClusterCapacitiesResponse) GetCapacities() []*ClusterCapacitySummary {
+	if x != nil {
+		return x.Capacities
+	}
+	return nil
+}
+
 var File_loco_cluster_v1_cluster_proto protoreflect.FileDescriptor
 
 const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/event/v1/event.proto\x1a\x1floco/capacity/v1/capacity.proto\"A\n" +
+	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1floco/capacity/v1/capacity.proto\x1a\x19loco/event/v1/event.proto\"A\n" +
 	"\x06Region\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12#\n" +
 	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"o\n" +
@@ -2671,7 +2893,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x0ecapacity_stale\x18\n" +
 	" \x01(\bR\rcapacityStaleB\x1d\n" +
 	"\x1b_cpu_millicores_allocatableB\x1b\n" +
-	"\x19_memory_bytes_allocatable\"\xa6\x02\n" +
+	"\x19_memory_bytes_allocatable\"\x8c\x03\n" +
 	"\x12AllocationConsumer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x15\n" +
@@ -2683,19 +2905,22 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\fmemory_bytes\x18\b \x01(\x03R\vmemoryBytes\x12%\n" +
 	"\x0eresource_count\x18\t \x01(\x05R\rresourceCount\x12\x12\n" +
 	"\x04pods\x18\n" +
-	" \x01(\x05R\x04pods\"\xbd\x02\n" +
+	" \x01(\x05R\x04pods\x126\n" +
+	"\x17resource_link_available\x18\v \x01(\bR\x15resourceLinkAvailable\x12,\n" +
+	"\x12org_link_available\x18\f \x01(\bR\x10orgLinkAvailable\"\xbc\x02\n" +
 	"\x19GetNodeAllocationsRequest\x12'\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x12\x1e\n" +
 	"\x04node\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xfd\x01R\x04node\x12.\n" +
-	"\fworkspace_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\x16\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xfd\x01R\x04node\x12-\n" +
+	"\fworkspace_id\x18\x03 \x01(\tB\n" +
+	"\xbaH\a\xd8\x01\x01r\x02\x18?R\vworkspaceId\x12\x16\n" +
 	"\x06memory\x18\x04 \x01(\bR\x06memory\x12\x1e\n" +
 	"\x05query\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12\x1f\n" +
 	"\x04page\x18\x06 \x01(\x05B\v\xbaH\b\x1a\x06\x18\xc0\x84=(\x00R\x04page\x12%\n" +
 	"\x0eremainder_only\x18\a \x01(\bR\rremainderOnly\x12'\n" +
 	"\tsample_id\x18\b \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xc8\x01R\bsampleId\"\x88\x04\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xc8\x01R\bsampleId\"\xaf\x04\n" +
 	"\x1aGetNodeAllocationsResponse\x12:\n" +
 	"\x06sample\x18\x01 \x01(\v2\".loco.capacity.v1.AllocationSampleR\x06sample\x121\n" +
 	"\x04node\x18\x02 \x01(\v2\x1d.loco.cluster.v1.NodeCapacityR\x04node\x125\n" +
@@ -2708,7 +2933,8 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x06memory\x18\b \x01(\bR\x06memory\x12!\n" +
 	"\fworkspace_id\x18\t \x01(\tR\vworkspaceId\x12%\n" +
 	"\x0eworkspace_name\x18\n" +
-	" \x01(\tR\rworkspaceName\"\xb9\x01\n" +
+	" \x01(\tR\rworkspaceName\x12%\n" +
+	"\x0eremainder_only\x18\v \x01(\bR\rremainderOnly\"\xb9\x01\n" +
 	"\x1fListWorkspaceAllocationsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12\x1e\n" +
 	"\x05query\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12\x1f\n" +
@@ -2729,17 +2955,39 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\vtotal_count\x18\x02 \x01(\x05R\n" +
 	"totalCount\x12@\n" +
 	"\bcoverage\x18\x03 \x01(\v2$.loco.capacity.v1.AllocationCoverageR\bcoverage\x12\x16\n" +
-	"\x06memory\x18\x04 \x01(\bR\x06memory*q\n" +
+	"\x06memory\x18\x04 \x01(\bR\x06memory\"\x1e\n" +
+	"\x1cListClusterCapacitiesRequest\"\xdc\x04\n" +
+	"\x16ClusterCapacitySummary\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12:\n" +
+	"\x06sample\x18\x02 \x01(\v2\".loco.capacity.v1.AllocationSampleR\x06sample\x128\n" +
+	"\x18cpu_millicores_requested\x18\x03 \x01(\x03R\x16cpuMillicoresRequested\x124\n" +
+	"\x16memory_bytes_requested\x18\x04 \x01(\x03R\x14memoryBytesRequested\x12A\n" +
+	"\x1acpu_millicores_allocatable\x18\x05 \x01(\x03H\x00R\x18cpuMillicoresAllocatable\x88\x01\x01\x12=\n" +
+	"\x18memory_bytes_allocatable\x18\x06 \x01(\x03H\x01R\x16memoryBytesAllocatable\x88\x01\x01\x12L\n" +
+	"\x14capacity_reported_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x12capacityReportedAt\x12%\n" +
+	"\x0ecapacity_stale\x18\b \x01(\bR\rcapacityStale\x12%\n" +
+	"\x0eresource_count\x18\t \x01(\x05R\rresourceCount\x12\x1d\n" +
+	"\n" +
+	"node_count\x18\n" +
+	" \x01(\x05R\tnodeCountB\x1d\n" +
+	"\x1b_cpu_millicores_allocatableB\x1b\n" +
+	"\x19_memory_bytes_allocatable\"h\n" +
+	"\x1dListClusterCapacitiesResponse\x12G\n" +
+	"\n" +
+	"capacities\x18\x01 \x03(\v2'.loco.cluster.v1.ClusterCapacitySummaryR\n" +
+	"capacities*q\n" +
 	"\vClusterRole\x12\x1c\n" +
 	"\x18CLUSTER_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CLUSTER_ROLE_APPS\x10\x01\x12\x17\n" +
 	"\x13CLUSTER_ROLE_BUILDS\x10\x02\x12\x14\n" +
-	"\x10CLUSTER_ROLE_ALL\x10\x032\x83\t\n" +
+	"\x10CLUSTER_ROLE_ALL\x10\x032\xfb\t\n" +
 	"\x13ClusterAdminService\x12^\n" +
 	"\rCreateCluster\x12%.loco.cluster.v1.CreateClusterRequest\x1a&.loco.cluster.v1.CreateClusterResponse\x12a\n" +
 	"\x0eIssueJoinToken\x12&.loco.cluster.v1.IssueJoinTokenRequest\x1a'.loco.cluster.v1.IssueJoinTokenResponse\x12[\n" +
 	"\fListClusters\x12$.loco.cluster.v1.ListClustersRequest\x1a%.loco.cluster.v1.ListClustersResponse\x12s\n" +
-	"\x14GetClusterOperations\x12,.loco.cluster.v1.GetClusterOperationsRequest\x1a-.loco.cluster.v1.GetClusterOperationsResponse\x12g\n" +
+	"\x14GetClusterOperations\x12,.loco.cluster.v1.GetClusterOperationsRequest\x1a-.loco.cluster.v1.GetClusterOperationsResponse\x12v\n" +
+	"\x15ListClusterCapacities\x12-.loco.cluster.v1.ListClusterCapacitiesRequest\x1a..loco.cluster.v1.ListClusterCapacitiesResponse\x12g\n" +
 	"\x10ListClusterNodes\x12(.loco.cluster.v1.ListClusterNodesRequest\x1a).loco.cluster.v1.ListClusterNodesResponse\x12m\n" +
 	"\x12GetNodeAllocations\x12*.loco.cluster.v1.GetNodeAllocationsRequest\x1a+.loco.cluster.v1.GetNodeAllocationsResponse\x12\x7f\n" +
 	"\x18ListWorkspaceAllocations\x120.loco.cluster.v1.ListWorkspaceAllocationsRequest\x1a1.loco.cluster.v1.ListWorkspaceAllocationsResponse\x12[\n" +
@@ -2763,7 +3011,7 @@ func file_loco_cluster_v1_cluster_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_cluster_v1_cluster_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_loco_cluster_v1_cluster_proto_goTypes = []any{
 	(ClusterRole)(0),                         // 0: loco.cluster.v1.ClusterRole
 	(*Region)(nil),                           // 1: loco.cluster.v1.Region
@@ -2801,73 +3049,81 @@ var file_loco_cluster_v1_cluster_proto_goTypes = []any{
 	(*ListWorkspaceAllocationsRequest)(nil),  // 33: loco.cluster.v1.ListWorkspaceAllocationsRequest
 	(*WorkspaceAllocation)(nil),              // 34: loco.cluster.v1.WorkspaceAllocation
 	(*ListWorkspaceAllocationsResponse)(nil), // 35: loco.cluster.v1.ListWorkspaceAllocationsResponse
-	(*timestamppb.Timestamp)(nil),            // 36: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),              // 37: google.protobuf.Duration
-	(*v1.Event)(nil),                         // 38: loco.event.v1.Event
-	(*v11.AllocationSample)(nil),             // 39: loco.capacity.v1.AllocationSample
-	(*v11.AllocationCoverage)(nil),           // 40: loco.capacity.v1.AllocationCoverage
+	(*ListClusterCapacitiesRequest)(nil),     // 36: loco.cluster.v1.ListClusterCapacitiesRequest
+	(*ClusterCapacitySummary)(nil),           // 37: loco.cluster.v1.ClusterCapacitySummary
+	(*ListClusterCapacitiesResponse)(nil),    // 38: loco.cluster.v1.ListClusterCapacitiesResponse
+	(*timestamppb.Timestamp)(nil),            // 39: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),              // 40: google.protobuf.Duration
+	(*v1.Event)(nil),                         // 41: loco.event.v1.Event
+	(*v11.AllocationSample)(nil),             // 42: loco.capacity.v1.AllocationSample
+	(*v11.AllocationCoverage)(nil),           // 43: loco.capacity.v1.AllocationCoverage
 }
 var file_loco_cluster_v1_cluster_proto_depIdxs = []int32{
-	36, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
-	36, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
+	39, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
+	39, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.cluster.v1.Cluster.role:type_name -> loco.cluster.v1.ClusterRole
-	36, // 3: loco.cluster.v1.Cluster.silent_since:type_name -> google.protobuf.Timestamp
+	39, // 3: loco.cluster.v1.Cluster.silent_since:type_name -> google.protobuf.Timestamp
 	23, // 4: loco.cluster.v1.Cluster.capacity:type_name -> loco.cluster.v1.ClusterCapacity
 	4,  // 5: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	36, // 6: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
-	37, // 7: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
+	39, // 6: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
+	40, // 7: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
 	2,  // 8: loco.cluster.v1.CreateClusterRequest.new_region:type_name -> loco.cluster.v1.NewRegion
 	6,  // 9: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	37, // 10: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
+	40, // 10: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
 	6,  // 11: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
 	3,  // 12: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
 	4,  // 13: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
 	1,  // 14: loco.cluster.v1.ListRegionsResponse.regions:type_name -> loco.cluster.v1.Region
-	36, // 15: loco.cluster.v1.ClusterCapacity.reported_at:type_name -> google.protobuf.Timestamp
+	39, // 15: loco.cluster.v1.ClusterCapacity.reported_at:type_name -> google.protobuf.Timestamp
 	26, // 16: loco.cluster.v1.GetClusterOperationsResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkloadAttention
-	38, // 17: loco.cluster.v1.GetClusterOperationsResponse.events:type_name -> loco.event.v1.Event
-	36, // 18: loco.cluster.v1.ClusterWorkloadAttention.updated_at:type_name -> google.protobuf.Timestamp
-	36, // 19: loco.cluster.v1.NodeCapacity.capacity_reported_at:type_name -> google.protobuf.Timestamp
-	39, // 20: loco.cluster.v1.ListClusterNodesResponse.sample:type_name -> loco.capacity.v1.AllocationSample
+	41, // 17: loco.cluster.v1.GetClusterOperationsResponse.events:type_name -> loco.event.v1.Event
+	39, // 18: loco.cluster.v1.ClusterWorkloadAttention.updated_at:type_name -> google.protobuf.Timestamp
+	39, // 19: loco.cluster.v1.NodeCapacity.capacity_reported_at:type_name -> google.protobuf.Timestamp
+	42, // 20: loco.cluster.v1.ListClusterNodesResponse.sample:type_name -> loco.capacity.v1.AllocationSample
 	27, // 21: loco.cluster.v1.ListClusterNodesResponse.nodes:type_name -> loco.cluster.v1.NodeCapacity
-	36, // 22: loco.cluster.v1.ListClusterNodesResponse.capacity_reported_at:type_name -> google.protobuf.Timestamp
-	39, // 23: loco.cluster.v1.GetNodeAllocationsResponse.sample:type_name -> loco.capacity.v1.AllocationSample
+	39, // 22: loco.cluster.v1.ListClusterNodesResponse.capacity_reported_at:type_name -> google.protobuf.Timestamp
+	42, // 23: loco.cluster.v1.GetNodeAllocationsResponse.sample:type_name -> loco.capacity.v1.AllocationSample
 	27, // 24: loco.cluster.v1.GetNodeAllocationsResponse.node:type_name -> loco.cluster.v1.NodeCapacity
 	30, // 25: loco.cluster.v1.GetNodeAllocationsResponse.top:type_name -> loco.cluster.v1.AllocationConsumer
 	30, // 26: loco.cluster.v1.GetNodeAllocationsResponse.remainder:type_name -> loco.cluster.v1.AllocationConsumer
 	30, // 27: loco.cluster.v1.GetNodeAllocationsResponse.system:type_name -> loco.cluster.v1.AllocationConsumer
 	30, // 28: loco.cluster.v1.GetNodeAllocationsResponse.consumers:type_name -> loco.cluster.v1.AllocationConsumer
 	34, // 29: loco.cluster.v1.ListWorkspaceAllocationsResponse.workspaces:type_name -> loco.cluster.v1.WorkspaceAllocation
-	40, // 30: loco.cluster.v1.ListWorkspaceAllocationsResponse.coverage:type_name -> loco.capacity.v1.AllocationCoverage
-	7,  // 31: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
-	9,  // 32: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
-	11, // 33: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
-	24, // 34: loco.cluster.v1.ClusterAdminService.GetClusterOperations:input_type -> loco.cluster.v1.GetClusterOperationsRequest
-	28, // 35: loco.cluster.v1.ClusterAdminService.ListClusterNodes:input_type -> loco.cluster.v1.ListClusterNodesRequest
-	31, // 36: loco.cluster.v1.ClusterAdminService.GetNodeAllocations:input_type -> loco.cluster.v1.GetNodeAllocationsRequest
-	33, // 37: loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations:input_type -> loco.cluster.v1.ListWorkspaceAllocationsRequest
-	13, // 38: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
-	15, // 39: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
-	17, // 40: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
-	19, // 41: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
-	21, // 42: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
-	8,  // 43: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
-	10, // 44: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
-	12, // 45: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
-	25, // 46: loco.cluster.v1.ClusterAdminService.GetClusterOperations:output_type -> loco.cluster.v1.GetClusterOperationsResponse
-	29, // 47: loco.cluster.v1.ClusterAdminService.ListClusterNodes:output_type -> loco.cluster.v1.ListClusterNodesResponse
-	32, // 48: loco.cluster.v1.ClusterAdminService.GetNodeAllocations:output_type -> loco.cluster.v1.GetNodeAllocationsResponse
-	35, // 49: loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations:output_type -> loco.cluster.v1.ListWorkspaceAllocationsResponse
-	14, // 50: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
-	16, // 51: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
-	18, // 52: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
-	20, // 53: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
-	22, // 54: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
-	43, // [43:55] is the sub-list for method output_type
-	31, // [31:43] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	43, // 30: loco.cluster.v1.ListWorkspaceAllocationsResponse.coverage:type_name -> loco.capacity.v1.AllocationCoverage
+	42, // 31: loco.cluster.v1.ClusterCapacitySummary.sample:type_name -> loco.capacity.v1.AllocationSample
+	39, // 32: loco.cluster.v1.ClusterCapacitySummary.capacity_reported_at:type_name -> google.protobuf.Timestamp
+	37, // 33: loco.cluster.v1.ListClusterCapacitiesResponse.capacities:type_name -> loco.cluster.v1.ClusterCapacitySummary
+	7,  // 34: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
+	9,  // 35: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
+	11, // 36: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
+	24, // 37: loco.cluster.v1.ClusterAdminService.GetClusterOperations:input_type -> loco.cluster.v1.GetClusterOperationsRequest
+	36, // 38: loco.cluster.v1.ClusterAdminService.ListClusterCapacities:input_type -> loco.cluster.v1.ListClusterCapacitiesRequest
+	28, // 39: loco.cluster.v1.ClusterAdminService.ListClusterNodes:input_type -> loco.cluster.v1.ListClusterNodesRequest
+	31, // 40: loco.cluster.v1.ClusterAdminService.GetNodeAllocations:input_type -> loco.cluster.v1.GetNodeAllocationsRequest
+	33, // 41: loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations:input_type -> loco.cluster.v1.ListWorkspaceAllocationsRequest
+	13, // 42: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
+	15, // 43: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
+	17, // 44: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
+	19, // 45: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
+	21, // 46: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
+	8,  // 47: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
+	10, // 48: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
+	12, // 49: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
+	25, // 50: loco.cluster.v1.ClusterAdminService.GetClusterOperations:output_type -> loco.cluster.v1.GetClusterOperationsResponse
+	38, // 51: loco.cluster.v1.ClusterAdminService.ListClusterCapacities:output_type -> loco.cluster.v1.ListClusterCapacitiesResponse
+	29, // 52: loco.cluster.v1.ClusterAdminService.ListClusterNodes:output_type -> loco.cluster.v1.ListClusterNodesResponse
+	32, // 53: loco.cluster.v1.ClusterAdminService.GetNodeAllocations:output_type -> loco.cluster.v1.GetNodeAllocationsResponse
+	35, // 54: loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations:output_type -> loco.cluster.v1.ListWorkspaceAllocationsResponse
+	14, // 55: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
+	16, // 56: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
+	18, // 57: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
+	20, // 58: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
+	22, // 59: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
+	47, // [47:60] is the sub-list for method output_type
+	34, // [34:47] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_loco_cluster_v1_cluster_proto_init() }
@@ -2882,13 +3138,14 @@ func file_loco_cluster_v1_cluster_proto_init() {
 	}
 	file_loco_cluster_v1_cluster_proto_msgTypes[26].OneofWrappers = []any{}
 	file_loco_cluster_v1_cluster_proto_msgTypes[28].OneofWrappers = []any{}
+	file_loco_cluster_v1_cluster_proto_msgTypes[36].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_cluster_v1_cluster_proto_rawDesc), len(file_loco_cluster_v1_cluster_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   35,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
