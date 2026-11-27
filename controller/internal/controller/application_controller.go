@@ -487,7 +487,8 @@ func getEnvSecretName(app *locov1alpha1.Application) string {
 
 func getRouteName(app *locov1alpha1.Application, hostname string) string {
 	digest := sha256.Sum256([]byte(hostname))
-	return fmt.Sprintf("%s-route.%x", locov1alpha1.WorkloadName(app.Spec.ResourceID), digest[:16])
+	// One DNS label preserves the full name in Envoy metric tags, which split at dots.
+	return fmt.Sprintf("r-%s-%x", app.Spec.ResourceID, digest[:12])
 }
 
 func getGatewayPolicyName(app *locov1alpha1.Application) string {

@@ -145,7 +145,7 @@ def route_records(request, worker_relays, tmp_path_factory):
     record = attributes(
         {
             **FORGED,
-            cluster: f"httproute/{namespace()}/resource-resource-a-route.0123456789abcdef0123456789abcdef/rule/0",
+            cluster: f"httproute/{namespace()}/r-resource-a-0123456789abcdef01234567/rule/0",
         }
     )
     directory = tmp_path_factory.mktemp(signal)
