@@ -1,3 +1,4 @@
+import { maybeTsMs } from "@/lib/time";
 import { useQuery } from "@connectrpc/connect-query";
 import { getClusterOperations } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
 import type { ClusterWorkloadAttention } from "@gen/loco/cluster/v1/cluster_pb";
@@ -7,14 +8,14 @@ import { Badge } from "@/components/design/Badge";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { buildLogsPath, resourcePath } from "@/lib/routes";
+import { buildLogsPath, logsAtHref, resourcePath } from "@/lib/routes";
 import { auditActor } from "@/pages/settings/auditEvents";
 
 import { SystemTime } from "./shared";
 
 export function workloadPath(workload: ClusterWorkloadAttention): string {
 	return workload.kind === "build"
-		? buildLogsPath(workload.orgId, workload.workspaceId, workload.id)
+		? logsAtHref(buildLogsPath(workload.orgId, workload.workspaceId, workload.id), maybeTsMs(workload.updatedAt))
 		: resourcePath(workload.orgId, workload.workspaceId, workload.resourceId, {
 				env: workload.environmentSlug,
 			});

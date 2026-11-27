@@ -110,12 +110,7 @@ function ReplicaCell({
 							aria-label="Replica logs"
 							nativeButton={false}
 							render={
-								<Link
-									to={
-										logsAtHref(logsHref, replica.ready ? undefined : maybeTsMs(replica.lastExit?.finishedAt)) ??
-										logsHref
-									}
-								/>
+								<Link to={logsAtHref(logsHref, replica.ready ? undefined : maybeTsMs(replica.lastExit?.finishedAt))} />
 							}
 						>
 							<ScrollTextIcon />

@@ -78,7 +78,7 @@ test("historical build links include the build interval rather than the last day
 test("incident links replace stale time bounds and preserve the replica and environment", () => {
 	const at = Date.now() - 6 * 60 * 60_000;
 	const url = new URL(
-		logsAtHref("/logs?env=production&r=web&q=%40replica%3Aold&range=15m&from=1&to=2", at)!,
+		logsAtHref("/logs?env=production&r=web&q=%40replica%3Aold&range=15m&from=1&to=2", at),
 		"https://loco.test",
 	);
 	expect(Number(url.searchParams.get("from"))).toBe(at - 5 * 60_000);
@@ -88,7 +88,6 @@ test("incident links replace stale time bounds and preserve the replica and envi
 	expect(url.searchParams.get("q")).toBe("@replica:old");
 	expect(url.searchParams.get("r")).toBe("web");
 	expect(url.searchParams.has("range")).toBe(false);
-	expect(logsAtHref(undefined, at)).toBeUndefined();
 	expect(logsAtHref("/logs?range=15m", undefined)).toBe("/logs?range=15m");
 });
 

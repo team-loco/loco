@@ -144,7 +144,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         replica["last_exit"] = {
             "reason": "Error",
             "exit_code": 1,
-            "finished_at": {"seconds": str(now - 6 * 60 * 60)},
+            "finished_at": {"seconds": now - 6 * 60 * 60},
         }
     previous = [
         {

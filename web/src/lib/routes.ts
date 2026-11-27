@@ -170,8 +170,8 @@ export function buildLogsPath(
 }
 
 /** Keep a diagnostic link on the selected incident rather than recent telemetry. */
-export function logsAtHref(href: string | undefined, at: number | undefined): string | undefined {
-	if (href === undefined || at === undefined) return href;
+export function logsAtHref(href: string, at: number | undefined): string {
+	if (at === undefined) return href;
 	const [path, search] = href.split("?");
 	const params = new URLSearchParams(search);
 	params.delete("range");
