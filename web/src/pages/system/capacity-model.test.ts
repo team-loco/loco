@@ -27,10 +27,9 @@ const cluster = () =>
 	});
 
 describe("deployment headroom", () => {
-	test("separates requested CPU/memory and assigned pod slots from measured usage", () => {
+	test("reports reserved CPU and memory separately from measured usage", () => {
 		const rows = reservations(capacity());
-		expect(rows.map(headroom)).toEqual(["4.5 vCPU unreserved", "10 GiB unreserved", "178 unreserved"]);
-		expect(rows[2]?.requested).toBe(42);
+		expect(rows.map(headroom)).toEqual(["4.5 vCPU unreserved", "10 GiB unreserved"]);
 	});
 
 	test("reports oversubscription instead of hiding it as zero free", () => {

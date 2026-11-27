@@ -6,6 +6,7 @@ import type { Organization, User } from "@gen/loco/org/v1/org_pb";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { functionalUpdate } from "@tanstack/react-table";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsNumberLiteral, parseAsString, useQueryStates } from "nuqs";
@@ -56,11 +57,13 @@ function workspaceColumns({
 	orgId,
 	currentWorkspaceId,
 	onOpenWorkspace,
+	hrefForWorkspace,
 	timePref,
 }: {
 	orgId: string;
 	currentWorkspaceId: string;
 	onOpenWorkspace: (workspace: Workspace) => void;
+	hrefForWorkspace?: ((workspace: Workspace) => string) | undefined;
 	timePref: TimePreferences;
 }): DataColumn<Workspace>[] {
 	return [
@@ -76,7 +79,7 @@ function workspaceColumns({
 						text={w.name}
 						render={
 							<Link
-								to={settingsPath(orgId, w.id, "workspace")}
+								to={hrefForWorkspace?.(w) ?? settingsPath(orgId, w.id, "workspace")}
 								onClick={(e) => {
 									if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 									e.preventDefault();
@@ -117,6 +120,61 @@ function workspaceColumns({
 			),
 		},
 	];
+}
+
+export function WorkspaceTable({
+	orgId,
+	currentWorkspaceId,
+	onOpenWorkspace,
+	rows,
+	hrefForWorkspace,
+	allocationColumns,
+	sort,
+}: {
+	orgId: string;
+	currentWorkspaceId: string;
+	onOpenWorkspace: (workspace: Workspace) => void;
+	rows: Workspace[];
+	hrefForWorkspace?: ((workspace: Workspace) => string) | undefined;
+	allocationColumns?: DataColumn<Workspace>[];
+	sort?: { id: string; desc: boolean; onChange: (id: string, desc: boolean) => void };
+}) {
+	const timePref = useTimePreferences();
+	const base = workspaceColumns({ orgId, currentWorkspaceId, onOpenWorkspace, hrefForWorkspace, timePref });
+	let columns = base;
+	if (allocationColumns !== undefined)
+		columns = [
+			...base
+				.filter((column) => column.id === "name" || column.id === "resources")
+				.map((column) => {
+					if (column.id === "resources") return { ...column, meta: { ...column.meta, hideOnMobile: true } };
+					return { ...column, size: 180, minSize: 90, meta: { ...column.meta, grow: true, fit: false } };
+				}),
+			...allocationColumns,
+		];
+	const sorting = sort === undefined ? [] : [{ id: sort.id, desc: sort.desc }];
+	const table = useDataTable("org-workspaces", {
+		data: rows,
+		columns,
+		getRowId: (workspace) => workspace.id,
+		manualSorting: true,
+		state: { sorting },
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			if (next !== undefined) sort?.onChange(next.id, next.desc);
+		},
+	});
+	return (
+		<DataTable
+			table={table}
+			label="Workspaces"
+			band
+			onRowClick={({ original }) => {
+				onOpenWorkspace(original);
+			}}
+			rowAction="navigate"
+		/>
+	);
 }
 
 export function OrgTab({
@@ -214,12 +272,6 @@ export function OrgTab({
 		const u = users.find((x) => x.id === id);
 		return u ? userLabel(u) : "";
 	};
-
-	const table = useDataTable("org-workspaces", {
-		data: rows,
-		getRowId: (w) => w.id,
-		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, onOpenWorkspace, timePref }),
-	});
 
 	const save = () => {
 		if (nameErr !== null || update.isPending) return;
@@ -356,14 +408,11 @@ export function OrgTab({
 						{workspaceCount === 0 ? "No workspaces yet." : "No workspaces match."}
 					</div>
 				) : (
-					<DataTable
-						table={table}
-						label="Workspaces"
-						band
-						onRowClick={({ original: w }) => {
-							onOpenWorkspace(w);
-						}}
-						rowAction="navigate"
+					<WorkspaceTable
+						orgId={org.id}
+						currentWorkspaceId={currentWorkspaceId}
+						onOpenWorkspace={onOpenWorkspace}
+						rows={rows}
 					/>
 				)}
 				<Pager

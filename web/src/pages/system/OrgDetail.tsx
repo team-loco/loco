@@ -23,6 +23,7 @@ import { workspacePath } from "@/lib/routes";
 import { systemAccess } from "@/lib/system";
 import { userLabel } from "@/lib/user";
 
+import { OrgWorkspaces } from "./OrgWorkspaces";
 import { OrgSuspensionButton } from "./OrgActions";
 import { OrgLimitsSection } from "./OrgLimits";
 import { OrgStateBadge, SystemDate, SystemTime } from "./shared";
@@ -207,6 +208,7 @@ export function SystemOrgDetail() {
 					</Fact>
 				</dl>
 			</Section>
+			<OrgWorkspaces key={org.id} orgId={org.id} />
 			<OrgLimitsSection orgId={org.id} admin={admin} />
 			<Members orgId={org.id} total={counted?.memberCount === undefined ? undefined : Number(counted.memberCount)} />
 		</Page>

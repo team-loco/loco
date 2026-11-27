@@ -10,8 +10,8 @@ import { notFound } from "@/lib/not-found";
 import { ROLE_LABEL, systemAccess } from "@/lib/system";
 
 import { Capacity } from "./Capacity";
+import { ClusterNodes } from "./ClusterNodes";
 import { ClusterOperations } from "./ClusterOperations";
-import { RuntimeSignals } from "./RuntimeSignals";
 import { ClusterActionButtons } from "./ClusterActions";
 import { AgentVersion } from "./ClusterTable";
 import { ClusterStateBadge, SystemTime, useFleet } from "./shared";
@@ -53,25 +53,12 @@ export function SystemClusterDetail() {
 					)
 				}
 			/>
-			{cluster.healthMessage !== "" && (
-				<p className="m-0 rounded-card border border-line bg-panel px-5 py-3 text-[13px] text-fg2">
-					{cluster.healthMessage}
-				</p>
-			)}
-			<Section title="Capacity">
-				<Capacity capacity={cluster.capacity} />
-			</Section>
-			<ClusterOperations clusterId={cluster.id} />
-			<RuntimeSignals clusterId={cluster.id} />
 			<Section title="Details">
 				<dl className="m-0 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-5 p-5">
 					<Fact label="Region">
 						<InlineCode>{cluster.region}</InlineCode>
 					</Fact>
 					<Fact label="Role">{ROLE_LABEL[cluster.role]}</Fact>
-					<Fact label="State">
-						<ClusterStateBadge state={state} />
-					</Fact>
 					<Fact label="Agent version">
 						<AgentVersion cluster={cluster} apiVersion={fleet.apiVersion} />
 					</Fact>
@@ -110,6 +97,12 @@ export function SystemClusterDetail() {
 					</Fact>
 				</dl>
 			</Section>
+			<ClusterOperations clusterId={cluster.id} section="issues" healthMessage={cluster.healthMessage} />
+			<Section title="Capacity">
+				<Capacity capacity={cluster.capacity} />
+			</Section>
+			<ClusterNodes key={cluster.id} clusterId={cluster.id} />
+			<ClusterOperations clusterId={cluster.id} section="events" />
 		</Page>
 	);
 }

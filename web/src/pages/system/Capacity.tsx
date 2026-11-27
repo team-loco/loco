@@ -22,7 +22,7 @@ export function Capacity({
 				</span>
 				<SystemTime ts={capacity.reportedAt} />
 			</div>
-			<div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-3">
+			<div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
 				{reservations(capacity).map((reservation) => {
 					const over = reservation.requested > reservation.allocatable;
 					const share =
@@ -42,9 +42,8 @@ export function Capacity({
 								/>
 							</div>
 							<p className="m-0 font-mono text-[11.5px] text-fg3">
-								{reservation.format(reservation.requested)}{" "}
-								{reservation.label === "Pod slots" ? "assigned" : "requested"} /{" "}
-								{reservation.format(reservation.allocatable)} allocatable
+								{reservation.format(reservation.requested)} requested / {reservation.format(reservation.allocatable)}{" "}
+								allocatable
 							</p>
 						</div>
 					);
@@ -59,11 +58,9 @@ export function CapacityCell({ capacity }: { capacity: ClusterCapacity | undefin
 	if (capacity.stale) return <span className="text-warn-fg">Stale report</span>;
 	return (
 		<div className="flex flex-col gap-0.5 font-mono text-[11.5px] text-fg2">
-			{reservations(capacity)
-				.slice(0, 2)
-				.map((reservation) => (
-					<span key={reservation.label}>{headroom(reservation)}</span>
-				))}
+			{reservations(capacity).map((reservation) => (
+				<span key={reservation.label}>{headroom(reservation)}</span>
+			))}
 		</div>
 	);
 }

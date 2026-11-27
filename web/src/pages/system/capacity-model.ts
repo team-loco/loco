@@ -25,12 +25,6 @@ export function reservations(capacity: ClusterCapacity): Reservation[] {
 			allocatable: Number(capacity.memoryBytesAllocatable),
 			format: (value) => `${formatMemory(value / BYTES_PER_MI)}B`,
 		},
-		{
-			label: "Pod slots",
-			requested: capacity.podsAssigned,
-			allocatable: capacity.podsAllocatable,
-			format: (value) => value.toLocaleString(),
-		},
 	];
 }
 

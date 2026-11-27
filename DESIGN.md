@@ -111,7 +111,7 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 ### System cluster operations
 
-Lead cluster pages with deployment headroom, Loco health, work needing attention and recent Loco activity. Capacity reports compare requested resources with allocatable capacity; measured runtime usage is a separate signal. Label missing and stale reports, and never present aggregate headroom as a promise that a deployment will fit on a node. Keep nodes and Kubernetes details behind diagnostic drilldowns when they explain a Loco problem. The System area is not a generic Kubernetes resource or YAML browser.
+Cluster pages show Details, Issues, Capacity, Nodes and Events in that order. Keep health messages in Issues and CPU/memory usage charts inside the selected node inspector. Capacity summaries show CPU and memory reservations. Capacity reports compare requested resources with allocatable capacity; measured runtime usage is a separate signal. Label missing and stale reports, and never present aggregate headroom as a promise that a deployment will fit on a node. Keep nodes and Kubernetes details behind diagnostic drilldowns when they explain a Loco problem. The System area is not a generic Kubernetes resource or YAML browser.
 
 ### Feature contracts and source links
 
