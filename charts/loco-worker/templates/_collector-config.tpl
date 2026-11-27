@@ -67,6 +67,8 @@
 {{- $_ := set $config.receivers "kubeletstats/platform" $kubelet -}}
 {{/* One file receiver fans out to disjoint platform and workload namespace filters. */}}
 {{- $podMetadata := index $config.processors "k8s_attributes/pod_uid" -}}
+{{/* Existing stdout files must not outrun the initial pod identity lookup. */}}
+{{- $_ := set $podMetadata "wait_for_metadata" true -}}
 {{- $_ := set $podMetadata.extract "labels" (append $podMetadata.extract.labels (dict "from" "pod" "key" "app.kubernetes.io/name" "tag_name" "loco.platform.service.name")) -}}
 {{- $_ := set $config.processors "filter/workload_logs" (dict "error_mode" "propagate" "log_conditions" (list (printf "resource.attributes[\"k8s.namespace.name\"] != nil and IsMatch(resource.attributes[\"k8s.namespace.name\"], %s)" ($pattern | toJson)))) -}}
 {{- $_ := set $config.service.pipelines.logs "processors" (append $config.service.pipelines.logs.processors "filter/workload_logs") -}}

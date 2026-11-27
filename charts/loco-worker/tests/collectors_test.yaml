@@ -415,3 +415,6 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'filter/workload_logs'
+      - matchRegex:
+          path: data.relay
+          pattern: 'wait_for_metadata: true'
