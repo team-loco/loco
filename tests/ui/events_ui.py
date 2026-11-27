@@ -43,6 +43,12 @@ ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','messag
 FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind)
 ORDER BY n DESC;""",
 )
+# A resource grant can list its events without workspace read access.
+reader = state["users"]["reader"]["id"]
+sql(
+    state,
+    f"INSERT INTO user_scopes(user_id,entity_type,entity_id,scope) VALUES('{reader}','resource','{resource}','read') ON CONFLICT DO NOTHING",
+)
 out = Path(args.out)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
@@ -198,6 +204,33 @@ with session(out) as browser:
     live = page.locator("[data-live-button]")
     expect(live).to_have_attribute("aria-pressed", "true")
     expect(live).to_have_text("Pause")
+    stream_url = "**/loco.event.v1.EventService/StreamEvents"
+    page.route(
+        stream_url,
+        lambda route: route.fulfill(
+            status=403,
+            json={"code": "permission_denied", "message": "Event stream refused"},
+        ),
+    )
+    page.reload()
+    notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
+    expect(notice).to_contain_text("Event stream refused")
+    expect(
+        events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
+    ).to_be_visible()
+    page.unroute(stream_url)
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        notice.get_by_role("button", name="Reconnect", exact=True).click()
+    expect(notice).to_have_count(0)
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,subject_type,subject_id,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system','resource','{resource}',
+jsonb_build_object('region','us-ca-2','message','Recovered after reconnect'));""",
+    )
+    expect(
+        events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
+    ).to_be_visible(timeout=15000)
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, state=state, now=time.time())
@@ -230,6 +263,18 @@ with session(out) as browser:
     drawer = page.get_by_role("dialog", name="Degraded in us-ca-1", exact=True)
     expect(drawer).to_be_visible()
     expect(drawer.get_by_role("link", name="Subscribe", exact=True)).to_have_count(0)
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        page.goto(state["ui_url"] + base + "/observability?view=events")
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,subject_type,subject_id,data)
+VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system','resource','{resource}',
+jsonb_build_object('region','us-ca-3','message','Recovered for resource reader'));""",
+    )
+    expect(
+        page.get_by_role("row", name="Recovered in us-ca-3", exact=True)
+    ).to_be_visible(timeout=15000)
+    expect(page.get_by_text("Live updates disconnected", exact=True)).to_have_count(0)
     assert not errors, errors
     context.close()
 print(

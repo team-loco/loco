@@ -119,6 +119,7 @@ These are feature/API requirements, separate from the visual guidance above. Fol
 
 - Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation.
 - Scoped audit history: [Audit](web/src/pages/Audit.tsx) shows organization and workspace history; [ActivityPanel](web/src/pages/resource/ActivityPanel.tsx) shows resource history. Both take event labels and actors from [auditEvents](web/src/pages/settings/auditEvents.ts). [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
+- Live event history: Audit and Events subscribe through `EventService.StreamEvents` with the same scopes and permissions as listing. Transient disconnects resume from the last cursor with bounded retries. Preserve loaded rows, show the failure with Reconnect, and keep periodic polling out of both views.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
 - Deployment-history pagination: [deployment.proto](proto/loco/deployment/v1/deployment.proto) and [DeploymentsSection](web/src/pages/resource/DeploymentsSection.tsx).

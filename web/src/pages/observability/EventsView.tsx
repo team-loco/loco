@@ -1,11 +1,10 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@connectrpc/connect";
-import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useEffect, useMemo, useState } from "react";
+import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { EventService, type ListEventsRequest, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
+import { type ListEventsRequest, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { PlusIcon } from "lucide-react";
@@ -17,9 +16,9 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Pager } from "@/components/design/Pager";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useMyScopes } from "@/hooks/useMyScopes";
+import { useEventSubscription } from "@/hooks/useEventSubscription";
+import { EventStreamNotice } from "@/components/design/EventStreamNotice";
 import { useNow } from "@/hooks/useNow";
-import { eventTypesQuery } from "@/lib/audit-query";
 import { useHeldError } from "@/hooks/useHeldError";
 import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
@@ -50,9 +49,6 @@ const EVENTS_PARAMS = {
 	event: parseAsString,
 };
 const NOW_TICK_MS = 30_000;
-// Live mode without the event stream polls the page this often, and the counts on a slower clock.
-const POLL_MS = 10_000;
-const FACETS_MS = 60_000;
 // With the stream, a burst of new events refreshes the page and the counts at most this often.
 const PAGE_REFRESH_MS = 2_000;
 const COUNT_REFRESH_MS = 10_000;
@@ -88,21 +84,17 @@ export function EventsView() {
 	const chips = EVENT_KEYS.flatMap((key) => liveTokens("events", tokens, key));
 	const resourceChips = chips.filter((t) => t.key === "resource");
 	const query = eventsQuery(chips, text);
-	const canStream = useMyScopes().resourceGrants(orgId, workspaceId) === "workspace";
 	const stream = useEventStream({
 		orgId,
 		workspaceId,
 		openedAt,
-		on: live && canStream && enabled,
+		on: live && enabled,
 		environmentId: environment?.id ?? "",
 		query,
 		onFirstPage: params.page.length === 0,
 	});
-	const streamFailed = stream.failed;
-	const poll = live && (!canStream || streamFailed) ? POLL_MS : false;
 	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
 		enabled,
-		refetchInterval: poll,
 		placeholderData: keepPreviousData,
 	});
 	const facets = useQuery(
@@ -110,11 +102,10 @@ export function EventsView() {
 		{ ...base, pageSize: 1, includeFacets: true },
 		{
 			enabled,
-			refetchInterval: poll === false ? false : FACETS_MS,
 			placeholderData: keepPreviousData,
 		},
 	);
-	const counted = { base, resourceChips, enabled, live: poll !== false };
+	const counted = { base, resourceChips, enabled };
 	const allCount = useSeverityCount(counted, null);
 	const warningCount = useSeverityCount(counted, "warning");
 	const errorCount = useSeverityCount(counted, "error");
@@ -164,17 +155,20 @@ export function EventsView() {
 	});
 
 	const header = (
-		<ViewHeader
-			actions={
-				<LiveButton
-					on={live}
-					title={live ? "Pause event stream" : "Stream new events"}
-					onToggle={() => {
-						void setParams({ live: live ? "0" : null });
-					}}
-				/>
-			}
-		/>
+		<>
+			<ViewHeader
+				actions={
+					<LiveButton
+						on={live}
+						title={live ? "Pause event stream" : "Stream new events"}
+						onToggle={() => {
+							void setParams({ live: live ? "0" : null });
+						}}
+					/>
+				}
+			/>
+			<EventStreamNotice error={stream.error} onRetry={stream.retry} />
+		</>
 	);
 
 	if (!loading && error !== null) {
@@ -320,21 +314,12 @@ function useEventStream({
 	openedAt: number;
 	on: boolean;
 	onFirstPage: boolean;
-}): { failed: boolean; newEvents: number } {
-	const transport = useTransport();
+}) {
 	const queryClient = useQueryClient();
-	const key = `${orgId}/${workspaceId}`;
-	const [failed, setFailed] = useState<string | null>(null);
+	const key = `${orgId}/${workspaceId}/${environmentId}/${query}`;
 	const [unseen, setUnseen] = useState({ key, count: 0 });
 	if (onFirstPage && unseen.count > 0) setUnseen({ key, count: 0 });
-	const firstPageRef = useRef(onFirstPage);
-	useEffect(() => {
-		firstPageRef.current = onFirstPage;
-	}, [onFirstPage]);
-	useEffect(() => {
-		if (!on) return;
-		const abort = new AbortController();
-		// Refetches this view's listed pages, or its one-row count and facet requests.
+	const refresh = useMemo(() => {
 		const invalidate = (counts: boolean) => async () => {
 			await queryClient.invalidateQueries({
 				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
@@ -344,42 +329,36 @@ function useEventStream({
 				},
 			});
 		};
-		const pageRefresh = coalesced(invalidate(false), PAGE_REFRESH_MS);
-		const countRefresh = coalesced(invalidate(true), COUNT_REFRESH_MS);
-		const consume = async () => {
-			try {
-				const client = createClient(EventService, transport);
-				for await (const message of client.streamEvents(
-					{
-						orgId,
-						workspaceId,
-						environmentId,
-						startTime: msToTimestamp(openedAt),
-						query: [eventTypesQuery(ENVIRONMENT_EVENT_TYPES), query === "" ? "" : `(${query})`].join(" ").trim(),
-					},
-					{ signal: abort.signal },
-				)) {
-					if (message.events.length === 0) continue;
-					countRefresh.poke();
-					if (firstPageRef.current) pageRefresh.poke();
-					else
-						setUnseen((u) => ({
-							key,
-							count: (u.key === key ? u.count : 0) + message.events.length,
-						}));
-				}
-			} catch {
-				if (!abort.signal.aborted) setFailed(key);
-			}
+		return {
+			page: coalesced(invalidate(false), PAGE_REFRESH_MS),
+			count: coalesced(invalidate(true), COUNT_REFRESH_MS),
 		};
-		void consume();
-		return () => {
-			abort.abort();
-			pageRefresh.stop();
-			countRefresh.stop();
-		};
-	}, [on, orgId, workspaceId, environmentId, query, openedAt, transport, queryClient, key]);
-	return { failed: failed === key, newEvents: unseen.key === key ? unseen.count : 0 };
+	}, [queryClient]);
+	useEffect(
+		() => () => {
+			refresh.page.stop();
+			refresh.count.stop();
+		},
+		[refresh],
+	);
+	const subscription = useEventSubscription(
+		{
+			orgId,
+			workspaceId,
+			environmentId,
+			query,
+			types: ENVIRONMENT_EVENT_TYPES,
+			readableResources: true,
+			startTime: msToTimestamp(openedAt),
+		},
+		on,
+		(events) => {
+			refresh.count.poke();
+			if (onFirstPage) refresh.page.poke();
+			else setUnseen((u) => ({ key, count: (u.key === key ? u.count : 0) + events.length }));
+		},
+	);
+	return { ...subscription, newEvents: unseen.key === key ? unseen.count : 0 };
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */
@@ -388,12 +367,10 @@ function useSeverityCount(
 		base,
 		resourceChips,
 		enabled,
-		live,
 	}: {
 		base: Omit<MessageInitShape<typeof ListEventsRequestSchema>, "$typeName">;
 		resourceChips: Token[];
 		enabled: boolean;
-		live: boolean;
 	},
 	severity: Exclude<Severity, "normal"> | null,
 ): number | undefined {
@@ -401,7 +378,7 @@ function useSeverityCount(
 	return useQuery(
 		listEvents,
 		{ ...base, query: eventsQuery(chips, ""), pageSize: 1, includeTotalCount: true },
-		{ enabled, refetchInterval: live ? FACETS_MS : false },
+		{ enabled },
 	).data?.totalCount;
 }
 

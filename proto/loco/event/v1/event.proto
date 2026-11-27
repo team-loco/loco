@@ -154,6 +154,16 @@ message StreamEventsRequest {
   // @reason and @resource fields, AND, OR, - and parentheses.
   // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
   string query = 13 [(buf.validate.field).string.max_bytes = 4096];
+  // Uses the same scope, authorization and type filters as ListEvents.
+  bool installation_only = 19;
+  repeated string types = 15 [(buf.validate.field).repeated.max_items = 100];
+  bool readable_resources = 17;
+  repeated string resource_ids = 18 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
 }
 
 message StreamEventsResponse {

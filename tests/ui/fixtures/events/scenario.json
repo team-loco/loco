@@ -18,5 +18,5 @@
       }
     }]
   }],
-  "grants": [{"user": "reader", "workspace": "acme/shared", "scopes": ["read"]}]
+  "grants": []
 }

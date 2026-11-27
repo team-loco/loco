@@ -217,14 +217,34 @@ with session(out) as browser:
     separator.focus()
     page.keyboard.press("ArrowRight")
     expect(separator).to_have_attribute("aria-valuenow", str(initial_width + 16))
-    page.get_by_role("button", name="Live", exact=True).click()
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        page.get_by_role("button", name="Live", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]live=1"))
     call(
         state,
-        "loco.resource.v1.ResourceService/UpdateResource",
-        {"resourceId": state["audit"]["checkout"], "description": "live audit update"},
+        "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
+        {"workspaceId": shared, "description": "live audit update"},
     )
-    expect(rows.first).to_contain_text("Updated a resource", timeout=15000)
+    expect(rows.first).to_contain_text(
+        "Changed the workspace description", timeout=15000
+    )
+    # A refused live subscription leaves history visible and offers an explicit reconnect.
+    stream_url = "**/loco.event.v1.EventService/StreamEvents"
+    page.route(
+        stream_url,
+        lambda route: route.fulfill(
+            status=403,
+            json={"code": "permission_denied", "message": "Audit stream refused"},
+        ),
+    )
+    page.reload()
+    notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
+    expect(notice).to_contain_text("Audit stream refused")
+    expect(rows.first).to_contain_text("Changed the workspace description")
+    page.unroute(stream_url)
+    with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
+        notice.get_by_role("button", name="Reconnect", exact=True).click()
+    expect(notice).to_have_count(0)
     page.get_by_role("button", name="Pause", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
 

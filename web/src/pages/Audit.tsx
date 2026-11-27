@@ -3,7 +3,7 @@ import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, BuildingIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon, ServerIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	parseAsArrayOf,
 	parseAsBoolean,
@@ -28,6 +28,9 @@ import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useOrgFilterChoices } from "@/hooks/orgFilterChoices";
 import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
+import { useEventSubscription } from "@/hooks/useEventSubscription";
+import { EventStreamNotice } from "@/components/design/EventStreamNotice";
+import { coalesced } from "./observability/coalesce";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { msParser, type TimeWindow } from "@/lib/obs-time";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
@@ -179,9 +182,38 @@ export function Audit({ system = false }: { system?: boolean }) {
 	const enabled = targetExists && filtersValidated && detailsReady;
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
 		enabled,
-		refetchInterval: live ? 5000 : false,
 	});
 	const facets = useQuery(listEvents, { ...input, query: "", pageSize: 1, includeFacets: true }, { enabled });
+	const refetchPage = query.refetch;
+	const refetchFacets = facets.refetch;
+	const refresh = useMemo(
+		() =>
+			coalesced(async () => {
+				await Promise.all([refetchPage(), refetchFacets()]);
+			}, 2_000),
+		[refetchPage, refetchFacets],
+	);
+	useEffect(
+		() => () => {
+			refresh.stop();
+		},
+		[refresh],
+	);
+	const subscription = useEventSubscription(
+		{
+			orgId,
+			workspaceId,
+			resourceId,
+			environmentId,
+			installationOnly,
+			query: sent,
+			startTime: msToTimestamp(openedAt),
+		},
+		live && enabled,
+		() => {
+			refresh.poke();
+		},
+	);
 	// Loco's own events match @actor_type:system, not @actor:system.
 	const valueCounts = (key: FieldKey): [string, number][] =>
 		(facets.data?.facets.find((f) => f.key === key)?.values ?? [])
@@ -315,6 +347,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 					</>
 				}
 			/>
+			<EventStreamNotice error={subscription.error} onRetry={subscription.retry} />
 			{loadError !== null && (
 				<ErrorState error={loadError} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			)}

@@ -56,4 +56,26 @@ func TestWorkspaceEventStream(t *testing.T) {
 	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetSeq() <= first.GetEvents()[0].GetSeq() {
 		t.Fatalf("resumed = %v", next)
 	}
+	if err = resumed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = p.User.Workspace.UpdateWorkspace(ctx, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: sibling.ID, Description: new("organization subscription"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	organization, err := p.User.Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
+		OrgId: w.OrgID, Cursor: next.GetCursor(), Types: []string{"workspace.updated"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer organization.Close()
+	organizationBatch, err := organization.Receive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(organizationBatch.GetEvents()) != 1 || organizationBatch.GetEvents()[0].GetWorkspaceId() != sibling.ID {
+		t.Fatalf("organization subscription = %v", organizationBatch)
+	}
 }

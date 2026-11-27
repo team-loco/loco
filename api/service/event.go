@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -233,7 +234,7 @@ func narrowsBelowOrganization(req *eventv1.ListEventsRequest) bool {
 
 // authorizeListScope authorizes a ListEvents. A request without an organization lists every
 // organization's events and the installation's, which needs system read; so does the whole log
-// of one organization, for a caller who is not its admin. Streams and facets never reach it.
+// of one organization, for a caller who is not its admin. Streams use the same authorization.
 func (s *EventServer) authorizeListScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
 	if req.GetOrgId() == "" {
 		if narrowsBelowOrganization(req) {
@@ -371,42 +372,33 @@ func (s *EventServer) StreamEvents(
 	req *eventv1.StreamEventsRequest,
 	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) (err error) {
-	var scoped *eventv1.ListEventsRequest
-	var scope eventScope
-	var filter logquery.Expr
-	if req.GetWorkspaceId() != "" {
-		scoped = &eventv1.ListEventsRequest{
-			OrgId:         req.GetOrgId(),
-			WorkspaceId:   req.GetWorkspaceId(),
-			ResourceId:    req.GetResourceId(),
-			EnvironmentId: req.GetEnvironmentId(),
-			StartTime:     req.GetStartTime(),
-			EndTime:       req.GetEndTime(),
-			Query:         req.GetQuery(),
-		}
-		filter, err = parseEventFilter(scoped)
-		if err != nil {
-			return err
-		}
-		if scope, err = s.authorizeStreamScope(ctx, scoped); err != nil {
-			return err
-		}
-	} else {
-		if req.GetOrgId() != "" || req.GetResourceId() != "" || req.GetEnvironmentId() != "" || req.GetQuery() != "" ||
-			req.GetStartTime() != nil ||
-			req.GetEndTime() != nil {
-			return connect.NewError(connect.CodeInvalidArgument, "workspace_id is required for event filters")
-		}
-		if authorizationErr := authorizeSystem(ctx, s.authz, actions.StreamEvents); authorizationErr != nil {
-			return authorizationErr
-		}
+	scoped := &eventv1.ListEventsRequest{
+		OrgId: req.GetOrgId(), WorkspaceId: req.GetWorkspaceId(), ResourceId: req.GetResourceId(),
+		EnvironmentId: req.GetEnvironmentId(), InstallationOnly: req.GetInstallationOnly(),
+		StartTime: req.GetStartTime(), EndTime: req.GetEndTime(), Query: req.GetQuery(),
+		Types: req.GetTypes(), ReadableResources: req.GetReadableResources(), ResourceIds: req.GetResourceIds(),
 	}
+	filter, err := parseEventFilter(scoped)
+	if err != nil {
+		return err
+	}
+	scope, err := s.authorizeListScope(ctx, scoped)
+	if err != nil {
+		return err
+	}
+	query, err := auditQuery(scoped, scope, filter)
+	if err != nil {
+		return err
+	}
+	var access atomic.Pointer[eventScope]
+	access.Store(&scope)
 	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
-		if scoped == nil {
-			return authorizeSystem(check, s.authz, actions.StreamEvents)
+		current, checkErr := s.authorizeListScope(check, scoped)
+		if checkErr != nil {
+			return checkErr
 		}
-		_, checkErr := s.authorizeStreamScope(check, scoped)
-		return checkErr
+		access.Store(&current)
+		return nil
 	})
 	if err != nil {
 		return err
@@ -427,26 +419,11 @@ func (s *EventServer) StreamEvents(
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
 	for {
-		var rows []events.AuditEvent
 		pollCtx, span := tracing.StartLinked(ctx, eventStreamPollSpan)
-		if scoped == nil {
-			var all []genDb.Event
-			all, err = s.queries.ListEventsAfter(
-				pollCtx,
-				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
-			)
-			for _, row := range all {
-				rows = append(rows, events.AuditEvent{Event: row})
-			}
-		} else {
-			query, queryErr := auditQuery(scoped, scope, filter)
-			if queryErr != nil {
-				tracing.End(span, queryErr)
-				return queryErr
-			}
-			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
-			rows, err = events.ListAudit(pollCtx, s.db, query)
-		}
+		query.ResourceIDs = access.Load().resourceIDs
+		query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
+		rows, readErr := events.ListAudit(pollCtx, s.db, query)
+		err = readErr
 		tracing.EndLive(ctx, span, err)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -459,6 +436,8 @@ func (s *EventServer) StreamEvents(
 			for i, row := range rows {
 				batch[i] = eventToProto(row.Event)
 				batch[i].Title, batch[i].Severity, batch[i].Region = row.Title, row.Severity, row.Region
+				batch[i].ActorEmail, batch[i].ActorName = derefString(row.ActorEmail), derefString(row.ActorName)
+				batch[i].OrgName = row.OrgName
 			}
 			last := rows[len(rows)-1]
 			position = eventPosition(*last.StreamPosition)
@@ -479,17 +458,6 @@ func (s *EventServer) StreamEvents(
 		case <-ticker.C:
 		}
 	}
-}
-
-func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
-	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
-	if err != nil {
-		return eventScope{}, err
-	}
-	if err := authorize(ctx, s.authz, actions.StreamWorkspaceEvents, workspaceID); err != nil {
-		return eventScope{}, err
-	}
-	return s.authorizeEventScope(ctx, req, actions.StreamWorkspaceEvents)
 }
 
 func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
