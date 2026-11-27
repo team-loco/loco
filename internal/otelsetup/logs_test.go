@@ -104,7 +104,13 @@ func TestLogsExportDiagnosticContextAndRespectLevel(t *testing.T) {
 			}
 		}
 	}
-	if !diagnostic || count != 1 || bytes.Contains(output.Bytes(), []byte("routine reconcile")) {
-		t.Fatalf("exported %d records, output %s; want only the diagnostic", count, &output)
+	if !diagnostic {
+		t.Fatal("diagnostic missing from OTLP")
+	}
+	if count != 1 {
+		t.Fatalf("exported %d records, want only the diagnostic", count)
+	}
+	if bytes.Contains(output.Bytes(), []byte("routine reconcile")) {
+		t.Fatalf("debug message reached INFO output: %s", &output)
 	}
 }

@@ -47,10 +47,14 @@ func TestOperatorConfigEnablesTracingAndMetricsWithTheirOTLPEndpoints(t *testing
 				t.Setenv(tc.env, "http://collector.loco.test:4318")
 			}
 			operator := newOperatorConfig()
-			if operator.Tracing != tc.wantTracing || operator.Metrics != tc.wantMetrics ||
-				operator.Logs != tc.wantLogs {
-				t.Errorf("tracing, metrics, logs = %t, %t, %t, want %t, %t, %t",
-					operator.Tracing, operator.Metrics, operator.Logs, tc.wantTracing, tc.wantMetrics, tc.wantLogs)
+			if operator.Tracing != tc.wantTracing {
+				t.Errorf("tracing = %t, want %t", operator.Tracing, tc.wantTracing)
+			}
+			if operator.Metrics != tc.wantMetrics {
+				t.Errorf("metrics = %t, want %t", operator.Metrics, tc.wantMetrics)
+			}
+			if operator.Logs != tc.wantLogs {
+				t.Errorf("logs = %t, want %t", operator.Logs, tc.wantLogs)
 			}
 		})
 	}

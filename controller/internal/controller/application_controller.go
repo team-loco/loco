@@ -382,7 +382,7 @@ func rolloutLogAttributes(rollout *locov1alpha1.RolloutStatus) []any {
 	attrs := []any{"available", rollout.Available, "healthy", rollout.Healthy,
 		"proven_revision", rollout.ProvenRevision, "stopped", rollout.Stopped != nil}
 	if rollout.Problem != nil {
-		attrs = append(attrs, "reason", rollout.Problem.Reason, "detail", rollout.Problem.Detail)
+		attrs = append(attrs, "reason", string(rollout.Problem.Reason), "detail", rollout.Problem.Detail)
 	}
 	return attrs
 }
