@@ -180,7 +180,7 @@ export function IncidentCard({
 					</Button>
 				)}
 			</div>
-			{serving !== undefined && report !== undefined && <p className="m-0 text-[13px] text-fg3">{report.message}</p>}
+			{serving !== undefined && <p className="m-0 text-[13px] text-fg3">{report?.message ?? problem.message}</p>}
 			{report?.detail && (
 				<div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-[13px]">
 					{report.detail.split(" · ").map((detail, i) => (
