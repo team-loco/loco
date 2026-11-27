@@ -56,7 +56,8 @@ with session(out) as browser:
         state,
         f"""INSERT INTO public_route_publications(publisher_id,hostname,resource_id,environment_id,cluster_ids,revision,change_sequence,message)
 SELECT b.id,d.domain,d.resource_id,d.environment_id,ARRAY(SELECT cluster_id FROM placements WHERE resource_id=d.resource_id),1,1,'Routing provider temporarily unavailable'
-FROM resource_domains d JOIN route_publishers b ON b.app_domain=d.app_domain WHERE d.resource_id='{resource}';""",
+FROM resource_domains d JOIN route_publishers b ON b.app_domain=d.app_domain WHERE d.resource_id='{resource}'
+ON CONFLICT(hostname) DO UPDATE SET cluster_ids=EXCLUDED.cluster_ids,message=EXCLUDED.message;""",
     )
     page.reload()
     expect(page.get_by_text("Routing error", exact=True)).to_have_count(2)
