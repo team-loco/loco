@@ -188,10 +188,19 @@ type EnvSecretRef struct {
 type ApplicationStatus struct {
 	ReadyReplicas int32 `json:"readyReplicas,omitzero"`
 
+	PublicRoute *PublicRouteStatus `json:"publicRoute,omitempty"`
+
 	Rollout *RolloutStatus `json:"rollout,omitempty"`
 
 	ObservedPlacementRevision int64  `json:"observedPlacementRevision,omitzero"`
 	ObservedDeploymentID      string `json:"observedDeploymentId,omitempty"`
+}
+
+// PublicRouteStatus records whether the gateway accepted the route for this placement revision.
+type PublicRouteStatus struct {
+	Revision  int64    `json:"revision"`
+	Hostnames []string `json:"hostnames"`
+	Ready     bool     `json:"ready"`
 }
 
 // +kubebuilder:object:root=true

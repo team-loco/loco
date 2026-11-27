@@ -271,6 +271,24 @@ spec:
               observedPlacementRevision:
                 format: int64
                 type: integer
+              publicRoute:
+                description: PublicRouteStatus records whether the gateway accepted
+                  the route for this placement revision.
+                properties:
+                  hostnames:
+                    items:
+                      type: string
+                    type: array
+                  ready:
+                    type: boolean
+                  revision:
+                    format: int64
+                    type: integer
+                required:
+                - hostnames
+                - ready
+                - revision
+                type: object
               readyReplicas:
                 format: int32
                 type: integer

@@ -9424,6 +9424,10 @@
             "type": "boolean",
             "title": "deployed",
             "description": "Set once the observed revision became healthy with every replica available."
+          },
+          "publicRoute": {
+            "title": "public_route",
+            "$ref": "#/components/schemas/loco.agent.v1.PublicRouteStatus"
           }
         },
         "title": "PlacementStatus",
@@ -9452,6 +9456,30 @@
         },
         "title": "ProblemReport",
         "additionalProperties": false
+      },
+      "loco.agent.v1.PublicRouteStatus": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64"
+          },
+          "hostnames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "hostnames"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "ready"
+          }
+        },
+        "title": "PublicRouteStatus",
+        "additionalProperties": false,
+        "description": "PublicRouteStatus is gateway acceptance for one placement revision."
       },
       "loco.agent.v1.RegisterRequest": {
         "type": "object",

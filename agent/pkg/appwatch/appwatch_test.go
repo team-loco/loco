@@ -427,6 +427,31 @@ func TestRolloutForwarding(t *testing.T) {
 	}
 }
 
+func TestPublicRouteForwarding(t *testing.T) {
+	w := newWatcher(nil, nil, testNamespace)
+	application := app("routing", testPlacementID, "5")
+	application.Status.PublicRoute = &locoControllerV1.PublicRouteStatus{
+		Revision: 5, Hostnames: []string{"app.example.com"}, Ready: true,
+	}
+	var got []*agentv1.PlacementStatus
+	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
+	w.observe(application)
+	want := &agentv1.PublicRouteStatus{Revision: 5, Hostnames: []string{"app.example.com"}, Ready: true}
+	if len(got) != 1 || !proto.Equal(got[0].GetPublicRoute(), want) {
+		t.Fatalf("public route report = %v, want %v", got, want)
+	}
+	application.Status.PublicRoute.Ready = false
+	w.observe(application)
+	if len(got) != 2 || got[1].GetPublicRoute().GetReady() {
+		t.Fatalf("route rejection was not reported: %v", got)
+	}
+	application.Status.PublicRoute = nil
+	w.observe(application)
+	if len(got) != 3 || got[2].GetPublicRoute() != nil {
+		t.Fatalf("private route was not cleared: %v", got)
+	}
+}
+
 func TestStartupFailureIsReportedAsStopped(t *testing.T) {
 	for _, reason := range []locoControllerV1.ProblemReason{
 		locoControllerV1.ProblemConfigError, locoControllerV1.ProblemImagePullFailed,
