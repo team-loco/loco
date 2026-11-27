@@ -206,6 +206,21 @@ with session(out) as browser:
     failed.get_by_role("button", name="Retry", exact=True).click()
     expect(card.get_by_role("table", name="Deployments")).to_be_visible()
 
+    page.route(DEPLOYMENTS, lambda route: route.fulfill(json={}))
+    page.route(
+        "**/loco.deployment.v1.DeploymentService/QueryDeploymentBuckets",
+        lambda route: route.fulfill(json={}),
+    )
+    page.goto(f"{base}?env=production")
+    deployment_empty = card.locator('[data-slot="empty-state"]')
+    expect(deployment_empty).to_have_text(
+        "No deployments to Production in the last 24 hours"
+    )
+    expect(deployment_empty.locator("svg")).to_have_count(0)
+    expect(
+        card.get_by_role("group", name="Filter deployments by status")
+    ).to_be_visible()
+
     page.goto(f"{base}?env=staging")
     # The empty environment is named by its name; its slug stays in the URL.
     empty = page.locator("section").filter(
