@@ -6,13 +6,6 @@ FROM (SELECT 1) one
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq;
 
--- name: ListEventsAfter :many
-SELECT *
-FROM events
-WHERE stream_position > sqlc.arg('after_position')::bigint
-ORDER BY stream_position
-LIMIT sqlc.arg('max_rows');
-
 -- name: DeleteEventsBefore :execrows
 DELETE FROM events
 WHERE seq IN (

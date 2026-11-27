@@ -29,7 +29,7 @@ test("a dropped stream or expired session resumes from the last cursor, so no ev
 			seen.push(...events.map((e) => e.id));
 		},
 		abort.signal,
-		0,
+		{ retryMs: 0 },
 	);
 	expect(cursors).toEqual(["", "c1", "c2"]);
 	expect(seen).toEqual(["e1", "e2"]);
@@ -48,7 +48,7 @@ test("a refused stream stops", async () => {
 		}),
 		() => undefined,
 		new AbortController().signal,
-		0,
+		{ retryMs: 0 },
 	);
 	expect(opened).toBe(1);
 });
@@ -64,9 +64,12 @@ test("repeated transient failures stop after bounded retries and report the fail
 		},
 		() => undefined,
 		new AbortController().signal,
-		0,
-		(error) => {
-			errors.push(error);
+		{
+			retryMs: 0,
+			maxRetries: 3,
+			onError: (error) => {
+				errors.push(error);
+			},
 		},
 	);
 	expect(opened).toBe(4);
@@ -84,10 +87,12 @@ test("aborting a retry delay stops reconnecting without reporting cancellation",
 		},
 		() => undefined,
 		abort.signal,
-		60_000,
-		(error) => {
-			errors.push(error);
-			abort.abort();
+		{
+			retryMs: 60_000,
+			onError: (error) => {
+				errors.push(error);
+				abort.abort();
+			},
 		},
 	);
 	expect(opened).toBe(1);

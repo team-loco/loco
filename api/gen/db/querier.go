@@ -232,7 +232,6 @@ type Querier interface {
 	// Every resource of the workspace with what references to it read in the environment: its latest
 	// deployment there that was not canceled, and its primary domain there.
 	ListEnvironmentTargets(ctx context.Context, arg ListEnvironmentTargetsParams) ([]ListEnvironmentTargetsRow, error)
-	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebhookIDsRow, error)
 	ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error)

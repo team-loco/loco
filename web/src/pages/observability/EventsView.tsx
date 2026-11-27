@@ -1,5 +1,5 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import type { MessageInitShape } from "@bufbuild/protobuf";
@@ -30,7 +30,7 @@ import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib
 import { useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { eventItem, type EventItem, type Severity } from "./events";
-import { coalesced } from "./coalesce";
+import { useCoalescedRefresh } from "@/hooks/useCoalescedRefresh";
 import { eventsQuery } from "./eventsQuery";
 import { ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { LevelBadge } from "./format";
@@ -294,7 +294,7 @@ export function EventsView() {
 }
 
 /**
- * Streams the environment's new events that query matches while on. On the first page a burst of events
+ * Streams the environment's new events while on. On the first page a burst of events
  * refetches the page at most once per PAGE_REFRESH_MS and the counts at most once per COUNT_REFRESH_MS,
  * one request at a time; on later pages it counts the new events instead of moving rows under the reader.
  */
@@ -317,31 +317,8 @@ function useEventStream({
 }) {
 	const queryClient = useQueryClient();
 	const key = `${orgId}/${workspaceId}/${environmentId}/${query}`;
-	const [unseen, setUnseen] = useState({ key, count: 0 });
-	if (onFirstPage && unseen.count > 0) setUnseen({ key, count: 0 });
-	const refresh = useMemo(() => {
-		const invalidate = (counts: boolean) => async () => {
-			await queryClient.invalidateQueries({
-				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
-				predicate: (q) => {
-					const input = (q.queryKey[1] as { input?: Partial<ListEventsRequest> } | undefined)?.input;
-					return input?.readableResources === true && (input.pageSize === 1) === counts;
-				},
-			});
-		};
-		return {
-			page: coalesced(invalidate(false), PAGE_REFRESH_MS),
-			count: coalesced(invalidate(true), COUNT_REFRESH_MS),
-		};
-	}, [queryClient]);
-	useEffect(
-		() => () => {
-			refresh.page.stop();
-			refresh.count.stop();
-		},
-		[refresh],
-	);
-	const subscription = useEventSubscription(
+	const received = useQuery(
+		listEvents,
 		{
 			orgId,
 			workspaceId,
@@ -350,15 +327,41 @@ function useEventStream({
 			types: ENVIRONMENT_EVENT_TYPES,
 			readableResources: true,
 			startTime: msToTimestamp(openedAt),
+			pageSize: 1,
+			includeTotalCount: true,
+		},
+		{ enabled: on },
+	);
+	const count = received.data?.totalCount ?? 0;
+	const [seen, setSeen] = useState({ key, count: 0 });
+	if (onFirstPage && (seen.key !== key || seen.count !== count)) setSeen({ key, count });
+	const invalidate = (counts: boolean) => async () => {
+		await queryClient.invalidateQueries({
+			queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
+			predicate: (q) => {
+				const input = (q.queryKey[1] as { input?: Partial<ListEventsRequest> } | undefined)?.input;
+				return input?.readableResources === true && (input.pageSize === 1) === counts;
+			},
+		});
+	};
+	const refreshPage = useCoalescedRefresh(invalidate(false), PAGE_REFRESH_MS, on, key);
+	const refreshCounts = useCoalescedRefresh(invalidate(true), COUNT_REFRESH_MS, on, key);
+	const subscription = useEventSubscription(
+		{
+			orgId,
+			workspaceId,
+			environmentId,
+			types: ENVIRONMENT_EVENT_TYPES,
+			readableResources: true,
+			startTime: msToTimestamp(openedAt),
 		},
 		on,
-		(events) => {
-			refresh.count.poke();
-			if (onFirstPage) refresh.page.poke();
-			else setUnseen((u) => ({ key, count: (u.key === key ? u.count : 0) + events.length }));
+		() => {
+			refreshCounts();
+			if (onFirstPage) refreshPage();
 		},
 	);
-	return { ...subscription, newEvents: unseen.key === key ? unseen.count : 0 };
+	return { ...subscription, newEvents: Math.max(0, count - (seen.key === key ? seen.count : 0)) };
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */

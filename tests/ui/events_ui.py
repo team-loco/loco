@@ -222,12 +222,22 @@ with session(out) as browser:
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
         notice.get_by_role("button", name="Reconnect", exact=True).click()
     expect(notice).to_have_count(0)
+    # A normal event updates broader counts even while the table shows only errors.
+    events.get_by_role("button", name=re.compile(r"^Errors")).click()
+    all_events = events.get_by_role("button", name=re.compile(r"^All"))
+    expect(all_events).to_contain_text(re.compile(r"\d+"))
+    before_count = int(re.search(r"\d+", all_events.inner_text()).group())
     sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,subject_type,subject_id,data)
 VALUES('resource.recovered','{org}','{workspace}','{resource}','{environment}','system','resource','{resource}',
 jsonb_build_object('region','us-ca-2','message','Recovered after reconnect'));""",
     )
+    expect(all_events).to_contain_text(str(before_count + 1), timeout=15000)
+    expect(
+        events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
+    ).to_have_count(0)
+    all_events.click()
     expect(
         events.get_by_role("row", name="Recovered in us-ca-2", exact=True)
     ).to_be_visible(timeout=15000)

@@ -31,6 +31,7 @@ export function useEventSubscription(
 					{
 						signal,
 						onHeader: () => {
+							if (abort.signal.aborted) return;
 							setFailure(null);
 						},
 					},
@@ -40,9 +41,12 @@ export function useEventSubscription(
 				handle(events);
 			},
 			abort.signal,
-			undefined,
-			(error) => {
-				setFailure({ input, error });
+			{
+				retryMs: 1_000,
+				maxRetries: 3,
+				onError: (error) => {
+					setFailure({ input, error });
+				},
 			},
 		);
 		return () => {

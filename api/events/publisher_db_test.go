@@ -49,7 +49,7 @@ func TestPublisherIgnoresOtherDatabasesAndRollbacks(t *testing.T) {
 	if err = events.Publish(t.Context(), pool); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := genDb.New(pool).ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 10})
+	rows, err := events.ListAudit(t.Context(), pool, events.AuditQuery{Stream: true, Limit: 10})
 	if err != nil || len(rows) != 1 || rows[0].Type != events.OrgCreated {
 		t.Fatalf("stream = %v (%v)", rows, err)
 	}
@@ -79,7 +79,7 @@ func TestConcurrentPublishersAssignGapFreePositions(t *testing.T) {
 	}
 	close(start)
 	wg.Wait()
-	rows, err := genDb.New(pool).ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 1001})
+	rows, err := events.ListAudit(t.Context(), pool, events.AuditQuery{Stream: true, Limit: 1001})
 	if err != nil || len(rows) != 1000 {
 		t.Fatalf("published %d (%v)", len(rows), err)
 	}
@@ -91,8 +91,7 @@ func TestConcurrentPublishersAssignGapFreePositions(t *testing.T) {
 	if err = events.Publish(t.Context(), pool); err != nil {
 		t.Fatal(err)
 	}
-	rows, err = genDb.New(pool).
-		ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{AfterPosition: 1000, MaxRows: 1})
+	rows, err = events.ListAudit(t.Context(), pool, events.AuditQuery{Stream: true, AfterPosition: 1000, Limit: 1})
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("duplicate publication: %v (%v)", rows, err)
 	}

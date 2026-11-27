@@ -110,7 +110,7 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 	f.events.poll = time.Millisecond
 	publishEvents(t, f.pool)
 	var removed atomic.Bool
-	checked := make(chan struct{}, 1)
+	checked := make(chan struct{}, 2)
 	scopes := func() []genDb.EntityScope {
 		grants := []genDb.EntityScope{
 			{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
@@ -153,10 +153,13 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 		t.Fatalf("initial subscription = %v", first)
 	}
 	removed.Store(true)
-	select {
-	case <-checked:
-	case <-ctx.Done():
-		t.Fatal("access was not rechecked")
+	// The second sequential validation read proves the first authorization update completed.
+	for range 2 {
+		select {
+		case <-checked:
+		case <-ctx.Done():
+			t.Fatal("access was not rechecked")
+		}
 	}
 	for _, resource := range []uuid.UUID{f.otherResourceID, f.resourceID} {
 		if recordErr := events.Record(

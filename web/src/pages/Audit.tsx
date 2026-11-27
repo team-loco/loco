@@ -1,9 +1,9 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQueries, useQueryClient, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, BuildingIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon, ServerIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	parseAsArrayOf,
 	parseAsBoolean,
@@ -30,7 +30,7 @@ import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useEventSubscription } from "@/hooks/useEventSubscription";
 import { EventStreamNotice } from "@/components/design/EventStreamNotice";
-import { coalesced } from "./observability/coalesce";
+import { useCoalescedRefresh } from "@/hooks/useCoalescedRefresh";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { msParser, type TimeWindow } from "@/lib/obs-time";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
@@ -87,6 +87,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 		history: "replace",
 	});
 	const transport = useTransport();
+	const queryClient = useQueryClient();
 	const access = useAuditAccess(system ? null : routeOrgId);
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
 	const [openedAt, setOpenedAt] = useState(Date.now);
@@ -184,20 +185,15 @@ export function Audit({ system = false }: { system?: boolean }) {
 		enabled,
 	});
 	const facets = useQuery(listEvents, { ...input, query: "", pageSize: 1, includeFacets: true }, { enabled });
-	const refetchPage = query.refetch;
-	const refetchFacets = facets.refetch;
-	const refresh = useMemo(
-		() =>
-			coalesced(async () => {
-				await Promise.all([refetchPage(), refetchFacets()]);
-			}, 2_000),
-		[refetchPage, refetchFacets],
-	);
-	useEffect(
-		() => () => {
-			refresh.stop();
+	const refresh = useCoalescedRefresh(
+		async () => {
+			await queryClient.invalidateQueries({
+				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
+			});
 		},
-		[refresh],
+		2_000,
+		live && enabled,
+		filterKey,
 	);
 	const subscription = useEventSubscription(
 		{
@@ -206,12 +202,11 @@ export function Audit({ system = false }: { system?: boolean }) {
 			resourceId,
 			environmentId,
 			installationOnly,
-			query: sent,
 			startTime: msToTimestamp(openedAt),
 		},
 		live && enabled,
 		() => {
-			refresh.poke();
+			refresh();
 		},
 	);
 	// Loco's own events match @actor_type:system, not @actor:system.
