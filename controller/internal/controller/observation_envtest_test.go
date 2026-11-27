@@ -12,7 +12,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -34,9 +36,9 @@ var _ = Describe("Time-driven rollout transitions", func() {
 		Expect(app.Status.Rollout.ProvenRevision).To(BeZero())
 		Expect(app.Status.Rollout.Available).To(BeTrue())
 		originalPodVersion := pod.ResourceVersion
-		recorder := startObservationManager(seed)
+		recorder, queuedBefore := startObservationManager(seed, app)
 		Eventually(
-			func() error { return environmentControllersIdle(recorder) },
+			func() error { return environmentControllersIdle(recorder, queuedBefore) },
 			routeManagerWait,
 			routeManagerPoll,
 		).Should(Succeed())
@@ -73,9 +75,9 @@ var _ = Describe("Time-driven rollout transitions", func() {
 		app.Status.Rollout.Deadline.At = metav1.NewTime(deadline)
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 		originalPodVersion := pod.ResourceVersion
-		recorder := startObservationManager(seed)
+		recorder, queuedBefore := startObservationManager(seed, app)
 		Eventually(
-			func() error { return environmentControllersIdle(recorder) },
+			func() error { return environmentControllersIdle(recorder, queuedBefore) },
 			routeManagerWait,
 			routeManagerPoll,
 		).Should(Succeed())
@@ -105,18 +107,23 @@ var _ = Describe("Time-driven rollout transitions", func() {
 	})
 })
 
-func startObservationManager(seed *ApplicationReconciler) *tracetest.SpanRecorder {
+func startObservationManager(seed *ApplicationReconciler, app *loco.Application) (*tracetest.SpanRecorder, float64) {
 	recorder := tracetest.NewSpanRecorder()
 	previous := otel.GetTracerProvider()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	otel.SetTracerProvider(provider)
 	DeferCleanup(func() { otel.SetTracerProvider(previous); Expect(provider.Shutdown(ctx)).To(Succeed()) })
 	GinkgoHelper()
+	cacheOptions := CacheOptions(testNamespace, "", false)
+	cacheOptions.DefaultNamespaces = map[string]cache.Config{testNamespace: {}, testEnvironmentNamespace(app): {}}
+	cacheOptions.ByObject[&loco.Application{}] = cache.ByObject{
+		Field: fields.OneTermEqualSelector("metadata.name", app.Name),
+	}
 	mgr, err := ctrl.NewManager(
 		cfg,
 		ctrl.Options{
 			Scheme: k8sClient.Scheme(),
-			Cache:  CacheOptions(testNamespace, "", false),
+			Cache:  cacheOptions,
 			Controller: config.Controller{
 				SkipNameValidation: new(true),
 			},
@@ -136,10 +143,12 @@ func startObservationManager(seed *ApplicationReconciler) *tracetest.SpanRecorde
 		HealthyAfter:             seed.HealthyAfter,
 	}
 	Expect(r.SetupWithManager(mgr)).To(Succeed())
+	queuedBefore, _, err := environmentControllerWork()
+	Expect(err).NotTo(HaveOccurred())
 	managerCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() { done <- mgr.Start(managerCtx) }()
 	DeferCleanup(func() { stop(); Eventually(done, routeManagerWait).Should(Receive(BeNil())) })
 	Expect(mgr.GetCache().WaitForCacheSync(managerCtx)).To(BeTrue())
-	return recorder
+	return recorder, queuedBefore
 }
