@@ -72,7 +72,7 @@ func TestPullEvents(t *testing.T) {
 	if err := r.Delete(t.Context(), pod); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := r.podEvents[pod.UID]; ok {
@@ -142,7 +142,7 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 	// detail returns the rollout problem's detail and the replica's detail.
 	detail := func() (string, string) {
 		t.Helper()
-		if err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
+		if _, err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
 			t.Fatal(err)
 		}
 		problem := app.Status.Rollout.Problem

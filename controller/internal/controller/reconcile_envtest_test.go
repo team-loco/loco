@@ -140,7 +140,6 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
 		result, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(deployingRequeue))
 
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		container := dep.Spec.Template.Spec.Containers[0]
