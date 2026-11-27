@@ -55,7 +55,7 @@
 {{- $filter := printf "resource.attributes[\"k8s.namespace.name\"] != nil and not IsMatch(resource.attributes[\"k8s.namespace.name\"], %s)" ($pattern | toJson) -}}
 {{- $_ := set $config.processors "filter/platform" (dict "error_mode" "propagate" "metric_conditions" (list $filter) "log_conditions" (list "resource.attributes[\"k8s.namespace.name\"] == nil" $filter)) -}}
 {{- $attributes := list -}}
-{{- range $key, $value := dict "loco.installation.id" $settings.installation "k8s.cluster.name" $settings.cluster "deployment.environment.name" $settings.environment "loco.region" .root.Values.global.region "loco.telemetry.scope" "platform" -}}
+{{- range $key, $value := dict "loco.installation.id" $settings.installation "k8s.cluster.name" $settings.cluster "deployment.environment.name" $settings.environment "loco.region" .root.Values.global.region "loco.telemetry.scope" "platform" "loco.collection.interval" $settings.collectionInterval -}}
 {{- $attributes = append $attributes (dict "key" $key "value" $value "action" "upsert") -}}
 {{- end -}}
 {{- $_ := set $config.processors "resource/platform" (dict "attributes" $attributes) -}}
@@ -68,6 +68,8 @@
 {{- else -}}
 {{- $receivers = list "k8s_cluster" "otlp/platform" -}}
 {{- $_ := set $config.receivers "otlp/platform" (dict "protocols" (dict "http" (dict "endpoint" (printf "${env:MY_POD_IP}:%v" (include "loco-worker.platformOTLPPort" .root))))) -}}
+{{- $_ := set $config.receivers "prometheus/capacity" (include "loco-worker.capacityScrape" .root | fromYaml) -}}
+{{- $_ := set $config.service.pipelines "metrics/capacity" (dict "receivers" (list "prometheus/capacity") "processors" (list "memory_limiter" "resource/platform")) -}}
 {{- $_ := set $config.service.pipelines "traces/platform" (dict "receivers" (list "otlp/platform") "processors" (list "memory_limiter" "resource/platform")) -}}
 {{- $_ := set $config.receivers.k8s_cluster "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}
@@ -77,13 +79,13 @@
 {{- end -}}
 {{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform")) -}}
 {{- if $settings.platformOnly -}}
-{{- $pipelines := pick $config.service.pipelines "metrics/platform" "logs/platform" "traces/platform" -}}
+{{- $pipelines := pick $config.service.pipelines "metrics/platform" "metrics/capacity" "logs/platform" "traces/platform" -}}
 {{- $_ := set $config.service "pipelines" $pipelines -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
 {{- range $name, $pipeline := $config.service.pipelines -}}
-{{- $_ := set $pipeline "exporters" (list (ternary $platformExporter $exporterName (hasSuffix "/platform" $name))) -}}
+{{- $_ := set $pipeline "exporters" (list (ternary $platformExporter $exporterName (or (hasSuffix "/platform" $name) (eq $name "metrics/capacity")))) -}}
 {{- end -}}
 {{- toYaml $config -}}
 {{- end -}}

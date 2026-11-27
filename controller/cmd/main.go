@@ -6,6 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/team-loco/loco/controller/internal/capacity"
+	"github.com/team-loco/loco/internal/capacitymetrics"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -128,6 +131,15 @@ func main() {
 		fail(err, "unable to start manager")
 	}
 
+	applicationMetrics := operator.Metrics && reconcilerName == reconcilerApplication
+	if applicationMetrics && metricsAddr != metricsOff {
+		if err := mgr.AddMetricsServerExtraHandler(
+			capacitymetrics.Path,
+			capacity.Handler(mgr.GetAPIReader(), mgr.Elected()),
+		); err != nil {
+			fail(err, "unable to serve pod capacity metrics")
+		}
+	}
 	if err := setup.register(mgr); err != nil {
 		fail(err, "unable to create controller", "controller", reconcilerName)
 	}

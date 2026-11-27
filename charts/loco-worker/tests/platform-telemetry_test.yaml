@@ -147,3 +147,34 @@ tests:
         template: templates/controller/deployment.yaml
       - contains: *instance
         template: templates/builds/deployment.yaml
+
+  - it: restricts capacity scraping to the cluster collector and controller
+    template: templates/collectors/capacity-metrics.yaml
+    documentSelector: {path: kind, value: NetworkPolicy}
+    asserts:
+      - equal:
+          path: spec.podSelector.matchLabels["app.kubernetes.io/name"]
+          value: loco-controller
+      - equal:
+          path: spec.ingress[0].from[0].podSelector.matchLabels["app.kubernetes.io/name"]
+          value: otel-col-cluster
+      - equal:
+          path: spec.ingress[0].ports[0].port
+          value: 8080
+
+  - it: gives the builds-only capacity source read-only pod listing
+    template: templates/collectors/capacity-metrics.yaml
+    set:
+      cluster.role: builds
+    documentSelector: {path: kind, value: ClusterRole}
+    asserts:
+      - equal:
+          path: rules
+          value: [{apiGroups: [""], resources: [pods], verbs: [list]}]
+
+  - it: creates no capacity scrape access while platform telemetry is disabled
+    template: templates/collectors/capacity-metrics.yaml
+    set:
+      global.platformTelemetry.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
