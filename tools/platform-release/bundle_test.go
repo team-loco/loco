@@ -52,6 +52,18 @@ func TestBundleGatewayEnablesBackendAPI(t *testing.T) {
 	require.Equal(t, true, fields(config, "extensionApis")["enableBackend"])
 }
 
+func TestControlPlaneRetriesWithoutRollingBackItsMigratedDatabase(t *testing.T) {
+	t.Parallel()
+	manifest, _, namespace := bundleFixture(t)
+	files, err := buildBundle(manifest, namespace)
+	require.NoError(t, err)
+	var release object
+	require.NoError(t, json.Unmarshal(files["layers/control-plane/loco-control-plane-helmrelease.yaml"], &release))
+	upgrade := fields(release, "spec", "upgrade")
+	require.Equal(t, object{"name": "RetryOnFailure", "retryInterval": "5m"}, upgrade["strategy"])
+	require.NotContains(t, upgrade, "remediation")
+}
+
 func TestBundleRevisionIncludesArtifactsAndImages(t *testing.T) {
 	t.Parallel()
 	for _, field := range []string{artifactsName, "images"} {

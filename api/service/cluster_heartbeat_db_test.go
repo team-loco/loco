@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/api/db/dbtest"
@@ -200,6 +201,12 @@ func TestHeartbeatsKeepOnlyTheNewestCapabilities(t *testing.T) {
 		clusterv1.ClusterRole_CLUSTER_ROLE_APPS, clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
 	} {
 		heartbeat := healthyHeartbeat()
+		// Existing workers encode their retained platforms at tag 7.
+		wire := protowire.AppendTag(nil, 7, protowire.BytesType)
+		wire = protowire.AppendString(wire, testPlatform)
+		if err := proto.Unmarshal(wire, heartbeat.GetCapabilities()); err != nil {
+			t.Fatal(err)
+		}
 		heartbeat.Role = role
 		if err := session.handle(t.Context(), heartbeatMessage(heartbeat)); err != nil {
 			t.Fatal(err)
@@ -213,6 +220,14 @@ func TestHeartbeatsKeepOnlyTheNewestCapabilities(t *testing.T) {
 	}
 	if role := f.role(t); role != genDb.ClusterRoleBuilds {
 		t.Fatalf("role = %s, want the newest heartbeat's builds", role)
+	}
+	var platforms []string
+	if err := f.pool.QueryRow(t.Context(), "SELECT platforms FROM clusters WHERE id=$1", f.clusterID).
+		Scan(&platforms); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(platforms, []string{testPlatform}) {
+		t.Fatalf("wire platforms lost at heartbeat persistence: %v", platforms)
 	}
 }
 

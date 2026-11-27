@@ -1741,7 +1741,7 @@ func (x *Heartbeat) GetDomains() []string {
 // AgentCapabilities reports the worker platforms used for placement eligibility.
 type AgentCapabilities struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Platforms     []string               `protobuf:"bytes,1,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	Platforms     []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1988,9 +1988,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"T\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"`\n" +
 	"\x11AgentCapabilities\x12?\n" +
-	"\tplatforms\x18\x01 \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatforms\"\x85\x01\n" +
+	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatformsJ\x04\b\x01\x10\aJ\x04\b\b\x10\t\"\x85\x01\n" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +

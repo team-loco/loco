@@ -248,7 +248,8 @@ message Heartbeat {
 
 // AgentCapabilities reports the worker platforms used for placement eligibility.
 message AgentCapabilities {
-  repeated string platforms = 1 [(buf.validate.field).repeated.items.string.pattern = "^linux/(amd64|arm64)$"];
+  reserved 1 to 6, 8;
+  repeated string platforms = 7 [(buf.validate.field).repeated.items.string.pattern = "^linux/(amd64|arm64)$"];
 }
 
 // AgentHealth reports agent and cluster health status.
