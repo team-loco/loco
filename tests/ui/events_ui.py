@@ -214,7 +214,7 @@ with session(out) as browser:
     )
     page.reload()
     notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
-    expect(notice).to_contain_text("Event stream refused")
+    expect(notice).to_contain_text("HTTP 403")
     expect(
         events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
     ).to_be_visible()

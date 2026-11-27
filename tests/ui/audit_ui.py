@@ -239,7 +239,7 @@ with session(out) as browser:
     )
     page.reload()
     notice = page.get_by_role("status").filter(has_text="Live updates disconnected")
-    expect(notice).to_contain_text("Audit stream refused")
+    expect(notice).to_contain_text("HTTP 403")
     expect(rows.first).to_contain_text("Changed the workspace description")
     page.unroute(stream_url)
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
