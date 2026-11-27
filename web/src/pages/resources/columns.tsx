@@ -268,8 +268,12 @@ function ReservationCell({ row, memory }: { row: ListRow; memory: boolean }) {
 		<div className="flex flex-col gap-0.5 font-mono text-[12px]">
 			<span>{reservationLabel(value, memory, reservationCoverage)}</span>
 			{builds > 0n && (
-				<span className="text-[11px] whitespace-normal text-fg3" title="Workspace build reservations across all environments">
-					Workspace builds {reservationLabel(builds, memory, reservationCoverage)}
+				<span
+					className="text-[11px] whitespace-normal text-fg3"
+					title="Workspace build reservations across all environments"
+				>
+					Workspace builds{" "}
+					<span className="whitespace-nowrap">{reservationLabel(builds, memory, reservationCoverage)}</span>
 				</span>
 			)}
 		</div>
