@@ -56,13 +56,19 @@ func TestResourceDomainPublicationTracksCurrentAcknowledgement(t *testing.T) {
 			PublicationId: p.ID.String(),
 			Revision:      p.Revision,
 			Outcome:       routingv1.PublicationOutcome_PUBLICATION_OUTCOME_ERROR,
-			Message:       "Routing provider temporarily unavailable",
+			Message:       "",
 		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	check(domainv1.PublicationState_PUBLICATION_STATE_ERROR)
-	f.ack(t, p)
+	_, err = f.server.ReportPublication(f.ctx, &routingv1.ReportPublicationRequest{
+		PublisherId: f.publisher.String(), SessionId: f.session, PublicationId: p.ID.String(), Revision: p.Revision,
+		Outcome: routingv1.PublicationOutcome_PUBLICATION_OUTCOME_PUBLISHED, Message: "Informational provider text",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	check(domainv1.PublicationState_PUBLICATION_STATE_PUBLISHED)
 }
