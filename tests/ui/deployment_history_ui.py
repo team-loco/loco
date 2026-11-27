@@ -3,7 +3,9 @@ import json
 import re
 import time
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
@@ -198,6 +200,8 @@ def fixture():
         ("older", "succeeded", ""),
     )
     for minutes, (name, status, message) in enumerate(build_rows, 1):
+        if minutes >= 4:
+            minutes += 2 * 24 * 60
         digest = f"'{BUILD_DIGEST}'" if status == "succeeded" else "NULL"
         started = (
             "NULL"
@@ -706,6 +710,14 @@ with session(out) as browser:
     expect(
         section.get_by_role("link", name="Open in Logs", exact=True)
     ).to_have_attribute("href", re.compile(f"q=@build:{builds['failed']}"))
+    historical_link = section.get_by_role("link", name="Open in Logs", exact=True)
+    bounds = parse_qs(urlparse(historical_link.get_attribute("href")).query)
+    assert "range" not in bounds and "from" in bounds and "to" in bounds, bounds
+    assert (
+        int(bounds["to"][0]) < datetime.now(UTC).timestamp() * 1000 - 24 * 60 * 60_000
+    ), bounds
+    assert int(bounds["from"][0]) < int(bounds["to"][0]), bounds
+
     log_requests = [
         body
         for body in log_queries

@@ -1,8 +1,7 @@
-import { traceBounds } from "./trace-time";
+import { traceLogWindow } from "./trace-time";
 import { useMemo, useState } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
-import { AROUND_MS } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 import { useTraceResources } from "./TraceColors";
 import { useObs } from "../context";
@@ -13,9 +12,7 @@ export function useTraceLogs(trace: TraceSummary) {
 	const { color } = useTraceResources();
 	const { workspaceId, installation, environmentId, scopedResourceIds, resourceById } = useObs();
 	const [now] = useState(Date.now);
-	const { start, end } = traceBounds(trace);
-	const from = start - AROUND_MS;
-	const to = Math.min(now, end + AROUND_MS);
+	const { from, to } = traceLogWindow(trace, now);
 	const query = useQueryLogs({
 		workspaceId,
 		installation,

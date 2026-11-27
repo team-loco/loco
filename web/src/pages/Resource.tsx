@@ -1,4 +1,5 @@
 import { aroundWindow, windowValues } from "@/lib/obs-time";
+import type { Build } from "@gen/loco/build/v1/build_pb";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -230,8 +231,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
-	const buildLogsHref = (buildId: string) =>
-		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined;
+	const buildLogsHref = (buildId: string, build?: Build) =>
+		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId, build) : undefined;
 	const obsLink = (
 		obsView: "logs" | "metrics" | "traces",
 		filter: { key: string; value: string } | null = null,

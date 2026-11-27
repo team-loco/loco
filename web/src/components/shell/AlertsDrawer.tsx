@@ -464,7 +464,14 @@ export function AlertsDrawer() {
 					...envParams,
 					r: [resource?.slug ?? ""],
 				})}
-				buildLogsHref={buildId === "" ? undefined : buildLogsPath(activeOrgId, activeWorkspaceId, buildId)}
+				buildLogsHref={
+					buildId === ""
+						? undefined
+						: buildLogsPath(activeOrgId, activeWorkspaceId, buildId, {
+								createdAt: d.createdAt,
+								finishedAt: d.completedAt,
+							})
+				}
 				onNavigate={close}
 			/>
 		);

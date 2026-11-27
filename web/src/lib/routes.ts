@@ -1,9 +1,10 @@
+import type { Build } from "@gen/loco/build/v1/build_pb";
 import { createSerializer, type inferParserType, parseAsArrayOf, parseAsString, parseAsStringLiteral } from "nuqs";
 import { matchPath } from "react-router";
 
-import { msParser, WINDOW_PARSERS } from "./obs-time";
+import { aroundWindow, AROUND_MS, msParser, windowValues, WINDOW_PARSERS } from "./obs-time";
 import { SYSTEM_PATH } from "./system";
-import { DAY_MS } from "./time";
+import { DAY_MS, maybeTsMs } from "./time";
 
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
 	const base = `/org/${orgId}/wks/${workspaceId}`;
@@ -149,6 +150,34 @@ export function systemObservabilityPath(
 	return `${SYSTEM_PATH}/${view}${serializeSystemObservability(link)}`;
 }
 
-export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
-	return observabilityPath(orgId, workspaceId, "logs", { q: `@build:${buildId}`, range: DAY_MS });
+export function buildLogsPath(
+	orgId: string,
+	workspaceId: string,
+	buildId: string,
+	build?: Pick<Build, "createdAt" | "finishedAt">,
+): string {
+	const from = maybeTsMs(build?.createdAt);
+	const finished = maybeTsMs(build?.finishedAt);
+	return observabilityPath(orgId, workspaceId, "logs", {
+		q: `@build:${buildId}`,
+		...(from === undefined
+			? { range: DAY_MS }
+			: {
+					from: from - AROUND_MS,
+					to: Math.min(Date.now(), (finished ?? Date.now()) + AROUND_MS),
+				}),
+	});
+}
+
+/** Keep a diagnostic link on the selected incident rather than recent telemetry. */
+export function logsAtHref(href: string | undefined, at: number | undefined): string | undefined {
+	if (href === undefined || at === undefined) return href;
+	const [path, search] = href.split("?");
+	const params = new URLSearchParams(search);
+	params.delete("range");
+	const window = windowValues(aroundWindow(at, Date.now()));
+	params.set("from", String(window.from));
+	params.set("to", String(window.to));
+	params.set("at", String(at));
+	return `${path}?${params}`;
 }

@@ -10,6 +10,7 @@ import {
 import type { BadgeTone } from "@/components/design/Badge";
 import { currentReplica, tookLabel } from "@/lib/activity-deploys";
 import { deploymentActor, deploymentMethod, deploymentProblem, isInFlight } from "@/lib/deployment-utils";
+import { logsAtHref } from "@/lib/routes";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
 import { regionDeployment, type RegionView } from "./model";
@@ -123,12 +124,13 @@ export function rolloutActivity(activity: readonly Activity[], region: string, r
 }
 
 export function problemLogsHref(logsHref: string | undefined, deployment: Deployment): string | undefined {
-	const query = deploymentProblem(deployment)?.logsQuery;
+	const problem = deploymentProblem(deployment);
+	const query = problem?.logsQuery;
 	if (logsHref === undefined || query === undefined || query === "") return undefined;
 	const [path, search] = logsHref.split("?");
 	const params = new URLSearchParams(search);
 	params.set("q", query);
-	return `${path}?${params}`;
+	return logsAtHref(`${path}?${params}`, maybeTsMs(problem?.since));
 }
 
 /** How long after a deployment finishes its card stays on the resource page. */
