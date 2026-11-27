@@ -182,6 +182,9 @@ func (p *publisher) runOnce(ctx context.Context, c config, budget *int) (time.Ti
 		if time.Now().Before(item.nextAttempt) {
 			continue
 		}
+		if !item.intent.GetWithdrawing() && len(item.intent.GetClusterIds()) == 0 {
+			continue
+		}
 		deadline, err := p.refresh(ctx)
 		if err != nil {
 			return time.Time{}, err

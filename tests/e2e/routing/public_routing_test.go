@@ -185,6 +185,11 @@ exec nginx -c /tmp/loco-region.conf -g 'daemon off;'`}
 			})
 		}
 	}
+	t.Run("publisher acknowledges installed core and drains retirement", func(t *testing.T) {
+		exerciseInstalledPublisher(t, w, dir, binding.GetPublisherId(), locofile.File{
+			Partial: "regional", Services: map[string]locofile.Service{"ca": ca, "ny": ny, sharedService: both},
+		})
+	})
 	t.Log(
 		"Single-region and shared hostnames returned the expected worker identities over verified HTTPS",
 	)

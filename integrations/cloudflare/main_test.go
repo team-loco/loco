@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -241,5 +242,22 @@ func TestPublisherSkipsIntentRemovedDuringLeaseRenewal(t *testing.T) {
 	}
 	if dns.writes != 0 || len(core.reports) != 0 {
 		t.Fatal("removed intent still published after resnapshot")
+	}
+}
+
+func TestWaitingHostnamesDoNotRenewPerItem(t *testing.T) {
+	p, core, _ := newPublisherFixture(t)
+	for i := range 1000 {
+		core.intents = append(core.intents, &routingv1.RouteIntent{
+			PublicationId: fmt.Sprintf("pending-%d", i), Revision: 1, ChangeSequence: int64(i + 2),
+		})
+	}
+	cfg := config{PollSeconds: 1, AuditSeconds: 100, BatchSize: 3}
+	budget := cfg.BatchSize
+	if _, err := p.runOnce(t.Context(), cfg, &budget); err != nil {
+		t.Fatal(err)
+	}
+	if core.lists != 2 || len(core.reports) != 1 {
+		t.Fatalf("1000 waiting names caused %d feed calls and %d reports, want 2 and 1", core.lists, len(core.reports))
 	}
 }
