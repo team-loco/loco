@@ -329,11 +329,10 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
     assert resource["k8s.cluster.name"] == "test-cluster"
 
 
-def test_node_logs_keep_correlation_types_and_separate_workloads(
-    configured_relays, tmp_path
-):
-    daemon = configured_relays["otel-col-daemon-agent"]
-    config = file_log_pipeline(configured_relays)
+def platform_file_logs(relays, directory):
+    (directory / "checkpoints").mkdir(exist_ok=True)
+    daemon = relays["otel-col-daemon-agent"]
+    config = file_log_pipeline(relays)
     pipeline = daemon["service"]["pipelines"]["logs/platform"]
     processors = [
         name
@@ -348,6 +347,19 @@ def test_node_logs_keep_correlation_types_and_separate_workloads(
         "processors": processors,
         "exporters": ["file"],
     }
+    config["receivers"]["file_log"]["start_at"] = daemon["receivers"]["file_log"][
+        "start_at"
+    ]
+    config["receivers"]["file_log"]["storage"] = "file_storage"
+    config["extensions"] = {"file_storage": {"directory": "/data/checkpoints"}}
+    config["service"]["extensions"] = ["file_storage"]
+    return config
+
+
+def test_node_logs_keep_correlation_types_and_separate_workloads(
+    configured_relays, tmp_path
+):
+    config = platform_file_logs(configured_relays, tmp_path)
     records = {
         "loco-controller": {
             "msg": "application rollout changed",
@@ -438,3 +450,45 @@ def test_node_logs_keep_correlation_types_and_separate_workloads(
         "synthetic CRI files: controller/API/proxy collected once as platform logs; workload kept separate; collector logs excluded"
     )
     print(json.dumps(controller, sort_keys=True))
+
+
+def test_platform_log_backlog_resumes_without_replay(configured_relays, tmp_path):
+    config = platform_file_logs(configured_relays, tmp_path)
+    write_pod_log(
+        tmp_path,
+        RELEASE_NAMESPACE,
+        ['{"msg":"before collector startup","level":"INFO"}'],
+    )
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+        first = read_output(
+            collector,
+            lambda document: [
+                record["body"]["stringValue"]
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            1,
+        )
+    assert first == ["before collector startup"]
+    (tmp_path / "output.json").rename(tmp_path / "before-restart.json")
+    path = next((tmp_path / "pods").glob("*/*/0.log"))
+    with path.open("a") as file:
+        file.write(
+            '2026-10-19T12:00:01.000000000Z stdout F {"msg":"during collector restart","level":"INFO"}\n'
+        )
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+        resumed = read_output(
+            collector,
+            lambda document: [
+                record["body"]["stringValue"]
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            1,
+        )
+    assert resumed == ["during collector restart"], resumed
+    print(
+        "synthetic CRI backlog read on first start; persisted checkpoint resumes after restart without replay"
+    )

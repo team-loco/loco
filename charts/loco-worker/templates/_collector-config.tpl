@@ -65,6 +65,8 @@
 {{- $kubelet := deepCopy $config.receivers.kubeletstats -}}
 {{- $_ := set $kubelet "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers "kubeletstats/platform" $kubelet -}}
+{{/* Checkpoints resume known files; new files include startup logs already on disk. */}}
+{{- $_ := set (index $config.receivers "file_log") "start_at" "beginning" -}}
 {{/* One file receiver fans out to disjoint platform and workload namespace filters. */}}
 {{- $podMetadata := index $config.processors "k8s_attributes/pod_uid" -}}
 {{/* Existing stdout files must not outrun the initial pod identity lookup. */}}
