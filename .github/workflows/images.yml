@@ -15,7 +15,7 @@ env:
   REGISTRY: ghcr.io/${{ github.repository }}
   TAG: ci-${{ github.sha }}
   VERSION: sha-${{ github.sha }}
-  GO_IMAGES: controller api agent builder obs-proxy
+  GO_IMAGES: controller api agent builder obs-proxy cloudflare-publisher
   # The e2e fixtures, which run only on amd64.
   FIXTURE_IMAGES: api-failover installation-operator
 

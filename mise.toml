@@ -347,3 +347,7 @@ env = { _.source = "dev/stack.sh" }
 
 [tasks.locoadm]
 env = { _.source = "dev/stack.sh" }
+
+[tasks."test:cloudflare-publisher"]
+description = "Test the optional Cloudflare public routing publisher"
+run = "go -C integrations/cloudflare test ./..."

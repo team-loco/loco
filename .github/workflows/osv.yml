@@ -114,6 +114,7 @@ jobs:
           add '"agent"' '^(agent/|gen/go/|internal/buildinfo/|go\.mod$|go\.sum$|k8sapi/)'
           add '"builder"' '^(builder/|internal/buildinfo/|go\.mod$|go\.sum$)'
           add '"observability-proxy"' '^(observability-proxy/|gen/go/|internal/buildinfo/|go\.mod$|go\.sum$)'
+          add '"cloudflare-publisher"' '^(integrations/cloudflare/|gen/go/|internal/|go\.mod$|go\.sum$)'
           add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 
           printf 'images=[%s]\n' "$(IFS=,; echo "${sel[*]-}")" >> "$GITHUB_OUTPUT"
