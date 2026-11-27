@@ -361,7 +361,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ).strip()
     sql(
         state,
-        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(jsonb_set(snapshot, '{{problem,since}}', to_jsonb('{failed_at}'::text)), '{{replicas}}', '[]'::jsonb) WHERE deployment_id='{p['current']}';",
+        f"UPDATE deployment_rollouts SET snapshot=jsonb_set(jsonb_set(snapshot, '{{problem,since}}', jsonb_build_object('seconds', EXTRACT(EPOCH FROM '{failed_at}'::timestamptz)::bigint)), '{{replicas}}', '[]'::jsonb) WHERE deployment_id='{p['current']}';",
     )
     failure_time = datetime.fromisoformat(failed_at.replace("Z", "+00:00"))
     preview_requests = []
