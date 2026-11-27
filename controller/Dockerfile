@@ -13,7 +13,9 @@ RUN go mod download || go mod download
 
 WORKDIR /workspace
 COPY internal/buildinfo ./internal/buildinfo
+COPY internal/capacitymetrics ./internal/capacitymetrics
 COPY internal/clip ./internal/clip
+COPY internal/envconfig ./internal/envconfig
 COPY internal/otelsetup ./internal/otelsetup
 COPY internal/systemtenant ./internal/systemtenant
 COPY k8sapi ./k8sapi

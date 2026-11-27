@@ -132,6 +132,8 @@ func TestCapacityLargeCollectionSplitsBeforeRealIngestion(t *testing.T) {
 		"-d",
 		"--name",
 		name,
+		"--add-host",
+		"host.docker.internal:host-gateway",
 		"--cpus",
 		"2",
 		"--memory",
@@ -159,7 +161,7 @@ func TestCapacityLargeCollectionSplitsBeforeRealIngestion(t *testing.T) {
 		func(ctx context.Context) error {
 			state, stateErr := p.Command(ctx, "docker", "inspect", "-f", "{{.State.Status}}", name)
 			if stateErr != nil {
-				t.Fatal(stateErr)
+				return stateErr
 			}
 			if strings.TrimSpace(state) != "running" {
 				logs, logsErr := p.Command(ctx, "docker", "logs", name)

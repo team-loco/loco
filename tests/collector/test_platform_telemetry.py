@@ -422,7 +422,13 @@ def test_capacity_scrape_preserves_membership_and_timestamps(
         ]
 
     try:
-        with run_collector(tmp_path, config, "otel-col-cluster") as collector:
+        with run_collector(
+            tmp_path,
+            config,
+            "otel-col-cluster",
+            "--add-host",
+            "host.docker.internal:host-gateway",
+        ) as collector:
             received = read_output(collector, points, 3)
         names = {name for _, name, _ in received}
         assert names == {

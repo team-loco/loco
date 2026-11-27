@@ -466,8 +466,10 @@ def test_exporter_queue_blocks_on_overflow():
     assert exporter_settings()["queue"]["block_on_overflow"] is True
 
 
-def test_exporter_batches_count_items():
-    assert exporter_settings()["queue"]["batch"]["sizer"] == "items"
+def test_exporter_batches_fit_the_ingest_message_limit():
+    batch = exporter_settings()["queue"]["batch"]
+    assert batch["sizer"] == "bytes"
+    assert batch["max_size"] <= 4 * 1024 * 1024
 
 
 def test_exporter_batches_wait_for_a_minimum_size():
