@@ -158,6 +158,45 @@ def check_canceled_sign_in(browser, state, issuer_url):
     context.close()
 
 
+def check_suspended_sign_in(browser, state):
+    owner_id = evidence.sql_literal(state["users"]["owner"]["id"])
+    sql(state, f"UPDATE users SET status = 'suspended' WHERE id = {owner_id};")
+    context, page, errors = open_page(browser, user=None, state=state)
+    starts = []
+    context.on(
+        "request",
+        lambda request: (
+            starts.append(request.url)
+            if request.url.endswith("/loco.auth.v1.AuthService/StartWebLogin")
+            else None
+        ),
+    )
+    page.goto(state["ui_url"] + "/login")
+    expect(
+        page.get_by_role("heading", name="Your account is suspended", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("alert")).to_have_text(
+        "You can’t sign in while your account is suspended. Contact your Loco administrator to restore access."
+    )
+    expect(page.get_by_role("button", name=re.compile("^Continue"))).to_have_count(0)
+    assert len(starts) == 1, starts
+    assert evidence.SESSION_COOKIE not in cookies(context, state)
+    assert evidence.REFRESH_COOKIE not in cookies(context, state)
+    page.reload()
+    expect(
+        page.get_by_role("heading", name="Your account is suspended", exact=True)
+    ).to_be_visible()
+    assert len(starts) == 1, starts
+    context.close()
+
+    sql(state, f"UPDATE users SET status = 'active' WHERE id = {owner_id};")
+    context, page, errors = open_page(browser, user=None, state=state)
+    page.goto(state["ui_url"] + "/login")
+    expect(page.get_by_role("link", name="Dashboard", exact=True)).to_be_visible()
+    assert not errors, errors
+    context.close()
+
+
 with tempfile.TemporaryDirectory(prefix="loco-oidc-issuer-") as directory:
     binary = Path(directory) / "issuer"
     evidence.run(
@@ -194,8 +233,11 @@ with tempfile.TemporaryDirectory(prefix="loco-oidc-issuer-") as directory:
         with session(repo / "tests/ui/out/oidc") as browser:
             check_browser(browser, state, issuer_url)
             check_canceled_sign_in(browser, state, issuer_url)
+            check_suspended_sign_in(browser, state)
     finally:
         issuer.terminate()
         issuer.wait(timeout=10)
 
-print("Dashboard sign-in and concurrent refresh passed with a no-CORS issuer")
+print(
+    "Dashboard sign-in, concurrent refresh, suspension and reinstatement passed with a no-CORS issuer"
+)
