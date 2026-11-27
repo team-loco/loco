@@ -224,13 +224,16 @@ with session(repo / "tests/ui/out/system-people") as browser:
         "link", name="acme", exact=True
     ).click()
     expect(page).to_have_url(re.compile(r"/system/orgs/"))
-    expect(page.get_by_role("heading", name="acme", exact=True)).to_be_visible()
+    expect(page.get_by_role("table", name="Members", exact=True)).to_contain_text(
+        "member@acme.test"
+    )
 
     # System has no palette control or shortcut; leaving it restores both.
     expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
     page.keyboard.press("ControlOrMeta+k")
     expect(page.get_by_role("dialog", name="Command palette")).to_have_count(0)
     page.goto(ui + "/dashboard")
+    expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
     page.keyboard.press("ControlOrMeta+k")
     expect(page.get_by_role("dialog", name="Command palette")).to_be_visible()
     page.keyboard.press("Escape")
