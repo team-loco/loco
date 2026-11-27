@@ -30,6 +30,8 @@ spec:
                     - /manager
                   env:
                     {{- include "loco-worker.platformOTLPEnv" (dict "root" . "env" .Values.controller.env "path" "controller.env") | nindent 20 }}
+                    - name: LOCO_CAPACITY_METRICS
+                      value: {{ .Values.global.platformTelemetry.enabled | quote }}
                     - name: LOCO_NAMESPACE
                       valueFrom:
                         fieldRef:

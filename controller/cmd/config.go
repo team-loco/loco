@@ -8,10 +8,12 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/controller"
+	"github.com/team-loco/loco/internal/envconfig"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
+	envCapacityMetrics        = "LOCO_CAPACITY_METRICS"
 	envLocoNamespace          = "LOCO_NAMESPACE"
 	envObservabilityNamespace = "LOCO_OBSERVABILITY_NAMESPACE"
 	envOTelCollectorService   = "LOCO_OTEL_COLLECTOR_SERVICE"
@@ -48,6 +50,8 @@ type operatorConfig struct {
 	Tracing bool
 	// Metrics exports the controller's own metrics over OTLP.
 	Metrics bool
+	// CapacityMetrics is enabled only on the controller selected for cluster-wide scraping.
+	CapacityMetrics bool
 	// Rollout timings are nil when unset; only the application reconciler requires them.
 	MinReadySeconds     *int32
 	DrainSeconds        *int32
@@ -74,6 +78,7 @@ func newOperatorConfig() operatorConfig {
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
 		Telemetry:                telemetry,
 		Tracing:                  os.Getenv(envOTLPEndpoint) != "" || os.Getenv(envOTLPTracesEndpoint) != "",
+		CapacityMetrics:          envconfig.Bool(envCapacityMetrics, false),
 		Metrics:                  os.Getenv(envOTLPEndpoint) != "" || os.Getenv(envOTLPMetricsEndpoint) != "",
 		MinReadySeconds:          secondsEnv(envMinReadySeconds),
 		DrainSeconds:             drainSeconds,

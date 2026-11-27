@@ -1,0 +1,48 @@
+{{- if .Values.global.platformTelemetry.enabled }}
+{{- $name := ternary "loco-controller" "loco-build-controller" (not (empty (include "loco-worker.runsApps" .))) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-capacity-scrape
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ index .Values "otel-col-cluster" "namespaceOverride" }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-col-cluster
+      ports:
+        - protocol: TCP
+          port: 8080
+{{- if not (include "loco-worker.runsApps" .) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: loco-capacity-reader
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: loco-capacity-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: loco-capacity-reader
+subjects:
+  - kind: ServiceAccount
+    name: loco-build-controller
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

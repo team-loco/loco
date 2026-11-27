@@ -56,6 +56,7 @@ def test_platform_only_keeps_only_platform_pipelines():
     for config in configs.values():
         assert set(config["service"]["pipelines"]) <= {
             "metrics/platform",
+            "metrics/capacity",
             "logs/platform",
             "traces/platform",
         }
@@ -165,7 +166,7 @@ def test_platform_pipelines_use_the_operators_endpoint_when_set():
     )
     for name, config in configs.items():
         for pipeline, settings in config["service"]["pipelines"].items():
-            platform = pipeline.endswith("/platform")
+            platform = pipeline.endswith("/platform") or pipeline == "metrics/capacity"
             want = "otlp_http/platform" if platform else "otlp_http"
             assert settings["exporters"] == [want], (name, pipeline)
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
@@ -320,3 +321,137 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
         )
     assert resource["loco.telemetry.scope"] == "platform"
     assert resource["k8s.cluster.name"] == "test-cluster"
+
+
+def test_capacity_collection_uses_the_selected_controller(configured_relays):
+    cluster = configured_relays["otel-col-cluster"]
+    pipeline = cluster["service"]["pipelines"]["metrics/capacity"]
+    assert pipeline["receivers"] == ["prometheus/capacity"]
+    assert pipeline["processors"] == ["memory_limiter", "resource/platform"]
+    scrape = cluster["receivers"]["prometheus/capacity"]["config"]["scrape_configs"][0]
+    assert scrape["metrics_path"] == "/capacity"
+    assert scrape["honor_timestamps"] is True
+    assert scrape["kubernetes_sd_configs"][0]["namespaces"]["names"] == [
+        RELEASE_NAMESPACE
+    ]
+    assert scrape["relabel_configs"][0]["regex"] == "loco-controller"
+    configs = collector_relays(
+        render_chart("loco-worker", {**configured(), "cluster": {"role": "builds"}})
+    )
+    build_scrape = configs["otel-col-cluster"]["receivers"]["prometheus/capacity"][
+        "config"
+    ]["scrape_configs"][0]
+    assert build_scrape["relabel_configs"][0]["regex"] == "loco-build-controller"
+
+
+def test_capacity_scrape_preserves_membership_and_timestamps(
+    configured_relays, tmp_path
+):
+    import http.server
+    import threading
+    import time
+
+    captured = int(time.time() * 1000)
+    source = "00000000-0000-0000-0000-000000000002"
+    identity = f'source_id="{source}",node="node-a",pod_uid="pod-a",workspace_id="workspace-a",environment_id="environment-a",resource_id="resource-a"'
+    text = (
+        "# TYPE loco_pod_cpu_request_cores gauge\n"
+        f"loco_pod_cpu_request_cores{{{identity}}} 0.9 {captured}\n"
+        "# TYPE loco_pod_memory_request_bytes gauge\n"
+        f"loco_pod_memory_request_bytes{{{identity}}} 335544320 {captured}\n"
+        "# TYPE loco_capacity_sample_pods gauge\n"
+        f'loco_capacity_sample_pods{{source_id="{source}"}} 1 {captured}\n'
+    ).encode()
+
+    class Snapshot(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.end_headers()
+            self.wfile.write(text)
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", 0), Snapshot)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    cluster = configured_relays["otel-col-cluster"]
+    pipeline = cluster["service"]["pipelines"]["metrics/capacity"]
+    config = {
+        "receivers": {
+            "prometheus/capacity": {
+                "config": {
+                    "scrape_configs": [
+                        {
+                            "job_name": "loco-capacity",
+                            "scrape_interval": "100ms",
+                            "scrape_timeout": "100ms",
+                            "metrics_path": "/capacity",
+                            "honor_timestamps": True,
+                            "static_configs": [
+                                {
+                                    "targets": [
+                                        f"host.docker.internal:{server.server_port}"
+                                    ]
+                                }
+                            ],
+                            "metric_relabel_configs": cluster["receivers"][
+                                "prometheus/capacity"
+                            ]["config"]["scrape_configs"][0]["metric_relabel_configs"],
+                        }
+                    ]
+                }
+            }
+        },
+        "processors": {
+            name: cluster["processors"][name] for name in pipeline["processors"]
+        },
+        "exporters": {"file": {"path": "/data/output.json", "flush_interval": "100ms"}},
+        "service": {"pipelines": {"metrics": {**pipeline, "exporters": ["file"]}}},
+    }
+
+    def points(document):
+        return [
+            (resource["resource"]["attributes"], metric["name"], point)
+            for resource in document["resourceMetrics"]
+            for scope in resource["scopeMetrics"]
+            for metric in scope["metrics"]
+            if metric["name"].startswith("loco_")
+            for point in metric.get("gauge", {}).get("dataPoints", [])
+        ]
+
+    try:
+        with run_collector(
+            tmp_path,
+            config,
+            "otel-col-cluster",
+            "--add-host",
+            "host.docker.internal:host-gateway",
+        ) as collector:
+            received = read_output(collector, points, 3)
+        names = {name for _, name, _ in received}
+        assert names == {
+            "loco_pod_cpu_request_cores",
+            "loco_pod_memory_request_bytes",
+            "loco_capacity_sample_pods",
+        }
+        for attributes, name, point in received:
+            assert int(point["timeUnixNano"]) == captured * 1_000_000
+            resource = {
+                item["key"]: item["value"].get("stringValue") for item in attributes
+            }
+            assert resource["loco.telemetry.scope"] == "platform"
+            assert "loco.workspace.id" not in resource
+            labels = {
+                item["key"]: item["value"].get("stringValue")
+                for item in point["attributes"]
+            }
+            assert labels["source_id"] == source
+            if name != "loco_capacity_sample_pods":
+                assert labels["pod_uid"] == "pod-a"
+                assert labels["workspace_id"] == "workspace-a"
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
