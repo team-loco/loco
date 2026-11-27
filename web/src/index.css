@@ -504,8 +504,18 @@
 		box-shadow: none;
 		pointer-events: none;
 	}
-	& tbody [data-pin] {
-		background-image: none;
+	& [data-pin="end"] {
+		box-shadow: none;
+	}
+	& tbody td {
+		background-color: var(--card-bg, var(--panel));
+		background-image: linear-gradient(var(--row-tint), var(--row-tint));
+	}
+	& tbody td:first-child {
+		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
+	}
+	& tbody td:last-child {
+		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
 	& tbody [data-pin]::before {
 		content: "";
@@ -513,7 +523,6 @@
 		inset: 0;
 		z-index: -1;
 		border: var(--row-ring, 0 solid transparent);
-		background: var(--row-tint);
 		pointer-events: none;
 	}
 	& tbody [data-pin="start"]::before {
