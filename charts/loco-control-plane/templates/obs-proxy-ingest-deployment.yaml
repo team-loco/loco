@@ -1,4 +1,5 @@
 {{- if .Values.obsProxy.enabled }}
+{{- $gatewayTracing := include "loco-control-plane.gatewayTracing" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,6 +21,10 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      {{- if $gatewayTracing }}
+      annotations:
+        checksum/gateway-tracing: {{ include (print $.Template.BasePath "/gateway-tracing-collector.yaml") . | sha256sum }}
+      {{- end }}
       labels:
         app: {{ .Release.Name }}-obs-proxy-ingest
         app.kubernetes.io/component: observability-proxy
@@ -92,5 +97,42 @@ spec:
             periodSeconds: 10
           resources:
             {{- toYaml .Values.obsProxy.ingest.resources | nindent 12 }}
+        {{- if $gatewayTracing }}
+        - name: gateway-tracing
+          image: {{ .Values.gateway.tracing.collector.image | quote }}
+          args: ["--config=/etc/gateway-tracing/config.yaml"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: SYSTEM_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "loco-control-plane.systemIngestSecret" . }}
+                  key: token
+          ports:
+            - name: gateway-otlp
+              containerPort: {{ .Values.gateway.tracing.collector.port }}
+          readinessProbe:
+            tcpSocket:
+              port: gateway-otlp
+          livenessProbe:
+            tcpSocket:
+              port: gateway-otlp
+          resources:
+            {{- toYaml .Values.gateway.tracing.collector.resources | nindent 12 }}
+          volumeMounts:
+            - name: gateway-tracing
+              mountPath: /etc/gateway-tracing
+              readOnly: true
+        {{- end }}
+      {{- if $gatewayTracing }}
+      volumes:
+        - name: gateway-tracing
+          configMap:
+            name: {{ .Release.Name }}-gateway-tracing
+      {{- end }}
       restartPolicy: Always
 {{- end }}

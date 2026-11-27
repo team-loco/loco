@@ -354,3 +354,9 @@ true
 {{- end }}
 {{- end -}}
 {{- end -}}
+
+{{- define "loco-control-plane.gatewayTracing" -}}
+{{- if and .Values.gateway.create (include "loco-control-plane.systemIngest" .) -}}
+true
+{{- end -}}
+{{- end -}}

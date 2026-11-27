@@ -28,7 +28,7 @@ By default, everything goes to the control plane's observability proxy, which st
 
 The proxy accepts system telemetry only from Loco's own senders:
 
-- The API and control-plane gateway present a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
+- The API and gateway collector present a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
 - A worker's collectors present the cluster's ingest token, as they do for application telemetry, and mark platform records with `loco.telemetry.scope=platform`. The collectors delete that marker from anything workloads send, and the proxy rejects a platform record that names a workspace.
 
 System rows keep 30 days of every signal. Set `SYSTEM_RETENTION_DAYS` through `obsProxy.ingest.env` to change it:

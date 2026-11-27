@@ -1,4 +1,5 @@
-{{- if and .Values.gateway.create (include "loco-control-plane.systemIngest" .) (ne .Values.gatewayNamespace .Release.Namespace) }}
+{{- $gatewayTracing := include "loco-control-plane.gatewayTracing" . }}
+{{- if and $gatewayTracing (ne .Values.gatewayNamespace .Release.Namespace) }}
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:

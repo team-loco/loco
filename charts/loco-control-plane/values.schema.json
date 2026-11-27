@@ -550,6 +550,21 @@
         "tracing": {
           "type": "object",
           "properties": {
+            "collector": {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "integer"
+                },
+                "resources": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false
+            },
             "samplingRate": {
               "type": "integer",
               "maximum": 100,

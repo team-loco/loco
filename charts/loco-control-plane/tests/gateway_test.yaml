@@ -347,22 +347,11 @@ tests:
               backendRefs:
                 - name: loco-control-plane-obs-proxy-ingest
                   namespace: loco-control-plane
-                  port: 4317
+                  port: 4319
               openTelemetry:
-                headers:
-                  - name: Authorization
-                    value: "Bearer %ENVIRONMENT(LOCO_SYSTEM_INGEST_TOKEN)%"
                 resourceAttributes:
                   loco.telemetry.scope: platform
                   loco.region: test-region
-      - contains:
-          path: spec.provider.kubernetes.envoyDeployment.container.env
-          content:
-            name: LOCO_SYSTEM_INGEST_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: loco-control-plane-system-ingest-token
-                key: token
 
   - it: leaves gateway tracing disabled without platform telemetry
     template: templates/gateway.yaml

@@ -1,0 +1,31 @@
+{{- if include "loco-control-plane.gatewayTracing" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gateway-tracing
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.gateway.tracing.collector.port }}
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+    exporters:
+      otlp_http:
+        endpoint: http://127.0.0.1:{{ .Values.obsProxy.ingest.httpPort }}
+        headers:
+          Authorization: Bearer ${env:SYSTEM_INGEST_TOKEN}
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp_http]
+{{- end }}
