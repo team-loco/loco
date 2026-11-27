@@ -163,7 +163,7 @@ func exerciseInstalledPublisher(t *testing.T, w *platform.Workspace, dir, bindin
 	ca.Environments = map[string]locofile.Override{platform.Production: {Enabled: &enabled}}
 	file.Services["ca"] = ca
 	platform.WriteLocoFile(t, dir, file)
-	w.MustLoco(t, dir, "infra", "apply", "--yes")
+	w.MustLoco(t, dir, "infra", "apply", "--yes", "--confirm-destructive")
 	platform.Eventually(t, routeWait, "CA withdrawal intent", func(ctx context.Context) error {
 		var withdrawing bool
 		if err := p.DB.QueryRow(ctx, "SELECT withdrawing FROM public_route_publications WHERE hostname=$1", w.Host("ca")).
