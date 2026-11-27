@@ -115,10 +115,11 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 	var removed atomic.Bool
 	checked := make(chan struct{}, 2)
 	scopes := func() []genDb.EntityScope {
+		grantRemoved := removed.Load()
 		grants := []genDb.EntityScope{
 			{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 		}
-		if !removed.Load() {
+		if !grantRemoved {
 			grants = append(
 				grants,
 				genDb.EntityScope{
@@ -128,7 +129,7 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 				},
 			)
 		}
-		if removed.Load() {
+		if grantRemoved {
 			select {
 			case checked <- struct{}{}:
 			default:
