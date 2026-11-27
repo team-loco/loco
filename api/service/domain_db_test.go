@@ -342,7 +342,7 @@ func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
 	if after.DesiredRevision != before.DesiredRevision+1 {
 		t.Fatalf("revision = %d, want %d", after.DesiredRevision, before.DesiredRevision+1)
 	}
-	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Routing.HostName; got != testSecondDomain {
+	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Routing.Hostnames[0]; got != testSecondDomain {
 		t.Fatalf("hostname = %s, want %s", got, testSecondDomain)
 	}
 	if after.DeploymentID == nil || before.DeploymentID == nil || *after.DeploymentID != *before.DeploymentID {
@@ -383,10 +383,10 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 	}
 	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DomainUpdated)
 	after := desiredPayload(t, f)
-	if after.AppSpec.ServiceSpec.Routing.HostName != testSecondDomain {
+	if after.AppSpec.ServiceSpec.Routing.Hostnames[0] != testSecondDomain {
 		t.Fatalf("route = %+v", after.AppSpec.ServiceSpec.Routing)
 	}
-	before.AppSpec.ServiceSpec.Routing.HostName = testSecondDomain
+	before.AppSpec.ServiceSpec.Routing.Hostnames = []string{testSecondDomain}
 	if !reflect.DeepEqual(before, after) {
 		t.Fatal("rename changed placement fields other than its hostname")
 	}
@@ -412,7 +412,7 @@ func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	route := desiredPayload(t, f).AppSpec.ServiceSpec.Routing
-	if route == nil || route.HostName != testPrimaryDomain || route.PathPrefix != "/" ||
+	if route == nil || route.Hostnames[0] != testPrimaryDomain || route.PathPrefix != "/" ||
 		route.IdleTimeout != testIdleTimeout {
 		t.Fatalf("route = %+v", route)
 	}
@@ -420,8 +420,17 @@ func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
 	if err := client.add(testSecondDomain); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.placement(t, f.clusterID).DesiredRevision; got != revision {
-		t.Fatalf("non-primary domain advanced revision to %d from %d", got, revision)
+	if got := f.placement(t, f.clusterID).DesiredRevision; got != revision+1 {
+		t.Fatalf("adding an alias advanced revision to %d, want %d", got, revision+1)
+	}
+	if got := desiredPayload(
+		t,
+		f,
+	).AppSpec.ServiceSpec.Routing.Hostnames; !slices.Equal(
+		got,
+		[]string{testPrimaryDomain, testSecondDomain},
+	) {
+		t.Fatalf("route hostnames = %v", got)
 	}
 }
 

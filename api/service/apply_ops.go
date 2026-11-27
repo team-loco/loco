@@ -282,7 +282,7 @@ func (a *applier) deploy(
 		return lockErr
 	}
 	a.deployed[res.Slug] = true
-	hostname, err := primaryHostname(ctx, qtx, res.ID, a.env.ID)
+	hostnames, err := routingHostnames(ctx, qtx, res.ID, a.env.ID)
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (a *applier) deploy(
 		resource:        res,
 		organizationID:  a.organizationID,
 		resourceSpec:    &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
-		hostname:        hostname,
+		hostnames:       hostnames,
 		environmentID:   a.env.ID,
 		environmentName: a.env.Slug,
 		defaults:        a.defaults,

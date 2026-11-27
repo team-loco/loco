@@ -144,8 +144,8 @@ func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
 	if routing == nil {
 		t.Fatal("routing is nil, want a route for the primary domain")
 	}
-	if routing.HostName != testPrimaryDomain {
-		t.Errorf("hostname = %q, want the primary %s", routing.HostName, testPrimaryDomain)
+	if routing.Hostnames[0] != testPrimaryDomain {
+		t.Errorf("hostname = %q, want the primary %s", routing.Hostnames[0], testPrimaryDomain)
 	}
 	if routing.PathPrefix != "/" || routing.IdleTimeout != testIdleTimeout {
 		t.Errorf("routing = %+v, want the configured path prefix and idle timeout", routing)

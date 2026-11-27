@@ -169,16 +169,16 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 
 func ProtoToRoutingSpec(
 	routing *resourcev1.RoutingConfig,
-	hostname string,
+	hostnames []string,
 	defaults servicedefaults.Defaults,
 ) *locoControllerV1.RoutingSpec {
-	if hostname == "" {
+	if len(hostnames) == 0 {
 		return nil
 	}
 
 	pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 	return &locoControllerV1.RoutingSpec{
-		HostName:    hostname,
+		Hostnames:   hostnames,
 		PathPrefix:  pathPrefix,
 		IdleTimeout: idleTimeout,
 	}

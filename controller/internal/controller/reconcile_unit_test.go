@@ -42,7 +42,7 @@ var testRestartPolicy = locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.Restar
 const testDeployTimeout = 600
 
 func testRouting() *locov1alpha1.RoutingSpec {
-	return &locov1alpha1.RoutingSpec{HostName: testHostName, PathPrefix: "/", IdleTimeout: 60}
+	return &locov1alpha1.RoutingSpec{Hostnames: []string{testHostName}, PathPrefix: "/", IdleTimeout: 60}
 }
 
 func testApplication() *locov1alpha1.Application {
@@ -256,8 +256,13 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
 	namespace := testEnvironmentNamespace(app)
-	routeName := getRouteName(app)
-	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
+	routeName := getRouteName(app, testHostName)
+	existing := &v1Gateway.HTTPRoute{
+		Name:        routeName,
+		Namespace:   namespace,
+		Labels:      managedLabels(app),
+		Annotations: ownerAnnotations(app),
+	}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 	r := &ApplicationReconciler{
 		Client:                   kubeClient,
@@ -302,7 +307,7 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 		t.Fatalf("ensureHTTPRoute: %v", err)
 	}
 	route := &v1Gateway.HTTPRoute{}
-	key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)}
+	key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app, testHostName)}
 	if err := kubeClient.Get(testCtx, key, route); err != nil {
 		t.Fatalf("get route: %v", err)
 	}

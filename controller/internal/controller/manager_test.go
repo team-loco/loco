@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -92,10 +94,10 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 		appVersion, depVersion := app.ResourceVersion, dep.ResourceVersion
 		route := &v1Gateway.HTTPRoute{}
-		key := client.ObjectKey{Namespace: namespace, Name: getRouteName(app)}
+		key := client.ObjectKey{Namespace: namespace, Name: getRouteName(app, testHostName)}
 		Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
 		originalUID := route.UID
-		hostname := v1Gateway.Hostname(app.Spec.ServiceSpec.Routing.HostName)
+		hostname := v1Gateway.Hostname(app.Spec.ServiceSpec.Routing.Hostnames[0])
 		Expect(route.Spec.Hostnames).To(ConsistOf(hostname))
 
 		Expect(k8sClient.Delete(ctx, route)).To(Succeed())
@@ -133,7 +135,10 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		acceptRoute := func() {
 			Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
 			conditions := make([]metav1.Condition, 0, 2)
-			for _, kind := range []string{"Accepted", "ResolvedRefs"} {
+			for _, kind := range []string{
+				string(v1Gateway.RouteConditionAccepted),
+				string(v1Gateway.RouteConditionResolvedRefs),
+			} {
 				conditions = append(conditions, metav1.Condition{Type: kind, Status: metav1.ConditionTrue,
 					ObservedGeneration: route.Generation, Reason: kind, LastTransitionTime: metav1.Now()})
 			}
@@ -148,13 +153,13 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 			g.Expect(app.Status.PublicRoute.Ready).To(BeTrue())
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 
-		previousGeneration := route.Generation
-		app.Spec.ServiceSpec.Routing.HostName = "changed.example.com"
+		app.Spec.ServiceSpec.Routing.Hostnames = []string{"changed.example.com"}
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "2"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		key.Name = getRouteName(app, "changed.example.com")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
-			g.Expect(route.Generation).To(BeNumerically(">", previousGeneration))
+			g.Expect(route.Spec.Hostnames).To(ConsistOf(v1Gateway.Hostname("changed.example.com")))
 			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 			g.Expect(app.Status.PublicRoute).NotTo(BeNil())
 			g.Expect(app.Status.PublicRoute.Revision).To(Equal(int64(2)))
@@ -179,4 +184,56 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 			return apierrors.IsNotFound(k8sClient.Get(ctx, appKey, app))
 		}, routeManagerWait, routeManagerPoll).Should(BeTrue())
 	})
+	It("does not restore a garbage collector finalizer removed during cleanup", func() {
+		direct, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+		Expect(err).NotTo(HaveOccurred())
+		app := isolationTestApplication("ws-finalizer-race", "finalizer-race")
+		app.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup, metav1.FinalizerDeleteDependents}
+		Expect(direct.Create(ctx, app)).To(Succeed())
+		Expect(direct.Delete(ctx, app)).To(Succeed())
+		Expect(direct.Get(ctx, client.ObjectKeyFromObject(app), app)).To(Succeed())
+		raced := false
+		racing := interceptor.NewClient(
+			direct,
+			interceptor.Funcs{
+				Patch: func(
+					patchCtx context.Context,
+					base client.WithWatch,
+					obj client.Object,
+					patch client.Patch,
+					opts ...client.PatchOption,
+				) error {
+					if !raced {
+						raced = true
+						latest := &locov1alpha1.Application{}
+						if getErr := base.Get(patchCtx, client.ObjectKeyFromObject(app), latest); getErr != nil {
+							return getErr
+						}
+						controllerutil.RemoveFinalizer(latest, metav1.FinalizerDeleteDependents)
+						if updateErr := base.Update(patchCtx, latest); updateErr != nil {
+							return updateErr
+						}
+					}
+					return base.Patch(patchCtx, obj, patch, opts...)
+				},
+			},
+		)
+		r := &ApplicationReconciler{
+			Client:                   racing,
+			APIReader:                direct,
+			Scheme:                   direct.Scheme(),
+			LocoNamespace:            testNamespace,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
+		_, err = r.handleDeletion(ctx, app)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(raced).To(BeTrue())
+		Eventually(
+			func() bool { return apierrors.IsNotFound(direct.Get(ctx, client.ObjectKeyFromObject(app), app)) },
+			routeManagerWait,
+			routeManagerPoll,
+		).Should(BeTrue())
+	})
+
 })

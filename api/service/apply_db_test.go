@@ -230,7 +230,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if service.Deployment.Image != wantImage || service.Deployment.Env["LOG_LEVEL"] != "info" {
 		t.Fatalf("deployment spec = %+v, want image %s with the file env", service.Deployment, wantImage)
 	}
-	if service.Routing == nil || service.Routing.HostName != applyWorkerDomain {
+	if service.Routing == nil || service.Routing.Hostnames[0] != applyWorkerDomain {
 		t.Fatalf("routing = %+v, want the primary domain", service.Routing)
 	}
 

@@ -143,7 +143,10 @@ def route_records(request, worker_relays, tmp_path_factory):
         },
     }
     record = attributes(
-        {**FORGED, cluster: f"httproute/{namespace()}/resource-resource-a-route/rule/0"}
+        {
+            **FORGED,
+            cluster: f"httproute/{namespace()}/r-resource-a-0123456789abcdef01234567/rule/0",
+        }
     )
     directory = tmp_path_factory.mktemp(signal)
     with run_collector(directory, config, "otel-col-deploy") as collector:

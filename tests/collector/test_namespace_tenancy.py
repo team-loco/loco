@@ -215,7 +215,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
                                                 "value": {
                                                     "stringValue": (
                                                         f"httproute/{namespace}/"
-                                                        "resource-resource-a-route/rule/0"
+                                                        "r-resource-a-0123456789abcdef01234567/rule/0"
                                                     )
                                                 },
                                             }

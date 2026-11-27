@@ -65,7 +65,7 @@ var _ = Describe("Application Controller", func() {
 								},
 							},
 							Routing: &locov1alpha1.RoutingSpec{
-								HostName:    "test-app.example.com",
+								Hostnames:   []string{"test-app.example.com"},
 								PathPrefix:  "/",
 								IdleTimeout: 300,
 							},

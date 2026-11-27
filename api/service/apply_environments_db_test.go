@@ -88,11 +88,11 @@ func TestApplyKeepsTheValuesOfEachEnvironment(t *testing.T) {
 	production := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
 	staging := f.workerPayloadIn(t, f.clusterID, stagingID).AppSpec.ServiceSpec
 	if production.Resources.CPU != testRegionCPU || production.Deployment.Env["LOG_LEVEL"] != "info" ||
-		production.Routing.HostName != applyWorkerDomain || production.Routing.PathPrefix == stagingPathPrefix {
+		production.Routing.Hostnames[0] != applyWorkerDomain || production.Routing.PathPrefix == stagingPathPrefix {
 		t.Fatalf("production spec = %+v, want the base values", production)
 	}
 	if staging.Resources.CPU != biggerCPU || staging.Resources.Replicas.Max != 2 ||
-		staging.Deployment.Env["LOG_LEVEL"] != "debug" || staging.Routing.HostName != stagingWorkerDomain ||
+		staging.Deployment.Env["LOG_LEVEL"] != "debug" || staging.Routing.Hostnames[0] != stagingWorkerDomain ||
 		staging.Routing.PathPrefix != stagingPathPrefix {
 		t.Fatalf("staging spec = %+v, want the staging overrides", staging)
 	}

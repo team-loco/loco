@@ -30,6 +30,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -392,10 +393,22 @@ func (r *ApplicationReconciler) handleDeletion(
 		return ctrl.Result{}, err
 	}
 
-	original := app.DeepCopy()
-	controllerutil.RemoveFinalizer(app, locov1alpha1.FinalizerAppResourcesCleanup)
-	patch := client.MergeFrom(original)
-	if err := r.Patch(ctx, app, patch); err != nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current := &locov1alpha1.Application{}
+		if err := r.APIReader.Get(ctx, client.ObjectKeyFromObject(app), current); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+		if current.UID != app.UID {
+			return nil
+		}
+		original := current.DeepCopy()
+		if !controllerutil.RemoveFinalizer(current, locov1alpha1.FinalizerAppResourcesCleanup) {
+			return nil
+		}
+		patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
+		return r.Patch(ctx, current, patch)
+	})
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
 	slog.InfoContext(ctx, "removed finalizer", "finalizer", locov1alpha1.FinalizerAppResourcesCleanup)
@@ -404,17 +417,18 @@ func (r *ApplicationReconciler) handleDeletion(
 }
 
 func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov1alpha1.Application) error {
+	if err := r.prunePublicRoutes(ctx, app, nil); err != nil {
+		return err
+	}
 	if err := r.prunePrivateServices(ctx, app, ""); err != nil {
 		return err
 	}
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	namespace := r.environmentNamespace(app)
-	routeName := getRouteName(app)
 	gatewayPolicyName := getGatewayPolicyName(app)
 	envSecretName := getEnvSecretName(app)
 
 	objects := []client.Object{
-		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
 		&networkingv1.NetworkPolicy{Name: gatewayPolicyName, Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&autoscalingv2.HorizontalPodAutoscaler{Name: name, Namespace: namespace},
@@ -471,8 +485,10 @@ func getEnvSecretName(app *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-env", locov1alpha1.WorkloadName(app.Spec.ResourceID))
 }
 
-func getRouteName(app *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-route", locov1alpha1.WorkloadName(app.Spec.ResourceID))
+func getRouteName(app *locov1alpha1.Application, hostname string) string {
+	digest := sha256.Sum256([]byte(hostname))
+	// One DNS label preserves the full name in Envoy metric tags, which split at dots.
+	return fmt.Sprintf("r-%s-%x", app.Spec.ResourceID, digest[:12])
 }
 
 func getGatewayPolicyName(app *locov1alpha1.Application) string {
@@ -672,7 +688,7 @@ func systemEnvVars(
 ) []*corev1ac.EnvVarApplyConfiguration {
 	publicDomain := ""
 	if app.Spec.ServiceSpec.Routing != nil {
-		publicDomain = app.Spec.ServiceSpec.Routing.HostName
+		publicDomain = app.Spec.ServiceSpec.Routing.Hostnames[0]
 	}
 	internalDomain := getInternalDomain(app, namespace)
 
@@ -948,23 +964,71 @@ func setReadyReplicas(app *locov1alpha1.Application) {
 	}
 }
 
-// ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
 func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1alpha1.Application) error {
-	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
-	namespace := r.environmentNamespace(app)
-	routeName := getRouteName(app)
-	routing := app.Spec.ServiceSpec.Routing
 	app.Status.PublicRoute = nil
-
-	if routing == nil {
-		route := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
-		err := r.Delete(ctx, route)
-		if err != nil && !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-			return fmt.Errorf("delete HTTPRoute %s/%s: %w", namespace, routeName, err)
+	routing := app.Spec.ServiceSpec.Routing
+	var desired []string
+	if routing != nil {
+		revision, _ := app.PlacementRevision()
+		observation := &locov1alpha1.PublicRouteStatus{
+			Revision:  revision,
+			Hostnames: slices.Clone(routing.Hostnames),
 		}
+		app.Status.PublicRoute = observation
+		allReady := true
+		// Acceptance of a multi-hostname route can ignore names with no matching listener.
+		for _, hostname := range routing.Hostnames {
+			routeName := getRouteName(app, hostname)
+			desired = append(desired, routeName)
+			ready, err := r.applyPublicRoute(ctx, app, routeName, []string{hostname})
+			if err != nil {
+				return err
+			}
+			allReady = allReady && ready
+		}
+		if err := r.prunePublicRoutes(ctx, app, desired); err != nil {
+			return err
+		}
+		observation.Ready = allReady
 		return nil
 	}
+	return r.prunePublicRoutes(ctx, app, desired)
+}
 
+func (r *ApplicationReconciler) prunePublicRoutes(
+	ctx context.Context,
+	app *locov1alpha1.Application,
+	desired []string,
+) error {
+	routes := &v1Gateway.HTTPRouteList{}
+	if err := r.APIReader.List(
+		ctx,
+		routes,
+		client.InNamespace(r.environmentNamespace(app)),
+		client.MatchingLabels(managedLabels(app)),
+	); err != nil {
+		return fmt.Errorf("list public routes: %w", err)
+	}
+	for _, route := range routes.Items {
+		if slices.Contains(desired, route.Name) {
+			continue
+		}
+		if err := r.deleteOwnedObject(ctx, app, &route); err != nil {
+			return fmt.Errorf("prune public route %s: %w", route.Name, err)
+		}
+	}
+	return nil
+}
+
+func (r *ApplicationReconciler) applyPublicRoute(
+	ctx context.Context,
+	app *locov1alpha1.Application,
+	routeName string,
+	hostnames []string,
+) (bool, error) {
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
+	routing := app.Spec.ServiceSpec.Routing
 	slog.DebugContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", routeName)
 
 	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
@@ -988,7 +1052,7 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		WithMatches(match).
 		WithBackendRefs(backendRef)
 	spec := gatewayac.HTTPRouteSpec().
-		WithHostnames(v1Gateway.Hostname(routing.HostName)).
+		WithHostnames(routeHostnames(hostnames)...).
 		WithParentRefs(parentRef).
 		WithRules(rule)
 
@@ -1001,9 +1065,9 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 
 	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, route, opts...); err != nil {
-		return fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
+		return false, fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
 	}
-	return r.observePublicRoute(ctx, app, spec)
+	return r.publicRouteAccepted(ctx, app, routeName, spec)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -1077,4 +1141,12 @@ func (r *ApplicationReconciler) podHandler(base handler.EventHandler) handler.Ev
 			base.Delete(ctx, e, q)
 		},
 	}
+}
+
+func routeHostnames(hostnames []string) []v1Gateway.Hostname {
+	result := make([]v1Gateway.Hostname, len(hostnames))
+	for i, hostname := range hostnames {
+		result[i] = v1Gateway.Hostname(hostname)
+	}
+	return result
 }

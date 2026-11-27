@@ -362,7 +362,7 @@ func (s *DeploymentServer) CreateDeployment(
 			qtx,
 			resource,
 			environmentID,
-			render.hostname,
+			render.primaryHostname(),
 			mergedServiceSpec,
 		)
 		if resolveErr != nil {

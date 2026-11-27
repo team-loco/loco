@@ -114,7 +114,7 @@ func TestIngress(t *testing.T) {
 			},
 		)
 	})
-	t.Run("the gateway serves fallback pages without replacing application responses", func(t *testing.T) {
+	t.Run("the gateway serves aliases and fallback pages without replacing application responses", func(t *testing.T) {
 		checkApplicationFallback(t, w, publicID, publicHost)
 	})
 	t.Run("only the public app is routed", func(t *testing.T) {
@@ -124,15 +124,15 @@ func TestIngress(t *testing.T) {
 			w.Namespace,
 			"get",
 			"httproute",
-			"resource-"+publicID+"-route",
+			"-l", "app=resource-"+publicID,
 			"-o",
-			"jsonpath={.spec.hostnames[*]}",
+			"jsonpath={.items[*].spec.hostnames[*]}",
 		)
 		if !strings.Contains(hostnames, publicHost) {
 			t.Errorf("the public app's HTTPRoute serves %q, want %s", hostnames, publicHost)
 		}
 		requireObject(t, w, "networkpolicy", "resource-"+publicID+"-gateway", true)
-		requireObject(t, w, "httproute", "resource-"+privateID+"-route", false)
+		requireNoPublicRoutes(t, w, privateID)
 		requireObject(t, w, "networkpolicy", "resource-"+privateID+"-gateway", false)
 	})
 
@@ -193,15 +193,22 @@ func TestIngress(t *testing.T) {
 		}
 		w.MustLoco(t, "", "resource", "scale", public, "--replicas", "2")
 		platform.Eventually(t, routeTimeout, "the HTTPRoute to be removed", func(ctx context.Context) error {
-			if found, err := p.Exists(
+			routes, err := p.Kubectl(
 				ctx,
 				"-n",
 				w.Namespace,
+				"get",
 				"httproute",
-				"resource-"+publicID+"-route",
-			); err != nil ||
-				found {
-				return fmt.Errorf("the HTTPRoute exists (%w)", err)
+				"-l",
+				"app=resource-"+publicID,
+				"-o",
+				"jsonpath={.items[*].metadata.name}",
+			)
+			if err != nil {
+				return err
+			}
+			if routes != "" {
+				return fmt.Errorf("public routes remain: %s", routes)
 			}
 			return nil
 		})
@@ -276,7 +283,7 @@ func checkApplicationFallback(t *testing.T, w *platform.Workspace, publicID, pub
 		want       string
 	}{
 		{w.Host("missing"), "/example", http.StatusNotFound, "Application not found"},
-		{secondaryHost, "/", http.StatusNotFound, "Application unavailable"},
+		{secondaryHost, "/", http.StatusOK, "Welcome to nginx!"},
 		{publicHost, "/", http.StatusOK, "Welcome to nginx!"},
 		{publicHost, "/missing-test-page", http.StatusNotFound, "404 Not Found"},
 	} {
@@ -338,4 +345,13 @@ func gatewayReaches(t *testing.T, w *platform.Workspace, resourceID, probe strin
 			"gateway.envoyproxy.io/owning-gateway-namespace": p.Namespace,
 		},
 	}, serviceURL(t, w, resourceID))
+}
+
+func requireNoPublicRoutes(t *testing.T, w *platform.Workspace, resourceID string) {
+	t.Helper()
+	routes := p.MustKubectl(t, "-n", w.Namespace, "get", "httproute",
+		"-l", "app=resource-"+resourceID, "-o", "jsonpath={.items[*].metadata.name}")
+	if routes != "" {
+		t.Fatalf("private resource has public routes: %s", routes)
+	}
 }

@@ -24,6 +24,9 @@ tests:
           pattern: 'httproute/\(\?P<namespace>tenant-'
       - matchRegex:
           path: data.relay
+          pattern: '/r-\(\?P<resource>\[\^/\]\+\)-\[a-f0-9\]\{24\}/rule/'
+      - matchRegex:
+          path: data.relay
           pattern: 'set\(attributes\["k8s.namespace.name"\], cache\["namespace"\]\)'
 
   - it: runs only the node collector as a DaemonSet

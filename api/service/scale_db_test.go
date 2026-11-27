@@ -116,7 +116,7 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 			routing := desiredPayload(t, f).AppSpec.ServiceSpec.Routing
 			host := ""
 			if routing != nil {
-				host = routing.HostName
+				host = routing.Hostnames[0]
 			}
 			if host != tc.wantHost {
 				t.Fatalf("routed hostname = %q, want %q", host, tc.wantHost)
