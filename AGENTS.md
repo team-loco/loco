@@ -67,7 +67,7 @@ For visible CLI changes, attach before and after terminal screenshots in light a
 
 ## Principles
 
-- **Test behavior, not markup.** Behavior changes need a test that fails before the change and passes after it. Cosmetic removals do not need new tests. Do not assert incidental structure such as the absence of SVGs, or restate unchanged copy and controls to test a deletion. Those checks add maintenance noise and constrain implementation without proving new behavior.
+- **Every change has a test** that fails before it and passes after it.
 - **Own regressions.** A test that fails after your change is yours to diagnose; don't argue it was already broken without proof.
 - **No assumptions.** Before implementing, state the assumptions the design rests on, and
   check each against the code, the docs or a test. If one can't be checked, or there is
