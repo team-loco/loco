@@ -130,6 +130,14 @@ message PlacementStatus {
   loco.deployment.v1.FailurePolicy failure_policy = 18;
   // Set once the observed revision became healthy with every replica available.
   bool deployed = 20;
+  PublicRouteStatus public_route = 21;
+}
+
+// PublicRouteStatus is gateway acceptance for one placement revision.
+message PublicRouteStatus {
+  int64 revision = 1;
+  repeated string hostnames = 2;
+  bool ready = 3;
 }
 
 // StopReason is why the controller stopped a placement revision.

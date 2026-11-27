@@ -3,6 +3,7 @@ package apps
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -69,6 +71,49 @@ func TestIngress(t *testing.T) {
 	})
 
 	publicID, privateID := w.ResourceID(t, public), w.ResourceID(t, private)
+	t.Run("the controller observes gateway acceptance for the public hostname", func(t *testing.T) {
+		platform.Eventually(
+			t,
+			routeTimeout,
+			"the current public route to be accepted",
+			func(ctx context.Context) error {
+				out, err := p.Kubectl(
+					ctx,
+					"-n",
+					p.Namespace,
+					"get",
+					"applications",
+					"-l",
+					"loco.io/resource-id="+publicID,
+					"-o",
+					"json",
+				)
+				if err != nil {
+					return err
+				}
+				var apps loco.ApplicationList
+				if err := json.Unmarshal([]byte(out), &apps); err != nil {
+					return err
+				}
+				if len(apps.Items) != 1 {
+					return fmt.Errorf("applications = %d, want 1", len(apps.Items))
+				}
+				app := &apps.Items[0]
+				revision, ok := app.PlacementRevision()
+				if !ok {
+					return errors.New("placement revision missing")
+				}
+				route := app.Status.PublicRoute
+				if route == nil || !route.Ready {
+					return fmt.Errorf("public route not accepted: %+v", route)
+				}
+				if route.Revision != revision || !slices.Equal(route.Hostnames, []string{publicHost}) {
+					return fmt.Errorf("public route = %+v, want revision %d hostname %s", route, revision, publicHost)
+				}
+				return nil
+			},
+		)
+	})
 	t.Run("the gateway serves fallback pages without replacing application responses", func(t *testing.T) {
 		checkApplicationFallback(t, w, publicID, publicHost)
 	})

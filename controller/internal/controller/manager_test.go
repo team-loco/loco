@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -128,6 +129,50 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		Expect(app.ResourceVersion).To(Equal(appVersion))
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.ResourceVersion).To(Equal(depVersion))
+
+		acceptRoute := func() {
+			Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
+			conditions := make([]metav1.Condition, 0, 2)
+			for _, kind := range []string{"Accepted", "ResolvedRefs"} {
+				conditions = append(conditions, metav1.Condition{Type: kind, Status: metav1.ConditionTrue,
+					ObservedGeneration: route.Generation, Reason: kind, LastTransitionTime: metav1.Now()})
+			}
+			route.Status.Parents = []v1Gateway.RouteParentStatus{{ParentRef: route.Spec.ParentRefs[0],
+				ControllerName: envoyGatewayController, Conditions: conditions}}
+			Expect(k8sClient.Status().Update(ctx, route)).To(Succeed())
+		}
+		acceptRoute()
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+			g.Expect(app.Status.PublicRoute).NotTo(BeNil())
+			g.Expect(app.Status.PublicRoute.Ready).To(BeTrue())
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+
+		previousGeneration := route.Generation
+		app.Spec.ServiceSpec.Routing.HostName = "changed.example.com"
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "2"
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
+			g.Expect(route.Generation).To(BeNumerically(">", previousGeneration))
+			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+			g.Expect(app.Status.PublicRoute).NotTo(BeNil())
+			g.Expect(app.Status.PublicRoute.Revision).To(Equal(int64(2)))
+			g.Expect(app.Status.PublicRoute.Hostnames).To(Equal([]string{"changed.example.com"}))
+			g.Expect(app.Status.PublicRoute.Ready).To(BeFalse())
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		acceptRoute()
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+			g.Expect(app.Status.PublicRoute.Ready).To(BeTrue())
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+			g.Expect(app.Status.PublicRoute).To(BeNil())
+			g.Expect(apierrors.IsNotFound(k8sClient.Get(ctx, key, route))).To(BeTrue())
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		Eventually(func() bool {

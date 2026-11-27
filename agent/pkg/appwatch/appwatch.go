@@ -3,6 +3,7 @@ package appwatch
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
@@ -138,6 +139,13 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		DeploymentId:     app.Status.ObservedDeploymentID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		ReadyReplicas:    app.Status.ReadyReplicas,
+	}
+	if route := app.Status.PublicRoute; route != nil {
+		status.PublicRoute = &agentv1.PublicRouteStatus{
+			Revision:  route.Revision,
+			Hostnames: slices.Clone(route.Hostnames),
+			Ready:     route.Ready,
+		}
 	}
 	if spec := app.Spec.ServiceSpec; spec != nil {
 		status.FailurePolicy = &deploymentv1.FailurePolicy{

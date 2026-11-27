@@ -954,6 +954,7 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 	namespace := r.environmentNamespace(app)
 	routeName := getRouteName(app)
 	routing := app.Spec.ServiceSpec.Routing
+	app.Status.PublicRoute = nil
 
 	if routing == nil {
 		route := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
@@ -969,6 +970,8 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
 	gatewayName := v1Gateway.ObjectName(r.Gateway)
 	parentRef := gatewayac.ParentReference().
+		WithGroup("gateway.networking.k8s.io").
+		WithKind("Gateway").
 		WithName(gatewayName).
 		WithNamespace(gatewayNamespace)
 	pathMatch := gatewayac.HTTPPathMatch().
@@ -976,9 +979,11 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		WithValue(routing.PathPrefix)
 	match := gatewayac.HTTPRouteMatch().WithPath(pathMatch)
 	backendRef := gatewayac.HTTPBackendRef().
+		WithGroup("").
 		WithKind("Service").
 		WithName(v1Gateway.ObjectName(name)).
-		WithPort(servicePort)
+		WithPort(servicePort).
+		WithWeight(1)
 	rule := gatewayac.HTTPRouteRule().
 		WithMatches(match).
 		WithBackendRefs(backendRef)
@@ -998,7 +1003,7 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 	if err := r.Apply(ctx, route, opts...); err != nil {
 		return fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
 	}
-	return nil
+	return r.observePublicRoute(ctx, app, spec)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -1013,9 +1018,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 	applicationPredicates := builder.WithPredicates(applicationChanged)
 	applicationHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
-	// Gateways report attachment and acceptance in status. Only desired route changes need repair.
-	routeChanged := predicate.Or(applicationChanged, predicate.LabelChangedPredicate{})
-	routePredicates := builder.WithPredicates(routeChanged)
+	routePredicates := builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})
 	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerEnvironment)
 	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
