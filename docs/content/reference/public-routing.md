@@ -6,6 +6,8 @@ title: "Public routing publication"
 
 Loco's public routing API tells an external publisher which exact worker clusters may serve each application hostname. The publisher translates that intent into DNS or edge configuration. Application requests go through the configured edge and worker gateways; they do not call the Loco API.
 
+This unreleased routing schema requires a fresh database and worker installation, or a reset of disposable installations. It does not migrate databases or Application objects from the earlier unreleased schema.
+
 An app domain is operator-managed until an installation administrator binds a publisher. Loco installs no DNS provider automatically. Existing operator-managed domains keep their current lifecycle.
 
 ```mermaid
@@ -54,7 +56,7 @@ On provider failure, report `PUBLICATION_OUTCOME_ERROR` with safe text. Exclude 
 
 ## Admission and retirement
 
-A new cluster enters a hostname's mapping only after its current local route is accepted and resolved by the configured gateway, matches its desired hostname set and has serving replicas. All assigned names route locally. Gateway API allows 16 names per HTTPRoute, so larger sets use several routes and require acceptance of every route.
+A new cluster enters a hostname's mapping only after its current local route is accepted and resolved by the configured gateway, matches its desired hostname set and has serving replicas. All assigned names route locally. Each hostname has its own HTTPRoute with a stable name. Every route must be accepted; acceptance of a multi-hostname route can cover only some of its names.
 
 An admitted placement keeps its mapping through temporary pod failures or a failed new rollout. This mechanism does not implement automatic application health failover.
 

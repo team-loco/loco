@@ -189,6 +189,7 @@ type Querier interface {
 	GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
+	HasDesiredRoutingTargets(ctx context.Context, arg HasDesiredRoutingTargetsParams) (bool, error)
 	HasInaccessibleAccountDeletionTokens(ctx context.Context, arg HasInaccessibleAccountDeletionTokensParams) (bool, error)
 	HasManagedPublicRoutes(ctx context.Context, arg HasManagedPublicRoutesParams) (bool, error)
 	HasScopeInOrg(ctx context.Context, arg HasScopeInOrgParams) (*bool, error)
@@ -228,6 +229,7 @@ type Querier interface {
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
 	ListDeploymentPlacements(ctx context.Context, deploymentID uuid.UUID) ([]DeploymentPlacement, error)
+	ListDesiredDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListDesiredDeploymentsForEnvironmentRow, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	// The six largest allocations of the workspace's resources in the environment, each row carrying
 	// the totals and count over every resource with an allocation. A resource's allocation sums, over
@@ -247,7 +249,6 @@ type Querier interface {
 	ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error)
 	ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
-	ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error)
 	ListLiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]ListLiveDeploymentsForResourceRow, error)
 	ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberWorkspaceScopesParams) ([]ListMemberWorkspaceScopesRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)

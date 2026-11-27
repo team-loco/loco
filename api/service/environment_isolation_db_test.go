@@ -32,7 +32,7 @@ func (f *deployFixture) addStagingEnvironment(t *testing.T) uuid.UUID {
 
 func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID) []liveDeployment {
 	t.Helper()
-	rows, err := f.queries.ListLiveDeploymentsForEnvironment(context.Background(), environmentID)
+	rows, err := f.queries.ListDesiredDeploymentsForEnvironment(context.Background(), environmentID)
 	if err != nil {
 		t.Fatalf("list deployments: %v", err)
 	}

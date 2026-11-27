@@ -138,6 +138,10 @@ func (r *Reconciler) reconcile(ctx context.Context, q *db.Queries, key db.ListPu
 	if err != nil {
 		return err
 	}
+	hasTargets, err := q.HasDesiredRoutingTargets(ctx, db.HasDesiredRoutingTargetsParams(key))
+	if err != nil {
+		return err
+	}
 	assigned := make(map[string]uuid.UUID, len(domains))
 	for _, d := range domains {
 		assigned[d.Domain] = d.PublisherID
@@ -161,12 +165,12 @@ func (r *Reconciler) reconcile(ctx context.Context, q *db.Queries, key db.ListPu
 				EnvironmentID: key.EnvironmentID,
 			}
 		}
-		clusters, targets, selectionErr := eligibleClusters(placements, publication)
+		clusters, selectionErr := eligibleClusters(placements, publication)
 		if selectionErr != nil {
 			return selectionErr
 		}
 		// Keep the established route while replacement placements are still starting.
-		if targets > 0 && len(clusters) == 0 {
+		if hasTargets && len(clusters) == 0 {
 			for _, placement := range placements {
 				if slices.Contains(publication.ClusterIds, placement.ClusterID) {
 					clusters = append(clusters, placement.ClusterID)
@@ -174,7 +178,7 @@ func (r *Reconciler) reconcile(ctx context.Context, q *db.Queries, key db.ListPu
 			}
 		}
 		slices.SortFunc(clusters, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
-		if err = saveIntent(ctx, q, publication, clusters, targets == 0); err != nil {
+		if err = saveIntent(ctx, q, publication, clusters, !hasTargets); err != nil {
 			return err
 		}
 	}
@@ -219,14 +223,12 @@ func (r *Reconciler) reconcile(ctx context.Context, q *db.Queries, key db.ListPu
 func eligibleClusters(
 	placements []db.ListRoutingPlacementsRow,
 	publication db.PublicRoutePublication,
-) ([]uuid.UUID, int, error) {
+) ([]uuid.UUID, error) {
 	clusters := make([]uuid.UUID, 0, len(placements))
-	targets := 0
 	for _, p := range placements {
 		if p.Retiring {
 			continue
 		}
-		targets++
 		if slices.Contains(publication.ClusterIds, p.ClusterID) {
 			clusters = append(clusters, p.ClusterID)
 			continue
@@ -236,7 +238,7 @@ func eligibleClusters(
 		}
 		var route loco.PublicRouteStatus
 		if err := json.Unmarshal(p.PublicRoute, &route); err != nil {
-			return nil, 0, fmt.Errorf("decode placement route %s: %w", p.ID, err)
+			return nil, fmt.Errorf("decode placement route %s: %w", p.ID, err)
 		}
 		currentAccepted := route.Ready && route.Revision == p.DesiredRevision
 		if !currentAccepted || !slices.Contains(route.Hostnames, publication.Hostname) {
@@ -244,10 +246,10 @@ func eligibleClusters(
 		}
 		var payload loco.PlacementPayload
 		if err := json.Unmarshal(p.DesiredSpec, &payload); err != nil {
-			return nil, 0, fmt.Errorf("decode placement %s: %w", p.ID, err)
+			return nil, fmt.Errorf("decode placement %s: %w", p.ID, err)
 		}
 		if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil {
-			return nil, 0, fmt.Errorf("placement %s has no service spec", p.ID)
+			return nil, fmt.Errorf("placement %s has no service spec", p.ID)
 		}
 		routing := payload.AppSpec.ServiceSpec.Routing
 		if routing != nil && slices.Equal(routing.Hostnames, route.Hostnames) {
@@ -255,7 +257,7 @@ func eligibleClusters(
 		}
 	}
 	slices.SortFunc(clusters, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
-	return slices.Compact(clusters), targets, nil
+	return slices.Compact(clusters), nil
 }
 
 func saveIntent(

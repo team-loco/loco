@@ -340,7 +340,7 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list domains: %w", err)
 	}
-	rows, err := s.queries.ListLiveDeploymentsForEnvironment(ctx, env.ID)
+	rows, err := s.queries.ListDesiredDeploymentsForEnvironment(ctx, env.ID)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list deployments: %w", err)
 	}

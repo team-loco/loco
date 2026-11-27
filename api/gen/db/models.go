@@ -835,6 +835,16 @@ type DeploymentRollout struct {
 	Snapshot     []byte    `json:"snapshot"`
 }
 
+type DesiredDeploymentPlacement struct {
+	DeploymentID  uuid.UUID       `json:"deploymentId"`
+	ResourceID    uuid.UUID       `json:"resourceId"`
+	EnvironmentID uuid.UUID       `json:"environmentId"`
+	ClusterID     uuid.UUID       `json:"clusterId"`
+	Region        string          `json:"region"`
+	Replicas      int32           `json:"replicas"`
+	Status        PlacementStatus `json:"status"`
+}
+
 type Environment struct {
 	ID          uuid.UUID `json:"id"`
 	WorkspaceID uuid.UUID `json:"workspaceId"`

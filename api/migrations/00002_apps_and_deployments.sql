@@ -766,6 +766,22 @@ CREATE TABLE public_routing_retirements (
     requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (resource_id, environment_id, cluster_id)
 );
+-- Requested targets survive build failure; staged retirement changes intent while
+-- the existing live view continues to describe workloads that are still serving.
+CREATE VIEW desired_deployment_placements AS
+SELECT latest.* FROM (
+    SELECT DISTINCT ON (d.resource_id, d.environment_id, dp.cluster_id)
+        d.id AS deployment_id, d.resource_id, d.environment_id,
+        dp.cluster_id, dp.region, dp.replicas, dp.status
+    FROM deployment_placements dp JOIN deployments d ON d.id = dp.deployment_id
+    ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC
+) latest
+JOIN clusters c ON c.id = latest.cluster_id
+WHERE latest.status NOT IN ('canceled', 'superseded') AND c.removed_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM public_routing_retirements r
+      WHERE r.resource_id = latest.resource_id AND r.environment_id = latest.environment_id
+        AND r.cluster_id = latest.cluster_id);
+
 CREATE TABLE public_routing_dirty (
     next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     resource_id UUID NOT NULL,
@@ -785,6 +801,8 @@ BEGIN
 END;
 $$;
 -- +goose StatementEnd
+CREATE TRIGGER public_routing_deployment AFTER INSERT OR UPDATE OF status OR DELETE ON deployments
+FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
 CREATE TRIGGER public_routing_domains AFTER INSERT OR UPDATE OR DELETE ON resource_domains
 FOR EACH ROW EXECUTE FUNCTION enqueue_public_routing();
 CREATE TRIGGER public_routing_placement_create AFTER INSERT OR DELETE ON placements
@@ -831,6 +849,8 @@ CREATE TRIGGER guard_public_domain BEFORE INSERT OR UPDATE OF domain ON resource
 FOR EACH ROW EXECUTE FUNCTION guard_public_domain();
 
 -- +goose Down
+DROP VIEW IF EXISTS desired_deployment_placements;
+DROP TRIGGER IF EXISTS public_routing_deployment ON deployments;
 DROP TRIGGER IF EXISTS guard_public_domain ON resource_domains;
 DROP FUNCTION IF EXISTS guard_public_domain;
 DROP TRIGGER IF EXISTS public_routing_domains ON resource_domains;

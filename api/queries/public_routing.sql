@@ -128,3 +128,8 @@ SELECT id, app_domain FROM route_publishers WHERE NOT bootstrapped ORDER BY id;
 
 -- name: MarkPublisherBootstrapped :exec
 UPDATE route_publishers SET bootstrapped = true WHERE id = $1;
+
+-- name: HasDesiredRoutingTargets :one
+SELECT EXISTS (SELECT 1 FROM desired_deployment_placements d
+ WHERE d.resource_id = $1 AND d.environment_id = $2
+ AND NOT resource_suspended(d.resource_id))::boolean AS has_targets;
