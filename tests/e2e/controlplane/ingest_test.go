@@ -203,7 +203,7 @@ otel-col-daemon:
 	rollout(t, nodeNamespace, "daemonset/"+nodeCollector)
 	// Restart the producers after collection is ready; checkpoints may already cover
 	// their earlier output when this suite reuses a kept cluster.
-	emittedAfter := time.Now().UTC().Format(time.DateTime)
+	emittedAfter := time.Now().UnixNano()
 	for _, workload := range []string{release + "-api", release + "-obs-proxy-ingest"} {
 		c.MustKubectl(t, "-n", cp.namespace, "rollout", "restart", "deployment/"+workload)
 		rollout(t, cp.namespace, "deployment/"+workload)
@@ -232,7 +232,7 @@ otel-col-daemon:
 					fmt.Sprintf(
 						"SELECT count() FROM loco_obs.otel_logs WHERE WorkspaceId = '%s' AND ServiceName = '%s' "+
 							"AND ResourceAttributes['k8s.node.name'] != '' AND ResourceAttributes['loco.telemetry.scope'] = 'platform' "+
-							"AND LogAttributes['log.file.path'] != '' AND Timestamp >= toDateTime('%s')",
+							"AND LogAttributes['log.file.path'] != '' AND Timestamp >= fromUnixTimestamp64Nano(%d)",
 						systemtenant.WorkspaceID,
 						component,
 						emittedAfter,
