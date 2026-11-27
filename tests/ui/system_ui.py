@@ -535,7 +535,7 @@ with session(repo / "tests/ui/out/system") as browser:
         page.get_by_role("region", name="Capacity", exact=True).get_by_text(
             "Not reported", exact=True
         )
-    ).to_be_visible()
+    ).to_have_count(2)
     page.goto(ui + "/system/clusters/new")
     expect(
         page.get_by_role("heading", name="Page not found", exact=True)
@@ -675,6 +675,8 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
         memory_request.value.post_data_json,
     ]
     assert_metric_scope(clusters["de-he-1"])
+    stale_node = page.get_by_role("row", name="Inspect node-0000", exact=True)
+    expect(stale_node).not_to_contain_text("%")
     for route in held_metrics:
         route.fulfill(json={})
     expect(
@@ -700,7 +702,8 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
     ).to_be_visible()
     page.get_by_role("row", name="Inspect node-0999", exact=True).click()
     expect(page.locator('[data-slot="allocation-treemap"]')).to_have_count(1)
-    expect(page.locator('[data-slot="allocation-treemap"] > *')).to_have_count(15)
+    # Stale requests retain all observed groups but cannot establish available capacity.
+    expect(page.locator('[data-slot="allocation-treemap"] > *')).to_have_count(14)
     with expect_rpc(
         page,
         "loco.cluster.v1.ClusterAdminService/GetNodeAllocations",
