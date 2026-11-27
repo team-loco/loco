@@ -467,6 +467,7 @@
 		padding-top: 4px;
 	}
 	& tbody > tr {
+		background-color: transparent;
 		border-bottom-width: 0;
 		border-radius: var(--band-radius, 6px);
 	}
