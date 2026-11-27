@@ -136,8 +136,12 @@ function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 						<SystemTime ts={user.createdAt} />
 					</Fact>
 					<Fact term="User ID">
-						<CopyId value={user.id} title="Copy user ID" className="-ml-1.5 font-mono text-[12.5px] text-foreground">
-							{user.id}
+						<CopyId
+							value={user.id}
+							title="Copy user ID"
+							className="-ml-1.5 max-w-full text-left font-mono text-[12.5px] whitespace-normal text-foreground"
+						>
+							<span className="min-w-0 break-all">{user.id}</span>
 						</CopyId>
 					</Fact>
 				</dl>
