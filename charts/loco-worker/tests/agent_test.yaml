@@ -359,3 +359,10 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
           value: "2"
+
+  - it: identifies agent stdout logs by component
+    template: templates/agent-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: loco-agent
