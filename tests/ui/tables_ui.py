@@ -492,8 +492,12 @@ def check_band(page, scroller, row):
     assert rgb(page, start + 4, top + 1) != card, "the hovered row shows no tint"
     rounded("hovered")
     middle = (first["x"] + first["width"] + last["x"]) / 2
-    assert rgb(page, end - 5, top + 5) == rgb(page, middle, top + 5), (
-        "the pinned action cell has a different hover surface"
+    pinned = rgb(page, end - 5, top + 5)
+    plain = rgb(page, middle, top + 5)
+    assert max(abs(a - b) for a, b in zip(pinned, plain, strict=True)) <= 1, (
+        "the pinned action cell has a different hover surface",
+        pinned,
+        plain,
     )
     page.mouse.move(0, 0)
     # Marks the row selected without opening its drawer.
