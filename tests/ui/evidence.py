@@ -1172,6 +1172,36 @@ def seed_domains(state, resource_id, domains):
             f"FROM resources r JOIN environments e ON e.workspace_id=r.workspace_id "
             f"WHERE r.id={q(resource_id)} AND e.slug={q(environment)};"
         )
+        publication = entry.get("publication")
+        if publication is not None:
+            if publication not in ("pending", "published", "error"):
+                raise EvidenceError(f"unknown domain publication: {publication}")
+            rows.append(
+                "INSERT INTO route_publishers(app_domain,bootstrapped,change_sequence) "
+                f"VALUES ({q(app_domain)},true,1) ON CONFLICT(app_domain) DO NOTHING;"
+            )
+            acknowledged = 1 if publication == "published" else 0
+            message = (
+                "Routing provider temporarily unavailable"
+                if publication == "error"
+                else ""
+            )
+            rows.append(
+                "INSERT INTO public_route_publications(publisher_id,hostname,resource_id,environment_id,"
+                "cluster_ids,revision,change_sequence,acknowledged_revision,drain_until,message) "
+                f"SELECT b.id,d.domain,d.resource_id,d.environment_id,"
+                "ARRAY(SELECT cluster_id FROM placements p WHERE p.resource_id=d.resource_id "
+                "AND p.environment_id=d.environment_id AND NOT desired_deleted),1,"
+                "(SELECT COALESCE(MAX(change_sequence),0)+1 FROM public_route_publications WHERE publisher_id=b.id),"
+                f"{acknowledged},NOW()+INTERVAL '1 day',{q(message)} "
+                "FROM resource_domains d JOIN route_publishers b ON b.app_domain=d.app_domain "
+                f"WHERE d.resource_id={q(resource_id)} AND d.domain={q(entry['domain'])};"
+            )
+            rows.append(
+                "UPDATE route_publishers b SET change_sequence=(SELECT MAX(change_sequence) "
+                "FROM public_route_publications p WHERE p.publisher_id=b.id) "
+                f"WHERE b.app_domain={q(app_domain)};"
+            )
         primary.add(environment)
     if rows:
         psql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")

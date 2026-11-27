@@ -156,6 +156,8 @@ services:
 
 `loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. Adding or removing a domain updates the running application's routes. Removing its last domain makes it private.
 
+`loco resource status` and the dashboard show each hostname's [public routing publication](../reference/public-routing.md#publication-status) separately from workload health. Assigned hostnames can still have pending or failed external routing. Operator-managed domains identify the operator as the owner of that routing.
+
 The Loco gateway serves a branded HTTP 404 page when no application route matches a hostname under an app domain. The page distinguishes an unknown application domain from a registered domain with no matching route. The browser URL stays unchanged. Responses from deployed applications, including their own 404 pages, pass through without replacement.
 
 ## Investigate a rollout

@@ -44,6 +44,29 @@ with session(out) as browser:
         lambda route: route.abort(),
     )
     page.goto(base + "?env=production&tab=settings")
+    expect(page.get_by_text("Operator-managed routing", exact=True)).to_have_count(2)
+    # Synthetic publication records exercise the real resource API and browser rendering.
+    sql(
+        state,
+        "INSERT INTO route_publishers(app_domain,bootstrapped,change_sequence) VALUES ('apps.example.test',true,1);",
+    )
+    page.reload()
+    expect(page.get_by_text("Routing pending", exact=True)).to_have_count(2)
+    sql(
+        state,
+        f"""INSERT INTO public_route_publications(publisher_id,hostname,resource_id,environment_id,cluster_ids,revision,change_sequence,message)
+SELECT b.id,d.domain,d.resource_id,d.environment_id,ARRAY(SELECT cluster_id FROM placements WHERE resource_id=d.resource_id),1,1,'Routing provider temporarily unavailable'
+FROM resource_domains d JOIN route_publishers b ON b.app_domain=d.app_domain WHERE d.resource_id='{resource}'
+ON CONFLICT(hostname) DO UPDATE SET cluster_ids=EXCLUDED.cluster_ids,message=EXCLUDED.message;""",
+    )
+    page.reload()
+    expect(page.get_by_text("Routing error", exact=True)).to_have_count(2)
+    sql(
+        state,
+        f"UPDATE public_route_publications SET acknowledged_revision=revision,message='',drain_until=NOW()+INTERVAL '1 day' WHERE resource_id='{resource}';",
+    )
+    page.reload()
+    expect(page.get_by_text("Routing published", exact=True)).to_have_count(2)
     switch = page.get_by_role("switch", name="Public", exact=True)
     expect(switch).to_be_checked()
     switch.click()

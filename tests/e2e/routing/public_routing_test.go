@@ -11,12 +11,14 @@ import (
 
 	"github.com/google/uuid"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	routingv1 "github.com/team-loco/loco/gen/go/loco/routing/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 const routeWait = 2 * time.Minute
+const sharedService = "both"
 
 // These requests cross two independent Kubernetes APIs, controllers and Envoys.
 // Publication acknowledgements here are synthetic; no external DNS provider is used.
@@ -64,7 +66,10 @@ exec nginx -c /tmp/loco-region.conf -g 'daemon off;'`}
 	platform.WriteLocoFile(
 		t,
 		dir,
-		locofile.File{Partial: "regional", Services: map[string]locofile.Service{"ca": ca, "ny": ny, "both": both}},
+		locofile.File{
+			Partial:  "regional",
+			Services: map[string]locofile.Service{"ca": ca, "ny": ny, sharedService: both},
+		},
 	)
 	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 	session := uuid.NewString()
@@ -106,6 +111,15 @@ exec nginx -c /tmp/loco-region.conf -g 'daemon off;'`}
 		}
 		return nil
 	})
+	for _, name := range []string{"ca", "ny", sharedService} {
+		resource, readErr := w.Resource(t.Context(), name)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if resource.GetDomains()[0].GetPublication().GetState() != domainv1.PublicationState_PUBLICATION_STATE_PENDING {
+			t.Fatalf("%s published before acknowledgement", name)
+		}
+	}
 	for hostname, intent := range intents {
 		if _, ok := expected[hostname]; !ok {
 			continue
@@ -121,6 +135,17 @@ exec nginx -c /tmp/loco-region.conf -g 'daemon off;'`}
 			},
 		); err != nil {
 			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"ca", "ny", sharedService} {
+		resource, readErr := w.Resource(t.Context(), name)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if resource.GetDomains()[0].GetPublication().
+			GetState() !=
+			domainv1.PublicationState_PUBLICATION_STATE_PUBLISHED {
+			t.Fatalf("%s missing current publication", name)
 		}
 	}
 	for _, worker := range []*platform.Platform{p, second} {

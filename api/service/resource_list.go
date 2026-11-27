@@ -387,6 +387,10 @@ func (s *ResourceServer) listedResources(ctx context.Context, keys []resourceKey
 	if err != nil {
 		return nil, fmt.Errorf("list resource domains: %w", err)
 	}
+	publications, err := s.domainPublications(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 	statuses, err := s.environmentStatuses(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("derive resource statuses: %w", err)
@@ -404,7 +408,12 @@ func (s *ResourceServer) listedResources(ctx context.Context, keys []resourceKey
 	}
 	byID := make(map[uuid.UUID]*resourcev1.Resource, len(dbResources))
 	for _, dbResource := range dbResources {
-		resource, protoErr := s.dbResourceToProto(dbResource, statuses[dbResource.ID], domainsByResource[dbResource.ID])
+		resource, protoErr := s.dbResourceToProto(
+			dbResource,
+			statuses[dbResource.ID],
+			domainsByResource[dbResource.ID],
+			publications,
+		)
 		if protoErr != nil {
 			return nil, protoErr
 		}

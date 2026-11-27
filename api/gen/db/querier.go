@@ -230,6 +230,7 @@ type Querier interface {
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
 	ListDeploymentPlacements(ctx context.Context, deploymentID uuid.UUID) ([]DeploymentPlacement, error)
 	ListDesiredDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListDesiredDeploymentsForEnvironmentRow, error)
+	ListDomainPublicationStates(ctx context.Context, dollar_1 []uuid.UUID) ([]ListDomainPublicationStatesRow, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	// The six largest allocations of the workspace's resources in the environment, each row carrying
 	// the totals and count over every resource with an allocation. A resource's allocation sums, over

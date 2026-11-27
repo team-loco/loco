@@ -13068,6 +13068,31 @@
         "additionalProperties": false,
         "description": "DomainInput specifies domain configuration for a resource.\napp.app_domain_required // app_domain is required for app domains\napp.subdomain_required // subdomain is required for app domains\n"
       },
+      "loco.domain.v1.DomainPublication": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "title": "state",
+            "$ref": "#/components/schemas/loco.domain.v1.PublicationState"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64"
+          },
+          "acknowledgedRevision": {
+            "type": "string",
+            "title": "acknowledged_revision",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          }
+        },
+        "title": "DomainPublication",
+        "additionalProperties": false
+      },
       "loco.domain.v1.DomainType": {
         "type": "string",
         "title": "DomainType",
@@ -13104,6 +13129,18 @@
         "title": "ListAppDomainsResponse",
         "additionalProperties": false,
         "description": "ListAppDomainsResponse contains the domains the environment's clusters serve."
+      },
+      "loco.domain.v1.PublicationState": {
+        "type": "string",
+        "title": "PublicationState",
+        "enum": [
+          "PUBLICATION_STATE_UNSPECIFIED",
+          "PUBLICATION_STATE_OPERATOR_MANAGED",
+          "PUBLICATION_STATE_PENDING",
+          "PUBLICATION_STATE_PUBLISHED",
+          "PUBLICATION_STATE_ERROR"
+        ],
+        "description": "Publication describes external routing independently of workload health."
       },
       "loco.domain.v1.ResourceDomain": {
         "type": "object",
@@ -13149,6 +13186,10 @@
           "updatedAt": {
             "title": "updated_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "publication": {
+            "title": "publication",
+            "$ref": "#/components/schemas/loco.domain.v1.DomainPublication"
           }
         },
         "title": "ResourceDomain",

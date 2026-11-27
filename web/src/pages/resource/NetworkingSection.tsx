@@ -36,6 +36,8 @@ import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import { SettingsBlock, type SectionProps } from "./SettingsSections";
 import { InlineCode, withCode } from "@/components/design/InlineCode";
 
+import { DomainPublicationBadge } from "./DomainPublicationBadge";
+
 const HOST = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 function DomainRow({
@@ -141,6 +143,7 @@ function DomainRow({
 				<span className="text-[11.5px] whitespace-nowrap text-warn-fg">not served in {missing.join(", ")}</span>
 			)}
 			<div className="flex items-center justify-end gap-1.5">
+				<DomainPublicationBadge publication={domain.publication} />
 				{domain.isPrimary && <Badge tone="pill">primary</Badge>}
 				<DropdownMenu>
 					<DropdownMenuTrigger
@@ -441,7 +444,7 @@ export function NetworkingSection({
 						/>
 					</div>
 					<span className="text-[12.5px] text-fg3">
-						Changes to a domain row apply right away and take effect on the next deployment.
+						Domain changes apply immediately. Public routing can take time to update.
 					</span>
 				</div>
 			)}

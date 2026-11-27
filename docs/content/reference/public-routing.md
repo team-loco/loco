@@ -65,3 +65,16 @@ Removing a managed placement first publishes a set excluding that cluster. Its w
 Renaming or removing a managed hostname retains its old local route until external withdrawal is acknowledged and drained. Another resource cannot claim that hostname during cleanup. Explicit resource/workspace deletion keeps its existing immediate-stop behavior; durable tombstones finish external cleanup afterward. Suspension also keeps its existing immediate-stop policy. A live move between clusters in the same region is rejected for managed public apps until an explicit migration is arranged.
 
 The drain window allows time for propagation; it does not move existing connections or guarantee every cache has expired. Validate the chosen publisher's propagation and connection behavior before switching production ownership. See [API environment](api-environment.md#public-routing-publication) for the generic settings.
+
+## Publication status
+
+`loco resource status SERVICE` and the dashboard show public routing separately from workload health. Each assigned hostname reports one state:
+
+| State | Meaning |
+| --- | --- |
+| Operator managed | No publisher is bound to the app domain; the operator manages public routing. |
+| Pending | A publisher is bound, but the current usable mapping has not been acknowledged. |
+| Published | The publisher acknowledged the current revision with at least one admitted cluster. |
+| Error | The publisher reported a failure; its safe diagnostic accompanies the state. |
+
+Published records provider acknowledgement. It does not prove every client has observed the change or that the workload is healthy. The resource API returns the state, current revision, acknowledged revision and safe message in each domain's `publication` field.

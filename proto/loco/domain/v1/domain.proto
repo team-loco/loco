@@ -54,6 +54,22 @@ message ResourceDomain {
   bool is_primary = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+  DomainPublication publication = 10;
+}
+
+// Publication describes external routing independently of workload health.
+enum PublicationState {
+  PUBLICATION_STATE_UNSPECIFIED = 0;
+  PUBLICATION_STATE_OPERATOR_MANAGED = 1;
+  PUBLICATION_STATE_PENDING = 2;
+  PUBLICATION_STATE_PUBLISHED = 3;
+  PUBLICATION_STATE_ERROR = 4;
+}
+message DomainPublication {
+  PublicationState state = 1;
+  int64 revision = 2;
+  int64 acknowledged_revision = 3;
+  string message = 4;
 }
 
 // --- Service ---
