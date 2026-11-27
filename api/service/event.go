@@ -120,7 +120,7 @@ func (s *EventServer) ListEvents(
 	}
 	before, err := decodeEventPosition(req.GetPageToken())
 	if err != nil {
-		return nil, fieldError(connect.CodeInvalidArgument, "page_token", publicInvalidPageToken, "")
+		return nil, fieldError("page_token", publicInvalidPageToken, "")
 	}
 	pageSize := req.GetPageSize()
 	if pageSize == 0 {
@@ -483,6 +483,17 @@ func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquery.Expr) (events.AuditQuery, error) {
 	query := events.AuditQuery{
 		OrgID: scope.orgID, InstallationOnly: req.GetInstallationOnly(), Filter: filter, Types: req.GetTypes(),
+	}
+	if req.GetAfterCursor() != "" {
+		position, err := decodeEventPosition(req.GetAfterCursor())
+		if err != nil || position <= 0 {
+			return events.AuditQuery{}, fieldError(
+				"after_cursor",
+				"invalid event cursor",
+				"",
+			)
+		}
+		query.AfterPosition = int64(position)
 	}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID

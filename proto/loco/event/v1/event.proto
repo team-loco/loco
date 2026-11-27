@@ -101,6 +101,8 @@ message ListEventsRequest {
       string: {uuid: true}
     }
   }];
+  // Only published events after this StreamEvents cursor, for counting new arrivals.
+  string after_cursor = 20 [(buf.validate.field).string.max_len = 64];
 }
 
 // EventFacet counts the events per value of one key.

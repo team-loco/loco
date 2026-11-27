@@ -13457,6 +13457,12 @@
             "title": "resource_ids",
             "maxItems": 100,
             "description": "With workspace_id and no resource_id: only the events of these resources. With\n readable_resources, only those of them the caller can list."
+          },
+          "afterCursor": {
+            "type": "string",
+            "title": "after_cursor",
+            "maxLength": 64,
+            "description": "Only published events after this StreamEvents cursor, for counting new arrivals."
           }
         },
         "title": "ListEventsRequest",

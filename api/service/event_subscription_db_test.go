@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectinprocess"
@@ -177,5 +180,102 @@ func TestReadableEventSubscriptionDropsARevokedGrant(t *testing.T) {
 	}
 	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetResourceId() != f.resourceID.String() {
 		t.Fatalf("events after partial revocation = %v", next)
+	}
+}
+
+func TestEventArrivalCountUsesCursorBeyondCappedHistory(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	f.events.poll = time.Millisecond
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO events(type,org_id,actor_type)
+SELECT 'resource.updated',$1,'system' FROM generate_series(1,$2::int)`, f.orgID, totalCountCap+1); err != nil {
+		t.Fatal(err)
+	}
+	late, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		rollbackErr := late.Rollback(context.Background())
+		if rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Error(rollbackErr)
+		}
+	})
+	org := uuid.MustParse(f.orgID)
+	if err = events.Record(
+		t.Context(),
+		genDb.New(late),
+		events.Event{Type: events.ResourceUpdated, OrgID: &org, ActorType: events.ActorSystem},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err = events.Record(
+		t.Context(),
+		f.queries,
+		events.Event{Type: events.ResourceUpdated, OrgID: &org, ActorType: events.ActorSystem},
+	); err != nil {
+		t.Fatal(err)
+	}
+	for range (totalCountCap+2)/streamBatch + 1 {
+		publishEvents(t, f.pool)
+	}
+	principal, _ := reqctx.PrincipalFrom(f.owner)
+	server := connect.NewServer(eventPrincipalInjector{principal}.Interceptor)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	client := eventv1connect.NewEventServiceClient(connect.NewClient(connectinprocess.New(server)))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	stream, err := client.StreamEvents(
+		ctx,
+		&eventv1.StreamEventsRequest{OrgId: f.orgID, Types: []string{events.ResourceUpdated}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	var cursor string
+	for received := 0; received < totalCountCap+2; {
+		batch, receiveErr := stream.Receive()
+		if receiveErr != nil {
+			t.Fatal(receiveErr)
+		}
+		received += len(batch.GetEvents())
+		cursor = batch.GetCursor()
+	}
+	request := &eventv1.ListEventsRequest{
+		OrgId:             f.orgID,
+		Types:             []string{events.ResourceUpdated},
+		IncludeTotalCount: true,
+		PageSize:          1,
+	}
+	history, err := f.events.ListEvents(f.owner, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if history.GetTotalCount() != totalCountCap+1 {
+		t.Fatalf("history count = %d", history.GetTotalCount())
+	}
+	request.AfterCursor = cursor
+	before, err := f.events.ListEvents(f.owner, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.GetTotalCount() != 0 {
+		t.Fatalf("new arrivals before commit = %v", before)
+	}
+	if err = late.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	publishEvents(t, f.pool)
+	after, err := f.events.ListEvents(f.owner, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.GetTotalCount() != 1 {
+		t.Fatalf("late arrival after capped history = %v", after)
+	}
+	request.AfterCursor = "malformed-arrival-cursor"
+	if _, err = f.events.ListEvents(f.owner, request); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("malformed arrival cursor = %v", err)
 	}
 }

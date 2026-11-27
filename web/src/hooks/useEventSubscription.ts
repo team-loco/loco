@@ -2,7 +2,7 @@ import { create, fromJsonString, toJsonString, type MessageInitShape } from "@bu
 import { createClient } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
 import { EventService, StreamEventsRequestSchema, type Event } from "@gen/loco/event/v1/event_pb";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { followEvents } from "@/lib/follow-events";
 
@@ -17,17 +17,17 @@ export function useEventSubscription(
 	const [failure, setFailure] = useState<{ input: string; error: unknown } | null>(null);
 	const [attempt, setAttempt] = useState(0);
 	const handle = useEffectEvent(onEvents);
-	const resumeRef = useRef({ input, cursor: "" });
+	const [position, setPosition] = useState({ input, cursor: "" });
+	const resumeCursor = useEffectEvent(() => (position.input === input ? position.cursor : ""));
 	useEffect(() => {
 		if (!enabled) return;
 		const abort = new AbortController();
 		const client = createClient(EventService, transport);
 		const scoped = fromJsonString(StreamEventsRequestSchema, input);
-		if (resumeRef.current.input !== input) resumeRef.current = { input, cursor: "" };
 		void followEvents(
 			(cursor, signal) =>
 				client.streamEvents(
-					{ ...scoped, cursor: cursor || resumeRef.current.cursor },
+					{ ...scoped, cursor: cursor || resumeCursor() },
 					{
 						signal,
 						onHeader: () => {
@@ -37,7 +37,7 @@ export function useEventSubscription(
 					},
 				),
 			(events, cursor) => {
-				resumeRef.current.cursor = cursor;
+				setPosition({ input, cursor });
 				handle(events);
 			},
 			abort.signal,
@@ -54,6 +54,7 @@ export function useEventSubscription(
 		};
 	}, [enabled, input, transport, attempt]);
 	return {
+		cursor: position.input === input ? position.cursor : "",
 		error: enabled && failure?.input === input ? failure.error : null,
 		retry: () => {
 			setAttempt((value) => value + 1);

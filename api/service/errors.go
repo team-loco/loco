@@ -75,8 +75,8 @@ func querySyntaxError(err error) error {
 	})
 }
 
-func fieldError(code connect.Code, field, message, reason string) *connect.Error {
-	err := withDetail(connect.NewError(code, message), &errdetails.BadRequest{
+func fieldError(field, message, reason string) *connect.Error {
+	err := withDetail(connect.NewError(connect.CodeInvalidArgument, message), &errdetails.BadRequest{
 		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: field, Description: message}},
 	})
 	if reason != "" {

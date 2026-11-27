@@ -316,25 +316,10 @@ function useEventStream({
 	onFirstPage: boolean;
 }) {
 	const queryClient = useQueryClient();
-	const key = `${orgId}/${workspaceId}/${environmentId}/${query}`;
-	const received = useQuery(
-		listEvents,
-		{
-			orgId,
-			workspaceId,
-			environmentId,
-			query,
-			types: ENVIRONMENT_EVENT_TYPES,
-			readableResources: true,
-			startTime: msToTimestamp(openedAt),
-			pageSize: 1,
-			includeTotalCount: true,
-		},
-		{ enabled: on },
-	);
-	const count = received.data?.totalCount ?? 0;
-	const [seen, setSeen] = useState({ key, count: 0 });
-	if (onFirstPage && (seen.key !== key || seen.count !== count)) setSeen({ key, count });
+	const scope = `${orgId}/${workspaceId}/${environmentId}`;
+	const key = `${scope}/${query}`;
+	const [viewed, setViewed] = useState({ scope, cursor: "" });
+
 	const invalidate = (counts: boolean) => async () => {
 		await queryClient.invalidateQueries({
 			queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
@@ -361,7 +346,25 @@ function useEventStream({
 			if (onFirstPage) refreshPage();
 		},
 	);
-	return { ...subscription, newEvents: Math.max(0, count - (seen.key === key ? seen.count : 0)) };
+	const firstPageAdvanced = onFirstPage && viewed.cursor !== subscription.cursor;
+	if (firstPageAdvanced || viewed.scope !== scope) setViewed({ scope, cursor: subscription.cursor });
+	const received = useQuery(
+		listEvents,
+		{
+			orgId,
+			workspaceId,
+			environmentId,
+			query,
+			types: ENVIRONMENT_EVENT_TYPES,
+			readableResources: true,
+			startTime: msToTimestamp(openedAt),
+			pageSize: 1,
+			includeTotalCount: true,
+			afterCursor: viewed.scope === scope ? viewed.cursor : "",
+		},
+		{ enabled: on && !onFirstPage },
+	);
+	return { ...subscription, newEvents: received.data?.totalCount ?? 0 };
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */

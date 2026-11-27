@@ -185,7 +185,7 @@ func pinPublicImage(
 	if err != nil {
 		invalid := fmt.Errorf("invalid image reference %q: %w", image, err)
 		return nil, fieldError(
-			connect.CodeInvalidArgument, "image",
+			"image",
 			"Invalid image reference. Use a repository with a tag or digest.", imageReferenceInvalidReason,
 		).WithCause(invalid)
 	}
@@ -200,7 +200,7 @@ func pinPublicImage(
 	if err != nil {
 		slog.WarnContext(ctx, "failed to resolve image", "image", image, "error", err)
 		message, reason := imageResolutionFailure(image, err)
-		return nil, fieldError(connect.CodeInvalidArgument, "image", message, reason).WithCause(err)
+		return nil, fieldError("image", message, reason).WithCause(err)
 	}
 
 	pinned := repository.Name()

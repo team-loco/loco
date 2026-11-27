@@ -286,7 +286,9 @@ type ListEventsRequest struct {
 	ReadableResources bool `protobuf:"varint,17,opt,name=readable_resources,json=readableResources,proto3" json:"readable_resources,omitempty"`
 	// With workspace_id and no resource_id: only the events of these resources. With
 	// readable_resources, only those of them the caller can list.
-	ResourceIds   []string `protobuf:"bytes,18,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	ResourceIds []string `protobuf:"bytes,18,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	// Only published events after this StreamEvents cursor, for counting new arrivals.
+	AfterCursor   string `protobuf:"bytes,20,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -424,6 +426,13 @@ func (x *ListEventsRequest) GetResourceIds() []string {
 		return x.ResourceIds
 	}
 	return nil
+}
+
+func (x *ListEventsRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
 }
 
 // EventFacet counts the events per value of one key.
@@ -832,7 +841,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
 	"\x06region\x18\x15 \x01(\tR\x06region\x12*\n" +
 	"\x11acted_as_operator\x18\x16 \x01(\bR\x0factedAsOperator\x12\x19\n" +
-	"\borg_name\x18\x17 \x01(\tR\aorgName\"\xb3\x05\n" +
+	"\borg_name\x18\x17 \x01(\tR\aorgName\"\xdf\x05\n" +
 	"\x11ListEventsRequest\x12\"\n" +
 	"\x06org_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12+\n" +
 	"\x11installation_only\x18\x13 \x01(\bR\x10installationOnly\x12&\n" +
@@ -852,7 +861,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x05types\x18\x0f \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x05types\x12%\n" +
 	"\x0einclude_facets\x18\x10 \x01(\bR\rincludeFacets\x12-\n" +
 	"\x12readable_resources\x18\x11 \x01(\bR\x11readableResources\x122\n" +
-	"\fresource_ids\x18\x12 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\"V\n" +
+	"\fresource_ids\x18\x12 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12*\n" +
+	"\fafter_cursor\x18\x14 \x01(\tB\a\xbaH\x04r\x02\x18@R\vafterCursor\"V\n" +
 	"\n" +
 	"EventFacet\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +

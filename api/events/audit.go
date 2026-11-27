@@ -107,9 +107,10 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 
 // CountAudit counts the events q selects, at most q.Limit of them.
 func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error) {
-	sql, args := auditSQL(q)
+	b := &binder{}
+	sql := "SELECT count(*) FROM (SELECT 1" + auditFrom + auditWhere(q, b) + " LIMIT " + b.bind(q.Limit) + ") capped"
 	var n int64
-	err := db.QueryRow(ctx, apiDb.Named("CountAuditEvents", "SELECT count(*) FROM ("+sql+") capped"), args...).Scan(&n)
+	err := db.QueryRow(ctx, apiDb.Named("CountAuditEvents", sql), b.args...).Scan(&n)
 	return n, err
 }
 
@@ -117,7 +118,7 @@ func auditSQL(q AuditQuery) (string, []any) {
 	b := &binder{}
 	sql := auditSelect + auditWhere(q, b)
 	if q.Stream {
-		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
+		sql += " ORDER BY e.stream_position"
 	} else {
 		sql += " ORDER BY e.seq DESC"
 	}
@@ -156,6 +157,9 @@ func auditWhere(q AuditQuery, b *binder) string {
 	}
 	if q.BeforeSeq > 0 {
 		sql += " AND e.seq < " + b.bind(q.BeforeSeq)
+	}
+	if q.Stream || q.AfterPosition > 0 {
+		sql += " AND e.stream_position > " + b.bind(q.AfterPosition)
 	}
 	if q.Filter != nil {
 		sql += " AND " + querySQL(q.Filter, b)
