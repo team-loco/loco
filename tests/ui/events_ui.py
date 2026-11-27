@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 import time
 from pathlib import Path
@@ -221,6 +222,33 @@ with session(out) as browser:
     expect(
         events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
     ).to_be_visible()
+    table = events.get_by_role("table", name="Events", exact=True)
+    alignment_script = """table => {
+      const info = el => {
+        const box = el.getBoundingClientRect(), style = getComputedStyle(el);
+        return {x: box.x, width: box.width, display: style.display, tracks: style.gridTemplateColumns};
+      };
+      return {
+        fontStatus: document.fonts.status,
+        headers: [...table.querySelectorAll('thead th')].map(info),
+        cells: [...table.querySelector('tbody tr[data-interactive]').querySelectorAll('td')].map(info),
+        grids: ['table', 'thead', 'thead tr', 'tbody', 'tbody tr[data-interactive]'].map(selector => {
+          const element = selector === 'table' ? table : table.querySelector(selector);
+          return {selector, ...info(element)};
+        }),
+      };
+    }"""
+    print(
+        "Event table immediately after disconnect: "
+        + json.dumps(table.evaluate(alignment_script)),
+        flush=True,
+    )
+    page.wait_for_timeout(2500)
+    alignment = table.evaluate(alignment_script)
+    print("Event table after refresh gap: " + json.dumps(alignment), flush=True)
+    page.screenshot(path=out / "disconnected-table-alignment.png")
+    for header, cell in zip(alignment["headers"], alignment["cells"], strict=True):
+        assert abs(header["x"] - cell["x"]) < 1, alignment
     page.unroute(stream_url)
     with page.expect_request(lambda request: request.url.endswith("/StreamEvents")):
         notice.get_by_role("button", name="Reconnect", exact=True).click()
