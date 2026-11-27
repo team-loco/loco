@@ -37,22 +37,7 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_metrics_gauge
     INDEX idx_scope_attr_value mapValues(ScopeAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_attr_key mapKeys(Attributes) TYPE bloom_filter(0.01) GRANULARITY 1,
     INDEX idx_attr_value mapValues(Attributes) TYPE bloom_filter(0.01) GRANULARITY 1,
-    INDEX idx_time_minmax TimeUnix TYPE minmax GRANULARITY 1,
-    PROJECTION system_capacity_time
-    (
-        SELECT WorkspaceId, ResourceAttributes['loco.cluster.id'] AS ClusterId,
-               MetricName, TimeUnix, _part_offset
-        ORDER BY (WorkspaceId, ClusterId, MetricName, TimeUnix)
-    ),
-    PROJECTION latest_system_node_capacity
-    (
-        SELECT WorkspaceId, ResourceAttributes['loco.cluster.id'], MetricName, Flags,
-               ResourceAttributes['k8s.node.name'],
-               argMax(Value, TimeUnix), max(TimeUnix),
-               argMax(ResourceAttributes['loco.collection.interval'], TimeUnix)
-        GROUP BY WorkspaceId, ResourceAttributes['loco.cluster.id'], MetricName, Flags,
-                 ResourceAttributes['k8s.node.name']
-    )
+    INDEX idx_time_minmax TimeUnix TYPE minmax GRANULARITY 1
 )
 ENGINE = MergeTree
 PARTITION BY toDate(TimeUnix)

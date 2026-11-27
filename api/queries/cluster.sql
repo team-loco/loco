@@ -5,7 +5,7 @@ UPDATE clusters
 SET agent_version = $2,
     role = sqlc.arg(role),
     domains = sqlc.arg(domains)::text[],
-    platforms = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
+    platforms = CASE WHEN sqlc.arg(has_capabilities)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -64,12 +64,12 @@ RETURNING due.id, due.name, due.region;
 UPDATE clusters
 SET role = sqlc.arg(role)::cluster_role,
     domains = sqlc.arg(domains)::text[],
-    platforms = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
+    platforms = CASE WHEN sqlc.arg(has_capabilities)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
     updated_at = NOW()
 WHERE id = sqlc.arg(id) AND removed_at IS NULL AND sync_generation = sqlc.arg(generation)
   AND (role, domains, platforms) IS DISTINCT FROM
       (sqlc.arg(role)::cluster_role, sqlc.arg(domains)::text[],
-       CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END);
+       CASE WHEN sqlc.arg(has_capabilities)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END);
 
 -- name: DeleteClusterHeartbeat :exec
 DELETE FROM cluster_heartbeats WHERE cluster_id = $1;
@@ -135,9 +135,7 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
        last_heartbeat, silent_since, agent_version, agent_public_key, role, domains,
-       h.capacity_reported_at, h.reported_cpu_millicores, h.requested_cpu_millicores,
-       h.reported_memory_bytes, h.requested_memory_bytes,
-       h.capacity_pods, h.assigned_pods, h.running_pods, h.health_message
+       h.health_message
 FROM clusters LEFT JOIN cluster_heartbeats h ON cluster_id = id
 ORDER BY created_at, id;
 
@@ -175,19 +173,9 @@ SELECT id, name, region, domains FROM clusters
 WHERE id = ANY(sqlc.arg(ids)::uuid[])
 ORDER BY region, name;
 
--- name: RecordClusterCapacity :exec
--- Runs under the heartbeat transaction/stream lock. A missing sample leaves the last sample's timestamp unchanged.
-UPDATE cluster_heartbeats
-SET health_message = sqlc.arg(health_message),
-    capacity_reported_at = CASE WHEN sqlc.arg(has_capacity)::boolean THEN clock_timestamp() ELSE capacity_reported_at END,
-    reported_cpu_millicores = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(cpu_allocatable)::bigint ELSE reported_cpu_millicores END,
-    requested_cpu_millicores = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(cpu_requested)::bigint ELSE requested_cpu_millicores END,
-    reported_memory_bytes = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(memory_allocatable)::bigint ELSE reported_memory_bytes END,
-    requested_memory_bytes = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(memory_requested)::bigint ELSE requested_memory_bytes END,
-    capacity_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_allocatable)::int ELSE capacity_pods END,
-    assigned_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_assigned)::int ELSE assigned_pods END,
-    running_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_running)::int ELSE running_pods END
-WHERE cluster_id = sqlc.arg(id);
+-- name: RecordClusterHealthMessage :exec
+UPDATE cluster_heartbeats SET health_message=sqlc.arg(health_message)
+WHERE cluster_id=sqlc.arg(id);
 
 -- name: ListClusterAttention :many
 SELECT l.deployment_id AS id, 'deployment'::text AS kind, l.resource_id, r.name AS resource_name,

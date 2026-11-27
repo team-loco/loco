@@ -142,12 +142,12 @@ func (s *AgentServer) Register(
 		}
 		agentVersion := req.GetAgentVersion()
 		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
-			ID:           cluster.id,
-			AgentVersion: &agentVersion,
-			HasCapacity:  req.GetCapacity() != nil,
-			Role:         clusterRoleFromProto(req.GetRole()),
-			Domains:      sortedReportedValues(req.GetDomains()),
-			Platforms:    sortedReportedValues(req.GetCapacity().GetPlatforms()),
+			ID:              cluster.id,
+			AgentVersion:    &agentVersion,
+			HasCapabilities: req.GetCapabilities() != nil,
+			Role:            clusterRoleFromProto(req.GetRole()),
+			Domains:         sortedReportedValues(req.GetDomains()),
+			Platforms:       sortedReportedValues(req.GetCapabilities().GetPlatforms()),
 		}); updateErr != nil {
 			return fmt.Errorf("update cluster %s agent info: %w", cluster.id, updateErr)
 		}
@@ -239,21 +239,12 @@ func (s *AgentServer) recordHeartbeat(
 		if err != nil {
 			return err
 		}
-		capacity := heartbeat.GetCapacity()
-		if err = qtx.RecordClusterCapacity(ctx, genDb.RecordClusterCapacityParams{
-			ID:                clusterID,
-			HasCapacity:       capacity != nil,
-			CpuAllocatable:    capacity.GetCpuMillicoresTotal(),
-			CpuRequested:      capacity.GetCpuMillicoresRequested(),
-			MemoryAllocatable: capacity.GetMemoryBytesTotal(),
-			MemoryRequested:   capacity.GetMemoryBytesRequested(),
-			PodsAllocatable:   capacity.GetPodsTotal(),
-			PodsAssigned:      capacity.GetPodsAssigned(),
-			PodsRunning:       capacity.GetPodsRunning(),
-			HealthMessage:     heartbeat.GetHealth().GetMessage(),
+		if err = qtx.RecordClusterHealthMessage(ctx, genDb.RecordClusterHealthMessageParams{
+			ID: clusterID, HealthMessage: heartbeat.GetHealth().GetMessage(),
 		}); err != nil {
 			return err
 		}
+
 		if cluster.Created {
 			return nil
 		}
@@ -313,12 +304,12 @@ func (s *AgentServer) recordClusterReport(
 	heartbeat *agentv1.Heartbeat,
 ) {
 	err := s.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
-		ID:          clusterID,
-		Generation:  generation,
-		HasCapacity: heartbeat.GetCapacity() != nil,
-		Role:        clusterRoleFromProto(heartbeat.GetRole()),
-		Domains:     sortedReportedValues(heartbeat.GetDomains()),
-		Platforms:   sortedReportedValues(heartbeat.GetCapacity().GetPlatforms()),
+		ID:              clusterID,
+		Generation:      generation,
+		HasCapabilities: heartbeat.GetCapabilities() != nil,
+		Role:            clusterRoleFromProto(heartbeat.GetRole()),
+		Domains:         sortedReportedValues(heartbeat.GetDomains()),
+		Platforms:       sortedReportedValues(heartbeat.GetCapabilities().GetPlatforms()),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update the cluster's report", "error", err, "cluster_id", clusterID)

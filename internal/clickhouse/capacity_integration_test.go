@@ -153,6 +153,7 @@ func TestNodeCapacityRetainsMissingDimensionsAndOwnFreshness(t *testing.T) {
 		{capacityTestNodeA, "k8s.node.allocatable_memory", at, 8 << 30},
 		{capacityTestNodeA, "k8s.node.condition_ready", at, 1},
 		{capacityTestNodeB, "k8s.node.allocatable_cpu", at.Add(-10 * time.Minute), 2},
+		{"unknown-node", "k8s.node.condition_ready", at, -1},
 	} {
 		attrs := map[string]string{
 			workspaceAttributeKey:    systemtenant.WorkspaceID,
@@ -178,7 +179,7 @@ VALUES (?,?,fromUnixTimestamp64Milli(?),?)`,
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 2 {
+	if len(rows) != 3 {
 		t.Fatalf("nodes=%+v", rows)
 	}
 	for _, row := range rows {
@@ -188,6 +189,10 @@ VALUES (?,?,fromUnixTimestamp64Milli(?),?)`,
 				!*row.Ready ||
 				row.Stale {
 				t.Fatalf("fresh node=%+v", row)
+			}
+		case "unknown-node":
+			if row.Ready != nil {
+				t.Fatalf("receiver unknown condition was treated as ready: %+v", row)
 			}
 		case capacityTestNodeB:
 			if row.CPU == nil || row.Memory != nil || row.Ready != nil || !row.Stale {

@@ -365,8 +365,7 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
-	// Runs under the heartbeat transaction/stream lock. A missing sample leaves the last sample's timestamp unchanged.
-	RecordClusterCapacity(ctx context.Context, arg RecordClusterCapacityParams) error
+	RecordClusterHealthMessage(ctx context.Context, arg RecordClusterHealthMessageParams) error
 	// Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
 	// any silence mark.
 	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (time.Time, error)

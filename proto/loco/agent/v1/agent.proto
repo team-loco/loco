@@ -21,7 +21,7 @@ service AgentService {
 // RegisterRequest is sent by the agent on startup to announce itself.
 message RegisterRequest {
   string agent_version = 1;
-  AgentCapacity capacity = 2;
+  AgentCapabilities capabilities = 2;
   loco.cluster.v1.ClusterRole role = 3 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
@@ -235,7 +235,7 @@ message CancelBuild {
 
 // Heartbeat is sent periodically by the agent.
 message Heartbeat {
-  AgentCapacity capacity = 1;
+  AgentCapabilities capabilities = 1;
   AgentHealth health = 2;
   loco.cluster.v1.ClusterRole role = 3 [(buf.validate.field).enum = {
     defined_only: true
@@ -246,17 +246,9 @@ message Heartbeat {
   reserved "dns_records", "platform_domain";
 }
 
-// AgentCapacity reports cluster resource capacity.
-message AgentCapacity {
-  int64 cpu_millicores_total = 1;
-  int64 cpu_millicores_requested = 2;
-  int64 memory_bytes_total = 3;
-  int64 memory_bytes_requested = 4;
-  int32 pods_total = 5;
-  int32 pods_running = 6;
-  repeated string platforms = 7 [(buf.validate.field).repeated.items.string.pattern = "^linux/(amd64|arm64)$"];
-  // Non-terminal pods assigned to a node; includes pods still starting.
-  int32 pods_assigned = 8;
+// AgentCapabilities reports the worker platforms used for placement eligibility.
+message AgentCapabilities {
+  repeated string platforms = 1 [(buf.validate.field).repeated.items.string.pattern = "^linux/(amd64|arm64)$"];
 }
 
 // AgentHealth reports agent and cluster health status.

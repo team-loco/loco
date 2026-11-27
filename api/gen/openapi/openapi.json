@@ -9297,39 +9297,9 @@
         "additionalProperties": false,
         "description": "UnclaimedEmail is a configured email no user has claimed yet."
       },
-      "loco.agent.v1.AgentCapacity": {
+      "loco.agent.v1.AgentCapabilities": {
         "type": "object",
         "properties": {
-          "cpuMillicoresTotal": {
-            "type": "string",
-            "title": "cpu_millicores_total",
-            "format": "int64"
-          },
-          "cpuMillicoresRequested": {
-            "type": "string",
-            "title": "cpu_millicores_requested",
-            "format": "int64"
-          },
-          "memoryBytesTotal": {
-            "type": "string",
-            "title": "memory_bytes_total",
-            "format": "int64"
-          },
-          "memoryBytesRequested": {
-            "type": "string",
-            "title": "memory_bytes_requested",
-            "format": "int64"
-          },
-          "podsTotal": {
-            "type": "integer",
-            "title": "pods_total",
-            "format": "int32"
-          },
-          "podsRunning": {
-            "type": "integer",
-            "title": "pods_running",
-            "format": "int32"
-          },
           "platforms": {
             "type": "array",
             "items": {
@@ -9337,17 +9307,11 @@
               "pattern": "^linux/(amd64|arm64)$"
             },
             "title": "platforms"
-          },
-          "podsAssigned": {
-            "type": "integer",
-            "title": "pods_assigned",
-            "format": "int32",
-            "description": "Non-terminal pods assigned to a node; includes pods still starting."
           }
         },
-        "title": "AgentCapacity",
+        "title": "AgentCapabilities",
         "additionalProperties": false,
-        "description": "AgentCapacity reports cluster resource capacity."
+        "description": "AgentCapabilities reports the worker platforms used for placement eligibility."
       },
       "loco.agent.v1.AgentHealth": {
         "type": "object",
@@ -9560,9 +9524,9 @@
       "loco.agent.v1.Heartbeat": {
         "type": "object",
         "properties": {
-          "capacity": {
-            "title": "capacity",
-            "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
+          "capabilities": {
+            "title": "capabilities",
+            "$ref": "#/components/schemas/loco.agent.v1.AgentCapabilities"
           },
           "health": {
             "title": "health",
@@ -9765,9 +9729,9 @@
             "type": "string",
             "title": "agent_version"
           },
-          "capacity": {
-            "title": "capacity",
-            "$ref": "#/components/schemas/loco.agent.v1.AgentCapacity"
+          "capabilities": {
+            "title": "capabilities",
+            "$ref": "#/components/schemas/loco.agent.v1.AgentCapabilities"
           },
           "role": {
             "not": {
@@ -11003,11 +10967,6 @@
             "description": "The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "capacity": {
-            "title": "capacity",
-            "description": "Last successful capacity sample; absent before the first successful sample.",
-            "$ref": "#/components/schemas/loco.cluster.v1.ClusterCapacity"
-          },
           "healthMessage": {
             "type": "string",
             "title": "health_message"
@@ -11015,58 +10974,6 @@
         },
         "title": "Cluster",
         "additionalProperties": false
-      },
-      "loco.cluster.v1.ClusterCapacity": {
-        "type": "object",
-        "properties": {
-          "cpuMillicoresAllocatable": {
-            "type": "string",
-            "title": "cpu_millicores_allocatable",
-            "format": "int64"
-          },
-          "cpuMillicoresRequested": {
-            "type": "string",
-            "title": "cpu_millicores_requested",
-            "format": "int64"
-          },
-          "memoryBytesAllocatable": {
-            "type": "string",
-            "title": "memory_bytes_allocatable",
-            "format": "int64"
-          },
-          "memoryBytesRequested": {
-            "type": "string",
-            "title": "memory_bytes_requested",
-            "format": "int64"
-          },
-          "podsAllocatable": {
-            "type": "integer",
-            "title": "pods_allocatable",
-            "format": "int32"
-          },
-          "podsRunning": {
-            "type": "integer",
-            "title": "pods_running",
-            "format": "int32"
-          },
-          "reportedAt": {
-            "title": "reported_at",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          },
-          "podsAssigned": {
-            "type": "integer",
-            "title": "pods_assigned",
-            "format": "int32"
-          },
-          "stale": {
-            "type": "boolean",
-            "title": "stale",
-            "description": "Sample is older than the installation's configured heartbeat silence threshold."
-          }
-        },
-        "title": "ClusterCapacity",
-        "additionalProperties": false,
-        "description": "ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.\n Requested resources cover assigned, non-terminal pods including init containers and overhead.\n Aggregate headroom does not guarantee a workload can be scheduled on an individual node."
       },
       "loco.cluster.v1.ClusterCapacitySummary": {
         "type": "object",

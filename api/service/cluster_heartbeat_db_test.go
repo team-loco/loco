@@ -101,8 +101,8 @@ func TestAnUnchangedCapabilityReportDoesNotWaitForADeploy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 	if err := f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
-		HasCapacity: true,
-		ID:          f.clusterID, Generation: generation, Role: genDb.ClusterRoleAll,
+		HasCapabilities: true,
+		ID:              f.clusterID, Generation: generation, Role: genDb.ClusterRoleAll,
 		Domains: []string{}, Platforms: []string{testPlatform},
 	}); err != nil {
 		t.Fatalf("an unchanged report while a deploy held the cluster: %v", err)
@@ -150,8 +150,8 @@ func TestAStaleGenerationDoesNotStoreCapabilities(t *testing.T) {
 	t.Cleanup(update.Wait)
 	update.Go(func() {
 		updated <- f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
-			HasCapacity: true,
-			ID:          f.clusterID, Generation: stale, Role: genDb.ClusterRoleBuilds,
+			HasCapabilities: true,
+			ID:              f.clusterID, Generation: stale, Role: genDb.ClusterRoleBuilds,
 			Domains: []string{}, Platforms: []string{testPlatform},
 		})
 	})
@@ -232,9 +232,9 @@ func reportCapabilities(t *testing.T, server *AgentServer, clusterID uuid.UUID, 
 
 func healthyHeartbeat() *agentv1.Heartbeat {
 	return &agentv1.Heartbeat{
-		Role:     clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health:   &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
-		Capacity: &agentv1.AgentCapacity{Platforms: []string{testPlatform}},
+		Role:         clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Health:       &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+		Capabilities: &agentv1.AgentCapabilities{Platforms: []string{testPlatform}},
 	}
 }
 

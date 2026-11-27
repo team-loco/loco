@@ -23,13 +23,13 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 }
 
 func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
-	capacity := a.getCapacity(ctx)
+	capabilities := a.getCapabilities(ctx)
 	health := a.getHealth(ctx)
 	return &agentv1.Heartbeat{
-		Capacity: capacity,
-		Health:   health,
-		Role:     a.cfg.Role,
-		Domains:  a.servedDomains(ctx),
+		Capabilities: capabilities,
+		Health:       health,
+		Role:         a.cfg.Role,
+		Domains:      a.servedDomains(ctx),
 	}
 }
 
@@ -43,13 +43,13 @@ func (a *Agent) servedDomains(ctx context.Context) []string {
 	return served
 }
 
-func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {
-	capacity, err := a.inspector.Capacity(ctx)
+func (a *Agent) getCapabilities(ctx context.Context) *agentv1.AgentCapabilities {
+	capabilities, err := a.inspector.Capabilities(ctx)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to read cluster capacity", "error", err)
+		slog.WarnContext(ctx, "failed to read worker capabilities", "error", err)
 		return nil
 	}
-	return capacity
+	return capabilities
 }
 
 func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {

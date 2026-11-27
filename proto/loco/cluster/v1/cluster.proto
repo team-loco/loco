@@ -65,8 +65,6 @@ message Cluster {
   reserved "dns_records", "gateway_hostname";
   // The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
   google.protobuf.Timestamp silent_since = 16;
-  // Last successful capacity sample; absent before the first successful sample.
-  ClusterCapacity capacity = 17;
   string health_message = 18;
 }
 
@@ -174,22 +172,6 @@ message ListRegionsRequest {}
 
 message ListRegionsResponse {
   repeated Region regions = 1;
-}
-
-// ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
-// Requested resources cover assigned, non-terminal pods including init containers and overhead.
-// Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
-message ClusterCapacity {
-  int64 cpu_millicores_allocatable = 1;
-  int64 cpu_millicores_requested = 2;
-  int64 memory_bytes_allocatable = 3;
-  int64 memory_bytes_requested = 4;
-  int32 pods_allocatable = 5;
-  int32 pods_running = 6;
-  google.protobuf.Timestamp reported_at = 7;
-  int32 pods_assigned = 8;
-  // Sample is older than the installation's configured heartbeat silence threshold.
-  bool stale = 9;
 }
 
 message GetClusterOperationsRequest {

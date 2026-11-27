@@ -8,7 +8,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"google.golang.org/protobuf/proto"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -19,92 +18,6 @@ import (
 func operationsServer(f *deployFixture) *ClusterAdminServer {
 	cfg := testAgentConfig()
 	return NewClusterAdminServer(f.pool, f.queries, cfg.JoinTokenTTL, cfg.JoinTokenMaxTTL, testHeartbeatInterval, nil)
-}
-
-func capacityOf(t *testing.T, f *deployFixture) *clusterv1.ClusterCapacity {
-	t.Helper()
-	response, err := operationsServer(f).ListClusters(systemAdminContext(t), &clusterv1.ListClustersRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, cluster := range response.GetClusters() {
-		if cluster.GetId() == f.clusterID.String() {
-			return cluster.GetCapacity()
-		}
-	}
-	t.Fatal("fixture cluster missing")
-	return nil
-}
-
-func TestClusterCapacityKeepsTheLastSuccessfulSnapshot(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if got := capacityOf(t, f); got != nil {
-		t.Fatalf("unreported capacity = %v", got)
-	}
-	heartbeat := healthyHeartbeat()
-	heartbeat.Capacity = &agentv1.AgentCapacity{
-		CpuMillicoresTotal: 8000, CpuMillicoresRequested: 2500,
-		MemoryBytesTotal: 16 << 30, MemoryBytesRequested: 5 << 30,
-		PodsTotal: 220, PodsRunning: 30, PodsAssigned: 35, Platforms: []string{testPlatform},
-	}
-	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, heartbeat)
-	reportCapabilities(t, f.agentServer(), f.clusterID, heartbeat)
-	sample := capacityOf(t, f)
-	if sample == nil || sample.GetStale() || sample.GetCpuMillicoresRequested() != 2500 ||
-		sample.GetMemoryBytesRequested() != 5<<30 ||
-		sample.GetPodsAssigned() != 35 {
-		t.Fatalf("reported capacity = %v", sample)
-	}
-	if sample.GetCpuMillicoresAllocatable() != 8000 || sample.GetMemoryBytesAllocatable() != 16<<30 ||
-		sample.GetPodsAllocatable() != 220 ||
-		sample.GetPodsRunning() != 30 {
-		t.Fatalf("incomplete capacity = %v", sample)
-	}
-	heartbeat.Capacity = nil
-	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, heartbeat)
-	reportCapabilities(t, f.agentServer(), f.clusterID, heartbeat)
-	if got := capacityOf(t, f); !proto.Equal(got, sample) {
-		t.Fatalf("missing sample replaced previous capacity: %v -> %v", sample, got)
-	}
-	var platforms []string
-	if err := f.pool.QueryRow(t.Context(), "SELECT platforms FROM clusters WHERE id = $1", f.clusterID).
-		Scan(&platforms); err != nil {
-		t.Fatal(err)
-	}
-	if len(platforms) != 1 || platforms[0] != testPlatform {
-		t.Fatalf("missing capacity cleared platforms: %v", platforms)
-	}
-
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE cluster_heartbeats SET capacity_reported_at = now() - interval '1 day' WHERE cluster_id = $1`,
-		f.clusterID,
-	); err != nil {
-		t.Fatal(err)
-	}
-	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, heartbeat)
-	reportCapabilities(t, f.agentServer(), f.clusterID, heartbeat)
-	if got := capacityOf(
-		t,
-		f,
-	); !got.GetStale() ||
-		got.GetCpuMillicoresRequested() != sample.GetCpuMillicoresRequested() {
-		t.Fatalf("old sample refreshed by healthy heartbeat: %v", got)
-	}
-	heartbeat.Capacity = &agentv1.AgentCapacity{}
-	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, heartbeat)
-	reportCapabilities(t, f.agentServer(), f.clusterID, heartbeat)
-	if got := capacityOf(t, f); got == nil || got.GetStale() || got.GetCpuMillicoresRequested() != 0 {
-		t.Fatalf("valid zero sample = %v", got)
-	}
-	if err := f.pool.QueryRow(t.Context(), "SELECT platforms FROM clusters WHERE id = $1", f.clusterID).
-		Scan(&platforms); err != nil {
-		t.Fatal(err)
-	}
-	if len(platforms) != 0 {
-		t.Fatalf("explicit empty capacity retained old platforms: %v", platforms)
-	}
 }
 
 func TestClusterOperationsShowsDeployingSchedulingProblemsAndRelatedEvents(t *testing.T) {

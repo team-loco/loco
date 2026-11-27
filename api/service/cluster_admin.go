@@ -265,19 +265,6 @@ func (s *ClusterAdminServer) ListClusters(
 			Role:          clusterRoleToProto(row.Role),
 			Domains:       row.Domains,
 		}
-		if row.CapacityReportedAt != nil {
-			cluster.Capacity = &clusterv1.ClusterCapacity{
-				CpuMillicoresAllocatable: *row.ReportedCpuMillicores,
-				CpuMillicoresRequested:   *row.RequestedCpuMillicores,
-				MemoryBytesAllocatable:   *row.ReportedMemoryBytes,
-				MemoryBytesRequested:     *row.RequestedMemoryBytes,
-				PodsAllocatable:          *row.CapacityPods,
-				PodsAssigned:             *row.AssignedPods,
-				PodsRunning:              *row.RunningPods,
-				ReportedAt:               timestamppb.New(*row.CapacityReportedAt),
-				Stale:                    time.Since(*row.CapacityReportedAt) > ClusterSilentAfter(s.heartbeatInterval),
-			}
-		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)
 			cluster.AgentKeyFingerprint = new(hex.EncodeToString(fingerprint[:]))

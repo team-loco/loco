@@ -120,7 +120,8 @@ any(Attributes['organization_id']) AS organization,
  ) SELECT ` + dimensions + `,toInt64(round(sumIf(cpu,build='' AND (?='' OR environment=?))*1000)),
  toInt64(sumIf(memory,build='' AND (?='' OR environment=?))),
  toInt64(round(sumIf(cpu,build!='')*1000)),toInt64(sumIf(memory,build!='')),toInt32(count()),
- toInt32(uniqExactIf(pods.resource,pods.resource!='')) FROM pods GROUP BY cluster,node,workspace,resource`
+ toInt32(uniqExactIf(tuple(pods.workspace,pods.resource),pods.workspace!='' AND pods.resource!=''))
+FROM pods GROUP BY cluster,node,workspace,resource`
 	// Each runtime dimension uses the same environment predicate.
 	args = append(args, scope.Environment, scope.Environment)
 	rows, err := c.conn.Query(ctx, query, args...)
@@ -214,7 +215,12 @@ HAVING max(TimeUnix)>=?`,
 		case "k8s.node.allocatable_memory":
 			node.Memory = new(int64(value))
 		case "k8s.node.condition_ready":
-			node.Ready = new(value != 0)
+			switch value {
+			case 0:
+				node.Ready = new(false)
+			case 1:
+				node.Ready = new(true)
+			}
 		}
 	}
 	if err = rows.Err(); err != nil {
