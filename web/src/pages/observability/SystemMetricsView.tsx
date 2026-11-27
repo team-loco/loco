@@ -25,10 +25,6 @@ import { ViewHeader } from "./ViewHeader";
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
 
-function valueCounts(key: FieldKey): [string, number][] {
-	return key === "component" ? SYSTEM_GROUPS.flatMap((g) => (g.component === null ? [] : [[g.component, 0]])) : [];
-}
-
 /** The charts of the metrics Loco's own components export, grouped by component. */
 export function SystemMetricsView() {
 	const timePref = useTimePreferences();
@@ -40,7 +36,19 @@ export function SystemMetricsView() {
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const groups = visibleGroups(tokens);
 	const clusters = useQuery(listClusters, {});
-	const sliced = slices(tokens, [...new Set((clusters.data?.clusters ?? []).map((c) => c.region))]);
+	const regions = [...new Set((clusters.data?.clusters ?? []).map((c) => c.region))];
+	const sliced = slices(tokens, regions);
+	const valueCounts = (key: FieldKey): [string, number][] => {
+		if (key === "component") {
+			return SYSTEM_GROUPS.flatMap((g) => (g.component === null ? [] : [[g.component, 0]]));
+		}
+		if (key === "cluster") {
+			// The proxy stamps this ID on control-plane telemetry; workers use their registered IDs.
+			return ["control-plane", ...(clusters.data?.clusters ?? []).map((c) => c.id)].map((id) => [id, 0]);
+		}
+		if (key === "region") return regions.map((region) => [region, 0]);
+		return [];
+	};
 	const charts = groups.flatMap((group) =>
 		group.charts.map((chart) => ({ group, chart, key: `${group.key}/${chart.key}` })),
 	);

@@ -28,8 +28,9 @@ func TestAPITelemetryReachesTheSystemTenant(t *testing.T) {
 	for _, table := range []string{"otel_logs", "otel_traces", "otel_metrics_sum"} {
 		waitCount(t, "the API's own rows in "+table, fmt.Sprintf(
 			"SELECT count() FROM %s WHERE WorkspaceId = '%s' AND ServiceName = 'loco-api' "+
-				"AND ResourceAttributes['loco.cluster.id'] = '%s' AND OrganizationId = ''",
-			table, systemtenant.WorkspaceID, systemtenant.ControlPlaneClusterID,
+				"AND ResourceAttributes['loco.cluster.id'] = '%s' AND OrganizationId = '' "+
+				"AND ResourceAttributes['loco.region'] = '%s'",
+			table, systemtenant.WorkspaceID, systemtenant.ControlPlaneClusterID, p.Region,
 		), func(count int) bool { return count > 0 })
 	}
 }

@@ -209,6 +209,33 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     assert all(m["attributes"]["component"] == "loco-api" for m in metrics), metrics
     assert not any("controller" in m["metricName"] for m in metrics), metrics
 
+    # Suggestions use the IDs ingestion stores, including the control plane, and selecting
+    # one sends that ID in each metric request. Cluster metadata comes from the seeded API.
+    with page.expect_response(
+        lambda response: response.url.endswith("/ListClusters")
+    ) as fleet:
+        page.goto(ui + "/system/metrics")
+    cluster = next(c for c in fleet.value.json()["clusters"] if c["name"] == "us-ca-1")
+    search = page.get_by_placeholder("Type @component or @cluster to filter")
+    search.fill("@cluster:")
+    expect(
+        page.get_by_role("option", name="@cluster:control-plane", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("option", name=f"@cluster:{cluster['id']}", exact=True)
+    ).to_be_visible()
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/QueryMetrics")
+            and request.post_data_json.get("attributes", {}).get("cluster")
+            == cluster["id"]
+        )
+    ) as filtered:
+        page.get_by_role("option", name=f"@cluster:{cluster['id']}", exact=True).click()
+    page.locator("h1").click()
+    expect(page).to_have_url(re.compile(cluster["id"]))
+    assert filtered.value.post_data_json["installation"] is True
+
     # Clearing the filter shows every component's group.
     page.goto(ui + "/system/metrics")
     for group in (
