@@ -81,7 +81,11 @@ function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>
 			? [
 					{
 						id: "menu",
-						meta: { pinEnd: true, label: "Actions" },
+						size: 48,
+						minSize: 48,
+						maxSize: 48,
+						enableResizing: false,
+						meta: { align: "end", label: "Actions" },
 						cell: ({ row: { original: r } }: { row: { original: ClusterRow } }) => (
 							<ClusterRowMenu cluster={r.cluster} state={r.state} />
 						),

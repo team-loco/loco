@@ -569,9 +569,22 @@ export function DataTable<T extends RowData>({
 								data-ruled={skeleton === undefined ? "" : undefined}
 								className={cn(ROW, "hover:bg-transparent", skeleton !== undefined && "border-b-0")}
 							>
-								<TableCell role="cell" className="col-span-full flex h-(--row-h) items-center">
-									{skeleton ?? BAR}
-								</TableCell>
+								{skeleton === undefined ? (
+									columns.map((column, index) => (
+										<TableCell
+											key={column.id}
+											role="cell"
+											style={fitBounds(column, sizing, index)}
+											className="flex h-(--row-h) min-w-0 items-center"
+										>
+											{BAR}
+										</TableCell>
+									))
+								) : (
+									<TableCell role="cell" className="col-span-full flex h-(--row-h) items-center">
+										{skeleton}
+									</TableCell>
+								)}
 							</TableRow>
 						))}
 					{!loading && rows.length === 0 && empty !== null && (
