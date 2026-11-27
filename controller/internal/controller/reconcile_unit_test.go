@@ -256,7 +256,7 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
 	namespace := testEnvironmentNamespace(app)
-	routeName := getRouteName(app)
+	routeName := getRouteName(app, testHostName)
 	existing := &v1Gateway.HTTPRoute{
 		Name:        routeName,
 		Namespace:   namespace,
@@ -307,7 +307,7 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 		t.Fatalf("ensureHTTPRoute: %v", err)
 	}
 	route := &v1Gateway.HTTPRoute{}
-	key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)}
+	key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app, testHostName)}
 	if err := kubeClient.Get(testCtx, key, route); err != nil {
 		t.Fatalf("get route: %v", err)
 	}

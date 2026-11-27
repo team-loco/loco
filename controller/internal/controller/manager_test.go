@@ -94,7 +94,7 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 		appVersion, depVersion := app.ResourceVersion, dep.ResourceVersion
 		route := &v1Gateway.HTTPRoute{}
-		key := client.ObjectKey{Namespace: namespace, Name: getRouteName(app)}
+		key := client.ObjectKey{Namespace: namespace, Name: getRouteName(app, testHostName)}
 		Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
 		originalUID := route.UID
 		hostname := v1Gateway.Hostname(app.Spec.ServiceSpec.Routing.Hostnames[0])
@@ -153,13 +153,13 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 			g.Expect(app.Status.PublicRoute.Ready).To(BeTrue())
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 
-		previousGeneration := route.Generation
 		app.Spec.ServiceSpec.Routing.Hostnames = []string{"changed.example.com"}
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "2"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		key.Name = getRouteName(app, "changed.example.com")
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, key, route)).To(Succeed())
-			g.Expect(route.Generation).To(BeNumerically(">", previousGeneration))
+			g.Expect(route.Spec.Hostnames).To(ConsistOf(v1Gateway.Hostname("changed.example.com")))
 			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 			g.Expect(app.Status.PublicRoute).NotTo(BeNil())
 			g.Expect(app.Status.PublicRoute.Revision).To(Equal(int64(2)))

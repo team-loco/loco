@@ -84,7 +84,7 @@ func TestPublicRouteRequiresCurrentGatewayAcceptance(t *testing.T) {
 				t.Fatal(err)
 			}
 			route := &gatewayv1.HTTPRoute{}
-			key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)}
+			key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app, testHostName)}
 			if err := kube.Get(testCtx, key, route); err != nil {
 				t.Fatal(err)
 			}
@@ -315,7 +315,7 @@ func TestPublicRouteErrorNeverReportsReady(t *testing.T) {
 			route := &gatewayv1.HTTPRoute{}
 			if err := kube.Get(
 				t.Context(),
-				client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)},
+				client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app, testHostName)},
 				route,
 			); err != nil {
 				t.Fatal(err)

@@ -485,8 +485,9 @@ func getEnvSecretName(app *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-env", locov1alpha1.WorkloadName(app.Spec.ResourceID))
 }
 
-func getRouteName(app *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-route", locov1alpha1.WorkloadName(app.Spec.ResourceID))
+func getRouteName(app *locov1alpha1.Application, hostname string) string {
+	digest := sha256.Sum256([]byte(hostname))
+	return fmt.Sprintf("%s-route.%x", locov1alpha1.WorkloadName(app.Spec.ResourceID), digest[:16])
 }
 
 func getGatewayPolicyName(app *locov1alpha1.Application) string {
@@ -976,11 +977,7 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		allReady := true
 		// Acceptance of a multi-hostname route can ignore names with no matching listener.
 		for _, hostname := range routing.Hostnames {
-			offset := len(desired)
-			routeName := getRouteName(app)
-			if offset > 0 {
-				routeName = fmt.Sprintf("%s-%d", routeName, offset)
-			}
+			routeName := getRouteName(app, hostname)
 			desired = append(desired, routeName)
 			ready, err := r.applyPublicRoute(ctx, app, routeName, []string{hostname})
 			if err != nil {
