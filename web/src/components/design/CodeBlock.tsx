@@ -59,9 +59,11 @@ function CodeBlock({
 			variant="ghost"
 			size="icon-xs"
 			aria-label={copied ? "Copied" : copyLabel}
+			title={copied ? "Copied" : copyLabel}
 			className={cn(
+				"absolute top-1.5 right-1.5 bg-code-bg/85 backdrop-blur-xs",
 				!isJson &&
-					"absolute top-1.5 right-1.5 border-line bg-code-bg/85 opacity-0 backdrop-blur-xs group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
+					"opacity-0 group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
 				copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
 			)}
 			onClick={() => {
@@ -81,29 +83,28 @@ function CodeBlock({
 			)}
 		>
 			{isJson && (
-				<div className="flex shrink-0 items-center justify-end gap-1 border-b border-line px-2 py-1.5">
-					<ToggleChip
-						variant="button"
-						className="h-6.5 px-2 text-xs"
-						pressed={wrapJson}
-						onPressedChange={(next) => {
-							setWrapJson(next);
-							onWrap?.(next);
-						}}
-					>
-						<TextWrapIcon aria-hidden="true" />
-						Wrap lines
-					</ToggleChip>
-					{copyButton}
-				</div>
+				<ToggleChip
+					variant="button"
+					aria-label="Wrap lines"
+					title="Wrap lines"
+					className="absolute top-1.5 right-[38px] size-6 min-w-0 border-0 bg-code-bg/85 px-0 text-fg3 backdrop-blur-xs hover:text-foreground aria-pressed:bg-panel2"
+					pressed={wrapJson}
+					onPressedChange={(next) => {
+						setWrapJson(next);
+						onWrap?.(next);
+					}}
+				>
+					<TextWrapIcon aria-hidden="true" />
+				</ToggleChip>
 			)}
 			<pre
 				tabIndex={0}
 				style={gutter}
 				{...(label === undefined ? {} : { role: "img", "aria-label": label })}
-				className={
-					"m-0 min-h-0 overflow-auto py-3 font-mono text-sm leading-[1.6] text-(--sh-identifier) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-				}
+				className={cn(
+					"m-0 min-h-0 overflow-auto py-3 font-mono text-sm leading-[1.6] text-(--sh-identifier) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+					isJson && "pr-[76px]",
+				)}
 			>
 				<Code
 					code={children}
@@ -115,7 +116,7 @@ function CodeBlock({
 					)}
 				/>
 			</pre>
-			{!isJson && copyButton}
+			{copyButton}
 		</div>
 	);
 }
