@@ -444,7 +444,7 @@ export function NetworkingSection({
 						/>
 					</div>
 					<span className="text-[12.5px] text-fg3">
-						Changes to a domain row apply right away and take effect on the next deployment.
+						Domain changes apply immediately. Public routing can take time to update.
 					</span>
 				</div>
 			)}
