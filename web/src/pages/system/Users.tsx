@@ -32,7 +32,7 @@ const COLUMNS: DataColumn<User>[] = [
 	{
 		id: "name",
 		header: "Name",
-		size: 240,
+		size: 160,
 		minSize: 140,
 		meta: { primary: true },
 		cell: ({ row: { original: u } }) => (
