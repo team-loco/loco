@@ -569,7 +569,7 @@ export function DataTable<T extends RowData>({
 								data-ruled={skeleton === undefined ? "" : undefined}
 								className={cn(ROW, "hover:bg-transparent", skeleton !== undefined && "border-b-0")}
 							>
-								{skeleton === undefined ? (
+								{skeleton === undefined &&
 									columns.map((column, index) => (
 										<TableCell
 											key={column.id}
@@ -579,8 +579,8 @@ export function DataTable<T extends RowData>({
 										>
 											{column.columnDef.meta?.pinEnd === true ? <Skeleton className="h-3 w-7 shrink-0" /> : BAR}
 										</TableCell>
-									))
-								) : (
+									))}
+								{skeleton !== undefined && (
 									<TableCell role="cell" className="col-span-full flex h-(--row-h) items-center">
 										{skeleton}
 									</TableCell>
