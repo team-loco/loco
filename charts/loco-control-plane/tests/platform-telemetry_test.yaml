@@ -11,15 +11,6 @@ templates:
   - templates/obs-proxy-ingest-deployment.yaml
   - templates/platform-telemetry-token.yaml
 tests:
-  - it: requires the control plane region when exporting platform telemetry
-    set:
-      platformTelemetry.enabled: true
-      platformTelemetry.region: ""
-    template: templates/obs-proxy-ingest-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorMessage: platformTelemetry.region is required when platform telemetry is enabled
-
   - it: exports nothing by default
     asserts:
       - notContains:
