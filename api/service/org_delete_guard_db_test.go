@@ -51,7 +51,7 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 			f.queries,
 			testServiceDefaults(),
 			testClusterSilentAfter,
-			limits.Defaults(),
+			limits.Defaults(), nil,
 		),
 	}
 }

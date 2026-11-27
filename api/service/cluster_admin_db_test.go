@@ -44,7 +44,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 			queries,
 			testAgentConfig().JoinTokenTTL,
 			testAgentConfig().JoinTokenMaxTTL,
-			testHeartbeatInterval,
+			testHeartbeatInterval, nil,
 		),
 	)
 	clusterv1connect.RegisterRegionAdminServiceHandler(server, NewRegionAdminServer(queries))

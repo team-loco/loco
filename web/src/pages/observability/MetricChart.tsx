@@ -360,6 +360,7 @@ export function MetricChart({
 								tick={axisTimeTick(from, to, timePref, 10.5)}
 							/>
 							<YAxis
+								width={90}
 								domain={[0, axis.maximum]}
 								ticks={axis.ticks}
 								tickFormatter={axis.format}

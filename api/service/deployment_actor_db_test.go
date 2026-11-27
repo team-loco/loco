@@ -228,7 +228,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 	planv1connect.RegisterPlanServiceHandler(server, newPlanServer(f))
 	resourcev1connect.RegisterResourceServiceHandler(
 		server,
-		NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults()),
+		NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(), nil),
 	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

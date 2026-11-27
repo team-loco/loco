@@ -37,7 +37,14 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 	deploymentID := created.GetDeploymentId()
 	deployments, _ := f.deploymentWriter(t)
 	environments := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
-	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	resources := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	plans := newPlanServer(f)
 	var stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream
 	file := []byte(planFileHeader + planFileSvc)

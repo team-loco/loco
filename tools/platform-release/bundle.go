@@ -312,6 +312,10 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		return nil, err
 	}
 	ownedCRDs(cp)
+	// API startup migrations can make the previous binary incompatible with its database.
+	upgrade := fields(cp[1], "spec", "upgrade")
+	delete(upgrade, "remediation")
+	upgrade["strategy"] = object{"name": "RetryOnFailure", "retryInterval": "5m"}
 	writeLayer(controlPlaneName, cp)
 	worker, err := helmRelease(
 		"loco-worker",

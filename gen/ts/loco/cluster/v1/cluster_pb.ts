@@ -7,6 +7,8 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Duration, DurationJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { AllocationCoverage, AllocationCoverageJson, AllocationSample, AllocationSampleJson } from "../../capacity/v1/capacity_pb";
+import { file_loco_capacity_v1_capacity } from "../../capacity/v1/capacity_pb";
 import type { Event, EventJson } from "../../event/v1/event_pb";
 import { file_loco_event_v1_event } from "../../event/v1/event_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -15,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/cluster/v1/cluster.proto.
  */
 export const file_loco_cluster_v1_cluster: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxIi0KBlJlZ2lvbhIMCgRjb2RlGAEgASgJEhUKDWNsdXN0ZXJfY291bnQYAiABKAUiWQoJTmV3UmVnaW9uEiMKB2NvdW50cnkYASABKAlCErpID3INMgteW2EtejAtOV0rJBInCgtzdWJkaXZpc2lvbhgCIAEoCUISukgPcg0yC15bYS16MC05XSskIssECgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEhEKCWlzX2FjdGl2ZRgGIAEoCBIuCgpyZW1vdmVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1oZWFsdGhfc3RhdHVzGAggASgJSACIAQESMgoObGFzdF9oZWFydGJlYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWFnZW50X3ZlcnNpb24YCiABKAlIAYgBARIiChVhZ2VudF9rZXlfZmluZ2VycHJpbnQYCyABKAlIAogBARIqCgRyb2xlGAwgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlEg8KB2RvbWFpbnMYDSADKAkSMAoMc2lsZW50X3NpbmNlGBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCghjYXBhY2l0eRgRIAEoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyQ2FwYWNpdHkSFgoOaGVhbHRoX21lc3NhZ2UYEiABKAlCEAoOX2hlYWx0aF9zdGF0dXNCEAoOX2FnZW50X3ZlcnNpb25CGAoWX2FnZW50X2tleV9maW5nZXJwcmludEoECAUQBkoECA4QD0oECA8QEFIEdGllclILZG5zX3JlY29yZHNSEGdhdGV3YXlfaG9zdG5hbWUiKwoPQ2x1c3Rlcldvcmtsb2FkEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkiRwoQQ2x1c3Rlcldvcmtsb2FkcxIzCgl3b3JrbG9hZHMYASADKAsyIC5sb2NvLmNsdXN0ZXIudjEuQ2x1c3Rlcldvcmtsb2FkIkoKCUpvaW5Ub2tlbhINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLhAQoUQ3JlYXRlQ2x1c3RlclJlcXVlc3QSJgoDdHRsGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhwKCnJlcXVlc3RfaWQYBCABKAlCCLpIBXIDsAEBEhYKBG5hbWUYASABKAlCCLpIBXIDGP8BEhwKBnJlZ2lvbhgCIAEoCUIKukgHcgUQARj/AUgAEjAKCm5ld19yZWdpb24YBiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuTmV3UmVnaW9uSABCDwoGdGFyZ2V0EgW6SAIIAUoECAMQBFIEdGllciJ5ChVDcmVhdGVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbhIMCgRuYW1lGAMgASgJEg4KBnJlZ2lvbhgEIAEoCSJdChVJc3N1ZUpvaW5Ub2tlblJlcXVlc3QSJgoDdHRsGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIlwKFklzc3VlSm9pblRva2VuUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbiIVChNMaXN0Q2x1c3RlcnNSZXF1ZXN0IkIKFExpc3RDbHVzdGVyc1Jlc3BvbnNlEioKCGNsdXN0ZXJzGAEgAygLMhgubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXIiMwoTUGF1c2VDbHVzdGVyUmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABASIqChRQYXVzZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIjQKFFJlc3VtZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIisKFVJlc3VtZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIkMKFFJlbW92ZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEg0KBWZvcmNlGAIgASgIImAKFVJlbW92ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjMKCXdvcmtsb2FkcxgCIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiNQoVUmVzdG9yZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIiwKFlJlc3RvcmVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCSIUChJMaXN0UmVnaW9uc1JlcXVlc3QiPwoTTGlzdFJlZ2lvbnNSZXNwb25zZRIoCgdyZWdpb25zGAEgAygLMhcubG9jby5jbHVzdGVyLnYxLlJlZ2lvbiKgAgoPQ2x1c3RlckNhcGFjaXR5EiIKGmNwdV9taWxsaWNvcmVzX2FsbG9jYXRhYmxlGAEgASgDEiAKGGNwdV9taWxsaWNvcmVzX3JlcXVlc3RlZBgCIAEoAxIgChhtZW1vcnlfYnl0ZXNfYWxsb2NhdGFibGUYAyABKAMSHgoWbWVtb3J5X2J5dGVzX3JlcXVlc3RlZBgEIAEoAxIYChBwb2RzX2FsbG9jYXRhYmxlGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBRIvCgtyZXBvcnRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNcG9kc19hc3NpZ25lZBgIIAEoBRINCgVzdGFsZRgJIAEoCCI7ChtHZXRDbHVzdGVyT3BlcmF0aW9uc1JlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEingEKHEdldENsdXN0ZXJPcGVyYXRpb25zUmVzcG9uc2USPAoJd29ya2xvYWRzGAEgAygLMikubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJXb3JrbG9hZEF0dGVudGlvbhIaChJoYXNfbW9yZV93b3JrbG9hZHMYAiABKAgSJAoGZXZlbnRzGAMgAygLMhQubG9jby5ldmVudC52MS5FdmVudCKJAgoYQ2x1c3Rlcldvcmtsb2FkQXR0ZW50aW9uEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSEwoLcmVzb3VyY2VfaWQYAyABKAkSFQoNcmVzb3VyY2VfbmFtZRgEIAEoCRIOCgZvcmdfaWQYBSABKAkSFAoMd29ya3NwYWNlX2lkGAYgASgJEhYKDmVudmlyb25tZW50X2lkGAcgASgJEhgKEGVudmlyb25tZW50X3NsdWcYCCABKAkSDgoGc3RhdHVzGAkgASgJEg8KB21lc3NhZ2UYCiABKAkSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqcQoLQ2x1c3RlclJvbGUSHAoYQ0xVU1RFUl9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRQ0xVU1RFUl9ST0xFX0FQUFMQARIXChNDTFVTVEVSX1JPTEVfQlVJTERTEAISFAoQQ0xVU1RFUl9ST0xFX0FMTBADMqoGChNDbHVzdGVyQWRtaW5TZXJ2aWNlEl4KDUNyZWF0ZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuQ3JlYXRlQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuQ3JlYXRlQ2x1c3RlclJlc3BvbnNlEmEKDklzc3VlSm9pblRva2VuEiYubG9jby5jbHVzdGVyLnYxLklzc3VlSm9pblRva2VuUmVxdWVzdBonLmxvY28uY2x1c3Rlci52MS5Jc3N1ZUpvaW5Ub2tlblJlc3BvbnNlElsKDExpc3RDbHVzdGVycxIkLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3RlcnNSZXF1ZXN0GiUubG9jby5jbHVzdGVyLnYxLkxpc3RDbHVzdGVyc1Jlc3BvbnNlEnMKFEdldENsdXN0ZXJPcGVyYXRpb25zEiwubG9jby5jbHVzdGVyLnYxLkdldENsdXN0ZXJPcGVyYXRpb25zUmVxdWVzdBotLmxvY28uY2x1c3Rlci52MS5HZXRDbHVzdGVyT3BlcmF0aW9uc1Jlc3BvbnNlElsKDFBhdXNlQ2x1c3RlchIkLmxvY28uY2x1c3Rlci52MS5QYXVzZUNsdXN0ZXJSZXF1ZXN0GiUubG9jby5jbHVzdGVyLnYxLlBhdXNlQ2x1c3RlclJlc3BvbnNlEl4KDVJlc3VtZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuUmVzdW1lQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuUmVzdW1lQ2x1c3RlclJlc3BvbnNlEl4KDVJlbW92ZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuUmVtb3ZlQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuUmVtb3ZlQ2x1c3RlclJlc3BvbnNlEmEKDlJlc3RvcmVDbHVzdGVyEiYubG9jby5jbHVzdGVyLnYxLlJlc3RvcmVDbHVzdGVyUmVxdWVzdBonLmxvY28uY2x1c3Rlci52MS5SZXN0b3JlQ2x1c3RlclJlc3BvbnNlMm4KElJlZ2lvbkFkbWluU2VydmljZRJYCgtMaXN0UmVnaW9ucxIjLmxvY28uY2x1c3Rlci52MS5MaXN0UmVnaW9uc1JlcXVlc3QaJC5sb2NvLmNsdXN0ZXIudjEuTGlzdFJlZ2lvbnNSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NsdXN0ZXIvdjE7Y2x1c3RlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_event_v1_event]);
+  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxIi0KBlJlZ2lvbhIMCgRjb2RlGAEgASgJEhUKDWNsdXN0ZXJfY291bnQYAiABKAUiWQoJTmV3UmVnaW9uEiMKB2NvdW50cnkYASABKAlCErpID3INMgteW2EtejAtOV0rJBInCgtzdWJkaXZpc2lvbhgCIAEoCUISukgPcg0yC15bYS16MC05XSskIpcECgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEhEKCWlzX2FjdGl2ZRgGIAEoCBIuCgpyZW1vdmVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1oZWFsdGhfc3RhdHVzGAggASgJSACIAQESMgoObGFzdF9oZWFydGJlYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWFnZW50X3ZlcnNpb24YCiABKAlIAYgBARIiChVhZ2VudF9rZXlfZmluZ2VycHJpbnQYCyABKAlIAogBARIqCgRyb2xlGAwgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlEg8KB2RvbWFpbnMYDSADKAkSMAoMc2lsZW50X3NpbmNlGBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5oZWFsdGhfbWVzc2FnZRgSIAEoCUIQCg5faGVhbHRoX3N0YXR1c0IQCg5fYWdlbnRfdmVyc2lvbkIYChZfYWdlbnRfa2V5X2ZpbmdlcnByaW50SgQIBRAGSgQIDhAPSgQIDxAQUgR0aWVyUgtkbnNfcmVjb3Jkc1IQZ2F0ZXdheV9ob3N0bmFtZSIrCg9DbHVzdGVyV29ya2xvYWQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCSJHChBDbHVzdGVyV29ya2xvYWRzEjMKCXdvcmtsb2FkcxgBIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiSgoJSm9pblRva2VuEg0KBXRva2VuGAEgASgJEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIuEBChRDcmVhdGVDbHVzdGVyUmVxdWVzdBImCgN0dGwYBSABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHAoKcmVxdWVzdF9pZBgEIAEoCUIIukgFcgOwAQESFgoEbmFtZRgBIAEoCUIIukgFcgMY/wESHAoGcmVnaW9uGAIgASgJQgq6SAdyBRABGP8BSAASMAoKbmV3X3JlZ2lvbhgGIAEoCzIaLmxvY28uY2x1c3Rlci52MS5OZXdSZWdpb25IAEIPCgZ0YXJnZXQSBbpIAggBSgQIAxAEUgR0aWVyInkKFUNyZWF0ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEi4KCmpvaW5fdG9rZW4YAiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuSm9pblRva2VuEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJIl0KFUlzc3VlSm9pblRva2VuUmVxdWVzdBImCgN0dGwYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiXAoWSXNzdWVKb2luVG9rZW5SZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEi4KCmpvaW5fdG9rZW4YAiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuSm9pblRva2VuIhUKE0xpc3RDbHVzdGVyc1JlcXVlc3QiQgoUTGlzdENsdXN0ZXJzUmVzcG9uc2USKgoIY2x1c3RlcnMYASADKAsyGC5sb2NvLmNsdXN0ZXIudjEuQ2x1c3RlciIzChNQYXVzZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIioKFFBhdXNlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkiNAoUUmVzdW1lQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiKwoVUmVzdW1lQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkiQwoUUmVtb3ZlQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESDQoFZm9yY2UYAiABKAgiYAoVUmVtb3ZlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSMwoJd29ya2xvYWRzGAIgAygLMiAubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJXb3JrbG9hZCI1ChVSZXN0b3JlQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiLAoWUmVzdG9yZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIhQKEkxpc3RSZWdpb25zUmVxdWVzdCI/ChNMaXN0UmVnaW9uc1Jlc3BvbnNlEigKB3JlZ2lvbnMYASADKAsyFy5sb2NvLmNsdXN0ZXIudjEuUmVnaW9uIjsKG0dldENsdXN0ZXJPcGVyYXRpb25zUmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABASKeAQocR2V0Q2x1c3Rlck9wZXJhdGlvbnNSZXNwb25zZRI8Cgl3b3JrbG9hZHMYASADKAsyKS5sb2NvLmNsdXN0ZXIudjEuQ2x1c3Rlcldvcmtsb2FkQXR0ZW50aW9uEhoKEmhhc19tb3JlX3dvcmtsb2FkcxgCIAEoCBIkCgZldmVudHMYAyADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50IokCChhDbHVzdGVyV29ya2xvYWRBdHRlbnRpb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRITCgtyZXNvdXJjZV9pZBgDIAEoCRIVCg1yZXNvdXJjZV9uYW1lGAQgASgJEg4KBm9yZ19pZBgFIAEoCRIUCgx3b3Jrc3BhY2VfaWQYBiABKAkSFgoOZW52aXJvbm1lbnRfaWQYByABKAkSGAoQZW52aXJvbm1lbnRfc2x1ZxgIIAEoCRIOCgZzdGF0dXMYCSABKAkSDwoHbWVzc2FnZRgKIAEoCRIuCgp1cGRhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKiAwoMTm9kZUNhcGFjaXR5EhgKBG5hbWUYASABKAlCCrpIB3IFEAEY/QESEgoFcmVhZHkYAiABKAhIAIgBARIwChpjcHVfbWlsbGljb3Jlc19hbGxvY2F0YWJsZRgDIAEoA0IHukgEIgIoAEgBiAEBEi4KGG1lbW9yeV9ieXRlc19hbGxvY2F0YWJsZRgEIAEoA0IHukgEIgIoAEgCiAEBEikKGGNwdV9taWxsaWNvcmVzX3JlcXVlc3RlZBgFIAEoA0IHukgEIgIoABInChZtZW1vcnlfYnl0ZXNfcmVxdWVzdGVkGAYgASgDQge6SAQiAigAEhYKDnJlc291cmNlX2NvdW50GAcgASgFEjgKFGNhcGFjaXR5X3JlcG9ydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5jYXBhY2l0eV9zdGFsZRgJIAEoCEIICgZfcmVhZHlCHQobX2NwdV9taWxsaWNvcmVzX2FsbG9jYXRhYmxlQhsKGV9tZW1vcnlfYnl0ZXNfYWxsb2NhdGFibGUiewoXTGlzdENsdXN0ZXJOb2Rlc1JlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESFwoFcXVlcnkYAiABKAlCCLpIBXIDGMgBEhkKBHBhZ2UYAyABKAVCC7pICBoGGMCEPSgAEg4KBm1lbW9yeRgEIAEoCCLJAwoYTGlzdENsdXN0ZXJOb2Rlc1Jlc3BvbnNlEjIKBnNhbXBsZRgBIAEoCzIiLmxvY28uY2FwYWNpdHkudjEuQWxsb2NhdGlvblNhbXBsZRIsCgVub2RlcxgCIAMoCzIdLmxvY28uY2x1c3Rlci52MS5Ob2RlQ2FwYWNpdHkSEwoLdG90YWxfY291bnQYAyABKAUSFgoOcmVzb3VyY2VfY291bnQYBCABKAUSIAoYY3B1X21pbGxpY29yZXNfcmVxdWVzdGVkGAUgASgDEh4KFm1lbW9yeV9ieXRlc19yZXF1ZXN0ZWQYBiABKAMSJwoaY3B1X21pbGxpY29yZXNfYWxsb2NhdGFibGUYByABKANIAIgBARIlChhtZW1vcnlfYnl0ZXNfYWxsb2NhdGFibGUYCCABKANIAYgBARI4ChRjYXBhY2l0eV9yZXBvcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFgoOY2FwYWNpdHlfc3RhbGUYCiABKAhCHQobX2NwdV9taWxsaWNvcmVzX2FsbG9jYXRhYmxlQhsKGV9tZW1vcnlfYnl0ZXNfYWxsb2NhdGFibGUihQIKEkFsbG9jYXRpb25Db25zdW1lchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBm9yZ19pZBgDIAEoCRIQCghvcmdfbmFtZRgEIAEoCRIUCgx3b3Jrc3BhY2VfaWQYBSABKAkSDAoEa2luZBgGIAEoCRIWCg5jcHVfbWlsbGljb3JlcxgHIAEoAxIUCgxtZW1vcnlfYnl0ZXMYCCABKAMSFgoOcmVzb3VyY2VfY291bnQYCSABKAUSDAoEcG9kcxgKIAEoBRIfChdyZXNvdXJjZV9saW5rX2F2YWlsYWJsZRgLIAEoCBIaChJvcmdfbGlua19hdmFpbGFibGUYDCABKAgi8AEKGUdldE5vZGVBbGxvY2F0aW9uc1JlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESGAoEbm9kZRgCIAEoCUIKukgHcgUQARj9ARIgCgx3b3Jrc3BhY2VfaWQYAyABKAlCCrpIB9gBAXICGD8SDgoGbWVtb3J5GAQgASgIEhcKBXF1ZXJ5GAUgASgJQgi6SAVyAxjIARIZCgRwYWdlGAYgASgFQgu6SAgaBhjAhD0oABIWCg5yZW1haW5kZXJfb25seRgHIAEoCBIdCglzYW1wbGVfaWQYCCABKAlCCrpIB3IFEAEYyAEivwMKGkdldE5vZGVBbGxvY2F0aW9uc1Jlc3BvbnNlEjIKBnNhbXBsZRgBIAEoCzIiLmxvY28uY2FwYWNpdHkudjEuQWxsb2NhdGlvblNhbXBsZRIrCgRub2RlGAIgASgLMh0ubG9jby5jbHVzdGVyLnYxLk5vZGVDYXBhY2l0eRIwCgN0b3AYAyADKAsyIy5sb2NvLmNsdXN0ZXIudjEuQWxsb2NhdGlvbkNvbnN1bWVyEjYKCXJlbWFpbmRlchgEIAEoCzIjLmxvY28uY2x1c3Rlci52MS5BbGxvY2F0aW9uQ29uc3VtZXISMwoGc3lzdGVtGAUgASgLMiMubG9jby5jbHVzdGVyLnYxLkFsbG9jYXRpb25Db25zdW1lchI2Cgljb25zdW1lcnMYBiADKAsyIy5sb2NvLmNsdXN0ZXIudjEuQWxsb2NhdGlvbkNvbnN1bWVyEhMKC3RvdGFsX2NvdW50GAcgASgFEg4KBm1lbW9yeRgIIAEoCBIUCgx3b3Jrc3BhY2VfaWQYCSABKAkSFgoOd29ya3NwYWNlX25hbWUYCiABKAkSFgoOcmVtYWluZGVyX29ubHkYCyABKAgikgEKH0xpc3RXb3Jrc3BhY2VBbGxvY2F0aW9uc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIXCgVxdWVyeRgCIAEoCUIIukgFcgMYyAESGQoEcGFnZRgDIAEoBUILukgIGgYYwIQ9KAASDgoGbWVtb3J5GAQgASgIEhEKCWFzY2VuZGluZxgFIAEoCCKPAQoTV29ya3NwYWNlQWxsb2NhdGlvbhIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZvcmdfaWQYAyABKAkSFgoOcmVzb3VyY2VfY291bnQYBCABKAUSFgoOY3B1X21pbGxpY29yZXMYBSABKAMSFAoMbWVtb3J5X2J5dGVzGAYgASgDIrkBCiBMaXN0V29ya3NwYWNlQWxsb2NhdGlvbnNSZXNwb25zZRI4Cgp3b3Jrc3BhY2VzGAEgAygLMiQubG9jby5jbHVzdGVyLnYxLldvcmtzcGFjZUFsbG9jYXRpb24SEwoLdG90YWxfY291bnQYAiABKAUSNgoIY292ZXJhZ2UYAyABKAsyJC5sb2NvLmNhcGFjaXR5LnYxLkFsbG9jYXRpb25Db3ZlcmFnZRIOCgZtZW1vcnkYBCABKAgiHgocTGlzdENsdXN0ZXJDYXBhY2l0aWVzUmVxdWVzdCKsAwoWQ2x1c3RlckNhcGFjaXR5U3VtbWFyeRISCgpjbHVzdGVyX2lkGAEgASgJEjIKBnNhbXBsZRgCIAEoCzIiLmxvY28uY2FwYWNpdHkudjEuQWxsb2NhdGlvblNhbXBsZRIgChhjcHVfbWlsbGljb3Jlc19yZXF1ZXN0ZWQYAyABKAMSHgoWbWVtb3J5X2J5dGVzX3JlcXVlc3RlZBgEIAEoAxInChpjcHVfbWlsbGljb3Jlc19hbGxvY2F0YWJsZRgFIAEoA0gAiAEBEiUKGG1lbW9yeV9ieXRlc19hbGxvY2F0YWJsZRgGIAEoA0gBiAEBEjgKFGNhcGFjaXR5X3JlcG9ydGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5jYXBhY2l0eV9zdGFsZRgIIAEoCBIWCg5yZXNvdXJjZV9jb3VudBgJIAEoBRISCgpub2RlX2NvdW50GAogASgFQh0KG19jcHVfbWlsbGljb3Jlc19hbGxvY2F0YWJsZUIbChlfbWVtb3J5X2J5dGVzX2FsbG9jYXRhYmxlIlwKHUxpc3RDbHVzdGVyQ2FwYWNpdGllc1Jlc3BvbnNlEjsKCmNhcGFjaXRpZXMYASADKAsyJy5sb2NvLmNsdXN0ZXIudjEuQ2x1c3RlckNhcGFjaXR5U3VtbWFyeSpxCgtDbHVzdGVyUm9sZRIcChhDTFVTVEVSX1JPTEVfVU5TUEVDSUZJRUQQABIVChFDTFVTVEVSX1JPTEVfQVBQUxABEhcKE0NMVVNURVJfUk9MRV9CVUlMRFMQAhIUChBDTFVTVEVSX1JPTEVfQUxMEAMy+wkKE0NsdXN0ZXJBZG1pblNlcnZpY2USXgoNQ3JlYXRlQ2x1c3RlchIlLmxvY28uY2x1c3Rlci52MS5DcmVhdGVDbHVzdGVyUmVxdWVzdBomLmxvY28uY2x1c3Rlci52MS5DcmVhdGVDbHVzdGVyUmVzcG9uc2USYQoOSXNzdWVKb2luVG9rZW4SJi5sb2NvLmNsdXN0ZXIudjEuSXNzdWVKb2luVG9rZW5SZXF1ZXN0GicubG9jby5jbHVzdGVyLnYxLklzc3VlSm9pblRva2VuUmVzcG9uc2USWwoMTGlzdENsdXN0ZXJzEiQubG9jby5jbHVzdGVyLnYxLkxpc3RDbHVzdGVyc1JlcXVlc3QaJS5sb2NvLmNsdXN0ZXIudjEuTGlzdENsdXN0ZXJzUmVzcG9uc2UScwoUR2V0Q2x1c3Rlck9wZXJhdGlvbnMSLC5sb2NvLmNsdXN0ZXIudjEuR2V0Q2x1c3Rlck9wZXJhdGlvbnNSZXF1ZXN0Gi0ubG9jby5jbHVzdGVyLnYxLkdldENsdXN0ZXJPcGVyYXRpb25zUmVzcG9uc2USdgoVTGlzdENsdXN0ZXJDYXBhY2l0aWVzEi0ubG9jby5jbHVzdGVyLnYxLkxpc3RDbHVzdGVyQ2FwYWNpdGllc1JlcXVlc3QaLi5sb2NvLmNsdXN0ZXIudjEuTGlzdENsdXN0ZXJDYXBhY2l0aWVzUmVzcG9uc2USZwoQTGlzdENsdXN0ZXJOb2RlcxIoLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3Rlck5vZGVzUmVxdWVzdBopLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3Rlck5vZGVzUmVzcG9uc2USbQoSR2V0Tm9kZUFsbG9jYXRpb25zEioubG9jby5jbHVzdGVyLnYxLkdldE5vZGVBbGxvY2F0aW9uc1JlcXVlc3QaKy5sb2NvLmNsdXN0ZXIudjEuR2V0Tm9kZUFsbG9jYXRpb25zUmVzcG9uc2USfwoYTGlzdFdvcmtzcGFjZUFsbG9jYXRpb25zEjAubG9jby5jbHVzdGVyLnYxLkxpc3RXb3Jrc3BhY2VBbGxvY2F0aW9uc1JlcXVlc3QaMS5sb2NvLmNsdXN0ZXIudjEuTGlzdFdvcmtzcGFjZUFsbG9jYXRpb25zUmVzcG9uc2USWwoMUGF1c2VDbHVzdGVyEiQubG9jby5jbHVzdGVyLnYxLlBhdXNlQ2x1c3RlclJlcXVlc3QaJS5sb2NvLmNsdXN0ZXIudjEuUGF1c2VDbHVzdGVyUmVzcG9uc2USXgoNUmVzdW1lQ2x1c3RlchIlLmxvY28uY2x1c3Rlci52MS5SZXN1bWVDbHVzdGVyUmVxdWVzdBomLmxvY28uY2x1c3Rlci52MS5SZXN1bWVDbHVzdGVyUmVzcG9uc2USXgoNUmVtb3ZlQ2x1c3RlchIlLmxvY28uY2x1c3Rlci52MS5SZW1vdmVDbHVzdGVyUmVxdWVzdBomLmxvY28uY2x1c3Rlci52MS5SZW1vdmVDbHVzdGVyUmVzcG9uc2USYQoOUmVzdG9yZUNsdXN0ZXISJi5sb2NvLmNsdXN0ZXIudjEuUmVzdG9yZUNsdXN0ZXJSZXF1ZXN0GicubG9jby5jbHVzdGVyLnYxLlJlc3RvcmVDbHVzdGVyUmVzcG9uc2UybgoSUmVnaW9uQWRtaW5TZXJ2aWNlElgKC0xpc3RSZWdpb25zEiMubG9jby5jbHVzdGVyLnYxLkxpc3RSZWdpb25zUmVxdWVzdBokLmxvY28uY2x1c3Rlci52MS5MaXN0UmVnaW9uc1Jlc3BvbnNlQjxaOmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY2x1c3Rlci92MTtjbHVzdGVydjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_capacity_v1_capacity, file_loco_event_v1_event]);
 
 /**
  * Region is the code clusters share, `{country}-{subdivision}-{n}` or `local-1`.
@@ -183,13 +185,6 @@ export type Cluster = Message<"loco.cluster.v1.Cluster"> & {
   silentSince?: Timestamp | undefined;
 
   /**
-   * Last successful capacity sample; absent before the first successful sample.
-   *
-   * @generated from field: loco.cluster.v1.ClusterCapacity capacity = 17;
-   */
-  capacity?: ClusterCapacity | undefined;
-
-  /**
    * @generated from field: string health_message = 18;
    */
   healthMessage: string;
@@ -265,13 +260,6 @@ export type ClusterJson = {
    * @generated from field: google.protobuf.Timestamp silent_since = 16;
    */
   silentSince?: TimestampJson;
-
-  /**
-   * Last successful capacity sample; absent before the first successful sample.
-   *
-   * @generated from field: loco.cluster.v1.ClusterCapacity capacity = 17;
-   */
-  capacity?: ClusterCapacityJson;
 
   /**
    * @generated from field: string health_message = 18;
@@ -941,125 +929,6 @@ export const ListRegionsResponseSchema: GenMessage<ListRegionsResponse, {jsonTyp
   messageDesc(file_loco_cluster_v1_cluster, 21);
 
 /**
- * ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
- * Requested resources cover assigned, non-terminal pods including init containers and overhead.
- * Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
- *
- * @generated from message loco.cluster.v1.ClusterCapacity
- */
-export type ClusterCapacity = Message<"loco.cluster.v1.ClusterCapacity"> & {
-  /**
-   * @generated from field: int64 cpu_millicores_allocatable = 1;
-   */
-  cpuMillicoresAllocatable: bigint;
-
-  /**
-   * @generated from field: int64 cpu_millicores_requested = 2;
-   */
-  cpuMillicoresRequested: bigint;
-
-  /**
-   * @generated from field: int64 memory_bytes_allocatable = 3;
-   */
-  memoryBytesAllocatable: bigint;
-
-  /**
-   * @generated from field: int64 memory_bytes_requested = 4;
-   */
-  memoryBytesRequested: bigint;
-
-  /**
-   * @generated from field: int32 pods_allocatable = 5;
-   */
-  podsAllocatable: number;
-
-  /**
-   * @generated from field: int32 pods_running = 6;
-   */
-  podsRunning: number;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp reported_at = 7;
-   */
-  reportedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: int32 pods_assigned = 8;
-   */
-  podsAssigned: number;
-
-  /**
-   * Sample is older than the installation's configured heartbeat silence threshold.
-   *
-   * @generated from field: bool stale = 9;
-   */
-  stale: boolean;
-};
-
-/**
- * ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
- * Requested resources cover assigned, non-terminal pods including init containers and overhead.
- * Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
- *
- * @generated from message loco.cluster.v1.ClusterCapacity
- */
-export type ClusterCapacityJson = {
-  /**
-   * @generated from field: int64 cpu_millicores_allocatable = 1;
-   */
-  cpuMillicoresAllocatable?: string;
-
-  /**
-   * @generated from field: int64 cpu_millicores_requested = 2;
-   */
-  cpuMillicoresRequested?: string;
-
-  /**
-   * @generated from field: int64 memory_bytes_allocatable = 3;
-   */
-  memoryBytesAllocatable?: string;
-
-  /**
-   * @generated from field: int64 memory_bytes_requested = 4;
-   */
-  memoryBytesRequested?: string;
-
-  /**
-   * @generated from field: int32 pods_allocatable = 5;
-   */
-  podsAllocatable?: number;
-
-  /**
-   * @generated from field: int32 pods_running = 6;
-   */
-  podsRunning?: number;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp reported_at = 7;
-   */
-  reportedAt?: TimestampJson;
-
-  /**
-   * @generated from field: int32 pods_assigned = 8;
-   */
-  podsAssigned?: number;
-
-  /**
-   * Sample is older than the installation's configured heartbeat silence threshold.
-   *
-   * @generated from field: bool stale = 9;
-   */
-  stale?: boolean;
-};
-
-/**
- * Describes the message loco.cluster.v1.ClusterCapacity.
- * Use `create(ClusterCapacitySchema)` to create a new message.
- */
-export const ClusterCapacitySchema: GenMessage<ClusterCapacity, {jsonType: ClusterCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 22);
-
-/**
  * @generated from message loco.cluster.v1.GetClusterOperationsRequest
  */
 export type GetClusterOperationsRequest = Message<"loco.cluster.v1.GetClusterOperationsRequest"> & {
@@ -1084,7 +953,7 @@ export type GetClusterOperationsRequestJson = {
  * Use `create(GetClusterOperationsRequestSchema)` to create a new message.
  */
 export const GetClusterOperationsRequestSchema: GenMessage<GetClusterOperationsRequest, {jsonType: GetClusterOperationsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 23);
+  messageDesc(file_loco_cluster_v1_cluster, 22);
 
 /**
  * @generated from message loco.cluster.v1.GetClusterOperationsResponse
@@ -1131,7 +1000,7 @@ export type GetClusterOperationsResponseJson = {
  * Use `create(GetClusterOperationsResponseSchema)` to create a new message.
  */
 export const GetClusterOperationsResponseSchema: GenMessage<GetClusterOperationsResponse, {jsonType: GetClusterOperationsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_cluster_v1_cluster, 24);
+  messageDesc(file_loco_cluster_v1_cluster, 23);
 
 /**
  * ClusterWorkloadAttention identifies current Loco work that is blocked or failing.
@@ -1262,7 +1131,1045 @@ export type ClusterWorkloadAttentionJson = {
  * Use `create(ClusterWorkloadAttentionSchema)` to create a new message.
  */
 export const ClusterWorkloadAttentionSchema: GenMessage<ClusterWorkloadAttention, {jsonType: ClusterWorkloadAttentionJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 24);
+
+/**
+ * NodeCapacity combines independently sampled native node capacity and complete pod reservations.
+ *
+ * @generated from message loco.cluster.v1.NodeCapacity
+ */
+export type NodeCapacity = Message<"loco.cluster.v1.NodeCapacity"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional bool ready = 2;
+   */
+  ready?: boolean | undefined;
+
+  /**
+   * @generated from field: optional int64 cpu_millicores_allocatable = 3;
+   */
+  cpuMillicoresAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 4;
+   */
+  memoryBytesAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 5;
+   */
+  cpuMillicoresRequested: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 6;
+   */
+  memoryBytesRequested: bigint;
+
+  /**
+   * @generated from field: int32 resource_count = 7;
+   */
+  resourceCount: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 8;
+   */
+  capacityReportedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool capacity_stale = 9;
+   */
+  capacityStale: boolean;
+};
+
+/**
+ * NodeCapacity combines independently sampled native node capacity and complete pod reservations.
+ *
+ * @generated from message loco.cluster.v1.NodeCapacity
+ */
+export type NodeCapacityJson = {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name?: string;
+
+  /**
+   * @generated from field: optional bool ready = 2;
+   */
+  ready?: boolean;
+
+  /**
+   * @generated from field: optional int64 cpu_millicores_allocatable = 3;
+   */
+  cpuMillicoresAllocatable?: string;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 4;
+   */
+  memoryBytesAllocatable?: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 5;
+   */
+  cpuMillicoresRequested?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 6;
+   */
+  memoryBytesRequested?: string;
+
+  /**
+   * @generated from field: int32 resource_count = 7;
+   */
+  resourceCount?: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 8;
+   */
+  capacityReportedAt?: TimestampJson;
+
+  /**
+   * @generated from field: bool capacity_stale = 9;
+   */
+  capacityStale?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.NodeCapacity.
+ * Use `create(NodeCapacitySchema)` to create a new message.
+ */
+export const NodeCapacitySchema: GenMessage<NodeCapacity, {jsonType: NodeCapacityJson}> = /*@__PURE__*/
   messageDesc(file_loco_cluster_v1_cluster, 25);
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterNodesRequest
+ */
+export type ListClusterNodesRequest = Message<"loco.cluster.v1.ListClusterNodesRequest"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query: string;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page: number;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterNodesRequest
+ */
+export type ListClusterNodesRequestJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query?: string;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page?: number;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListClusterNodesRequest.
+ * Use `create(ListClusterNodesRequestSchema)` to create a new message.
+ */
+export const ListClusterNodesRequestSchema: GenMessage<ListClusterNodesRequest, {jsonType: ListClusterNodesRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 26);
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterNodesResponse
+ */
+export type ListClusterNodesResponse = Message<"loco.cluster.v1.ListClusterNodesResponse"> & {
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 1;
+   */
+  sample?: AllocationSample | undefined;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.NodeCapacity nodes = 2;
+   */
+  nodes: NodeCapacity[];
+
+  /**
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount: number;
+
+  /**
+   * @generated from field: int32 resource_count = 4;
+   */
+  resourceCount: number;
+
+  /**
+   * Totals cover every node, independent of node search and pagination.
+   *
+   * @generated from field: int64 cpu_millicores_requested = 5;
+   */
+  cpuMillicoresRequested: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 6;
+   */
+  memoryBytesRequested: bigint;
+
+  /**
+   * Absent if any observed node lacks that native dimension.
+   *
+   * @generated from field: optional int64 cpu_millicores_allocatable = 7;
+   */
+  cpuMillicoresAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 8;
+   */
+  memoryBytesAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 9;
+   */
+  capacityReportedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool capacity_stale = 10;
+   */
+  capacityStale: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterNodesResponse
+ */
+export type ListClusterNodesResponseJson = {
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 1;
+   */
+  sample?: AllocationSampleJson;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.NodeCapacity nodes = 2;
+   */
+  nodes?: NodeCapacityJson[];
+
+  /**
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount?: number;
+
+  /**
+   * @generated from field: int32 resource_count = 4;
+   */
+  resourceCount?: number;
+
+  /**
+   * Totals cover every node, independent of node search and pagination.
+   *
+   * @generated from field: int64 cpu_millicores_requested = 5;
+   */
+  cpuMillicoresRequested?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 6;
+   */
+  memoryBytesRequested?: string;
+
+  /**
+   * Absent if any observed node lacks that native dimension.
+   *
+   * @generated from field: optional int64 cpu_millicores_allocatable = 7;
+   */
+  cpuMillicoresAllocatable?: string;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 8;
+   */
+  memoryBytesAllocatable?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 9;
+   */
+  capacityReportedAt?: TimestampJson;
+
+  /**
+   * @generated from field: bool capacity_stale = 10;
+   */
+  capacityStale?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListClusterNodesResponse.
+ * Use `create(ListClusterNodesResponseSchema)` to create a new message.
+ */
+export const ListClusterNodesResponseSchema: GenMessage<ListClusterNodesResponse, {jsonType: ListClusterNodesResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 27);
+
+/**
+ * @generated from message loco.cluster.v1.AllocationConsumer
+ */
+export type AllocationConsumer = Message<"loco.cluster.v1.AllocationConsumer"> & {
+  /**
+   * Workspace ID in workspace scope; resource ID in resource scope. System/Other use literal IDs.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string org_id = 3;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string org_name = 4;
+   */
+  orgName: string;
+
+  /**
+   * @generated from field: string workspace_id = 5;
+   */
+  workspaceId: string;
+
+  /**
+   * workspace, resource, system, or other. Resource reservations include workspace-scoped builds.
+   *
+   * @generated from field: string kind = 6;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 7;
+   */
+  cpuMillicores: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes = 8;
+   */
+  memoryBytes: bigint;
+
+  /**
+   * @generated from field: int32 resource_count = 9;
+   */
+  resourceCount: number;
+
+  /**
+   * @generated from field: int32 pods = 10;
+   */
+  pods: number;
+
+  /**
+   * Links require an authoritative metadata record, independent of opaque CRD identities.
+   *
+   * @generated from field: bool resource_link_available = 11;
+   */
+  resourceLinkAvailable: boolean;
+
+  /**
+   * @generated from field: bool org_link_available = 12;
+   */
+  orgLinkAvailable: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.AllocationConsumer
+ */
+export type AllocationConsumerJson = {
+  /**
+   * Workspace ID in workspace scope; resource ID in resource scope. System/Other use literal IDs.
+   *
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name?: string;
+
+  /**
+   * @generated from field: string org_id = 3;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string org_name = 4;
+   */
+  orgName?: string;
+
+  /**
+   * @generated from field: string workspace_id = 5;
+   */
+  workspaceId?: string;
+
+  /**
+   * workspace, resource, system, or other. Resource reservations include workspace-scoped builds.
+   *
+   * @generated from field: string kind = 6;
+   */
+  kind?: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 7;
+   */
+  cpuMillicores?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes = 8;
+   */
+  memoryBytes?: string;
+
+  /**
+   * @generated from field: int32 resource_count = 9;
+   */
+  resourceCount?: number;
+
+  /**
+   * @generated from field: int32 pods = 10;
+   */
+  pods?: number;
+
+  /**
+   * Links require an authoritative metadata record, independent of opaque CRD identities.
+   *
+   * @generated from field: bool resource_link_available = 11;
+   */
+  resourceLinkAvailable?: boolean;
+
+  /**
+   * @generated from field: bool org_link_available = 12;
+   */
+  orgLinkAvailable?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.AllocationConsumer.
+ * Use `create(AllocationConsumerSchema)` to create a new message.
+ */
+export const AllocationConsumerSchema: GenMessage<AllocationConsumer, {jsonType: AllocationConsumerJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 28);
+
+/**
+ * @generated from message loco.cluster.v1.GetNodeAllocationsRequest
+ */
+export type GetNodeAllocationsRequest = Message<"loco.cluster.v1.GetNodeAllocationsRequest"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: string node = 2;
+   */
+  node: string;
+
+  /**
+   * @generated from field: string workspace_id = 3;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory: boolean;
+
+  /**
+   * @generated from field: string query = 5;
+   */
+  query: string;
+
+  /**
+   * @generated from field: int32 page = 6;
+   */
+  page: number;
+
+  /**
+   * @generated from field: bool remainder_only = 7;
+   */
+  remainderOnly: boolean;
+
+  /**
+   * Pins the inspector to the node list collection. An unavailable collection returns Aborted.
+   *
+   * @generated from field: string sample_id = 8;
+   */
+  sampleId: string;
+};
+
+/**
+ * @generated from message loco.cluster.v1.GetNodeAllocationsRequest
+ */
+export type GetNodeAllocationsRequestJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: string node = 2;
+   */
+  node?: string;
+
+  /**
+   * @generated from field: string workspace_id = 3;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory?: boolean;
+
+  /**
+   * @generated from field: string query = 5;
+   */
+  query?: string;
+
+  /**
+   * @generated from field: int32 page = 6;
+   */
+  page?: number;
+
+  /**
+   * @generated from field: bool remainder_only = 7;
+   */
+  remainderOnly?: boolean;
+
+  /**
+   * Pins the inspector to the node list collection. An unavailable collection returns Aborted.
+   *
+   * @generated from field: string sample_id = 8;
+   */
+  sampleId?: string;
+};
+
+/**
+ * Describes the message loco.cluster.v1.GetNodeAllocationsRequest.
+ * Use `create(GetNodeAllocationsRequestSchema)` to create a new message.
+ */
+export const GetNodeAllocationsRequestSchema: GenMessage<GetNodeAllocationsRequest, {jsonType: GetNodeAllocationsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 29);
+
+/**
+ * @generated from message loco.cluster.v1.GetNodeAllocationsResponse
+ */
+export type GetNodeAllocationsResponse = Message<"loco.cluster.v1.GetNodeAllocationsResponse"> & {
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 1;
+   */
+  sample?: AllocationSample | undefined;
+
+  /**
+   * @generated from field: loco.cluster.v1.NodeCapacity node = 2;
+   */
+  node?: NodeCapacity | undefined;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.AllocationConsumer top = 3;
+   */
+  top: AllocationConsumer[];
+
+  /**
+   * @generated from field: loco.cluster.v1.AllocationConsumer remainder = 4;
+   */
+  remainder?: AllocationConsumer | undefined;
+
+  /**
+   * @generated from field: loco.cluster.v1.AllocationConsumer system = 5;
+   */
+  system?: AllocationConsumer | undefined;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.AllocationConsumer consumers = 6;
+   */
+  consumers: AllocationConsumer[];
+
+  /**
+   * @generated from field: int32 total_count = 7;
+   */
+  totalCount: number;
+
+  /**
+   * @generated from field: bool memory = 8;
+   */
+  memory: boolean;
+
+  /**
+   * @generated from field: string workspace_id = 9;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string workspace_name = 10;
+   */
+  workspaceName: string;
+
+  /**
+   * @generated from field: bool remainder_only = 11;
+   */
+  remainderOnly: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.GetNodeAllocationsResponse
+ */
+export type GetNodeAllocationsResponseJson = {
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 1;
+   */
+  sample?: AllocationSampleJson;
+
+  /**
+   * @generated from field: loco.cluster.v1.NodeCapacity node = 2;
+   */
+  node?: NodeCapacityJson;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.AllocationConsumer top = 3;
+   */
+  top?: AllocationConsumerJson[];
+
+  /**
+   * @generated from field: loco.cluster.v1.AllocationConsumer remainder = 4;
+   */
+  remainder?: AllocationConsumerJson;
+
+  /**
+   * @generated from field: loco.cluster.v1.AllocationConsumer system = 5;
+   */
+  system?: AllocationConsumerJson;
+
+  /**
+   * @generated from field: repeated loco.cluster.v1.AllocationConsumer consumers = 6;
+   */
+  consumers?: AllocationConsumerJson[];
+
+  /**
+   * @generated from field: int32 total_count = 7;
+   */
+  totalCount?: number;
+
+  /**
+   * @generated from field: bool memory = 8;
+   */
+  memory?: boolean;
+
+  /**
+   * @generated from field: string workspace_id = 9;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string workspace_name = 10;
+   */
+  workspaceName?: string;
+
+  /**
+   * @generated from field: bool remainder_only = 11;
+   */
+  remainderOnly?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.GetNodeAllocationsResponse.
+ * Use `create(GetNodeAllocationsResponseSchema)` to create a new message.
+ */
+export const GetNodeAllocationsResponseSchema: GenMessage<GetNodeAllocationsResponse, {jsonType: GetNodeAllocationsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 30);
+
+/**
+ * @generated from message loco.cluster.v1.ListWorkspaceAllocationsRequest
+ */
+export type ListWorkspaceAllocationsRequest = Message<"loco.cluster.v1.ListWorkspaceAllocationsRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query: string;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page: number;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory: boolean;
+
+  /**
+   * @generated from field: bool ascending = 5;
+   */
+  ascending: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.ListWorkspaceAllocationsRequest
+ */
+export type ListWorkspaceAllocationsRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query?: string;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page?: number;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory?: boolean;
+
+  /**
+   * @generated from field: bool ascending = 5;
+   */
+  ascending?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListWorkspaceAllocationsRequest.
+ * Use `create(ListWorkspaceAllocationsRequestSchema)` to create a new message.
+ */
+export const ListWorkspaceAllocationsRequestSchema: GenMessage<ListWorkspaceAllocationsRequest, {jsonType: ListWorkspaceAllocationsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 31);
+
+/**
+ * @generated from message loco.cluster.v1.WorkspaceAllocation
+ */
+export type WorkspaceAllocation = Message<"loco.cluster.v1.WorkspaceAllocation"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string org_id = 3;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: int32 resource_count = 4;
+   */
+  resourceCount: number;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 5;
+   */
+  cpuMillicores: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes = 6;
+   */
+  memoryBytes: bigint;
+};
+
+/**
+ * @generated from message loco.cluster.v1.WorkspaceAllocation
+ */
+export type WorkspaceAllocationJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name?: string;
+
+  /**
+   * @generated from field: string org_id = 3;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: int32 resource_count = 4;
+   */
+  resourceCount?: number;
+
+  /**
+   * @generated from field: int64 cpu_millicores = 5;
+   */
+  cpuMillicores?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes = 6;
+   */
+  memoryBytes?: string;
+};
+
+/**
+ * Describes the message loco.cluster.v1.WorkspaceAllocation.
+ * Use `create(WorkspaceAllocationSchema)` to create a new message.
+ */
+export const WorkspaceAllocationSchema: GenMessage<WorkspaceAllocation, {jsonType: WorkspaceAllocationJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 32);
+
+/**
+ * @generated from message loco.cluster.v1.ListWorkspaceAllocationsResponse
+ */
+export type ListWorkspaceAllocationsResponse = Message<"loco.cluster.v1.ListWorkspaceAllocationsResponse"> & {
+  /**
+   * @generated from field: repeated loco.cluster.v1.WorkspaceAllocation workspaces = 1;
+   */
+  workspaces: WorkspaceAllocation[];
+
+  /**
+   * @generated from field: int32 total_count = 2;
+   */
+  totalCount: number;
+
+  /**
+   * @generated from field: loco.capacity.v1.AllocationCoverage coverage = 3;
+   */
+  coverage?: AllocationCoverage | undefined;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory: boolean;
+};
+
+/**
+ * @generated from message loco.cluster.v1.ListWorkspaceAllocationsResponse
+ */
+export type ListWorkspaceAllocationsResponseJson = {
+  /**
+   * @generated from field: repeated loco.cluster.v1.WorkspaceAllocation workspaces = 1;
+   */
+  workspaces?: WorkspaceAllocationJson[];
+
+  /**
+   * @generated from field: int32 total_count = 2;
+   */
+  totalCount?: number;
+
+  /**
+   * @generated from field: loco.capacity.v1.AllocationCoverage coverage = 3;
+   */
+  coverage?: AllocationCoverageJson;
+
+  /**
+   * @generated from field: bool memory = 4;
+   */
+  memory?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListWorkspaceAllocationsResponse.
+ * Use `create(ListWorkspaceAllocationsResponseSchema)` to create a new message.
+ */
+export const ListWorkspaceAllocationsResponseSchema: GenMessage<ListWorkspaceAllocationsResponse, {jsonType: ListWorkspaceAllocationsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 33);
+
+/**
+ * Fleet capacity is a separate read so a telemetry outage never hides cluster management.
+ *
+ * @generated from message loco.cluster.v1.ListClusterCapacitiesRequest
+ */
+export type ListClusterCapacitiesRequest = Message<"loco.cluster.v1.ListClusterCapacitiesRequest"> & {
+};
+
+/**
+ * Fleet capacity is a separate read so a telemetry outage never hides cluster management.
+ *
+ * @generated from message loco.cluster.v1.ListClusterCapacitiesRequest
+ */
+export type ListClusterCapacitiesRequestJson = {
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListClusterCapacitiesRequest.
+ * Use `create(ListClusterCapacitiesRequestSchema)` to create a new message.
+ */
+export const ListClusterCapacitiesRequestSchema: GenMessage<ListClusterCapacitiesRequest, {jsonType: ListClusterCapacitiesRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 34);
+
+/**
+ * @generated from message loco.cluster.v1.ClusterCapacitySummary
+ */
+export type ClusterCapacitySummary = Message<"loco.cluster.v1.ClusterCapacitySummary"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 2;
+   */
+  sample?: AllocationSample | undefined;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 3;
+   */
+  cpuMillicoresRequested: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 4;
+   */
+  memoryBytesRequested: bigint;
+
+  /**
+   * @generated from field: optional int64 cpu_millicores_allocatable = 5;
+   */
+  cpuMillicoresAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 6;
+   */
+  memoryBytesAllocatable?: bigint | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 7;
+   */
+  capacityReportedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool capacity_stale = 8;
+   */
+  capacityStale: boolean;
+
+  /**
+   * @generated from field: int32 resource_count = 9;
+   */
+  resourceCount: number;
+
+  /**
+   * @generated from field: int32 node_count = 10;
+   */
+  nodeCount: number;
+};
+
+/**
+ * @generated from message loco.cluster.v1.ClusterCapacitySummary
+ */
+export type ClusterCapacitySummaryJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: loco.capacity.v1.AllocationSample sample = 2;
+   */
+  sample?: AllocationSampleJson;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 3;
+   */
+  cpuMillicoresRequested?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 4;
+   */
+  memoryBytesRequested?: string;
+
+  /**
+   * @generated from field: optional int64 cpu_millicores_allocatable = 5;
+   */
+  cpuMillicoresAllocatable?: string;
+
+  /**
+   * @generated from field: optional int64 memory_bytes_allocatable = 6;
+   */
+  memoryBytesAllocatable?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp capacity_reported_at = 7;
+   */
+  capacityReportedAt?: TimestampJson;
+
+  /**
+   * @generated from field: bool capacity_stale = 8;
+   */
+  capacityStale?: boolean;
+
+  /**
+   * @generated from field: int32 resource_count = 9;
+   */
+  resourceCount?: number;
+
+  /**
+   * @generated from field: int32 node_count = 10;
+   */
+  nodeCount?: number;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ClusterCapacitySummary.
+ * Use `create(ClusterCapacitySummarySchema)` to create a new message.
+ */
+export const ClusterCapacitySummarySchema: GenMessage<ClusterCapacitySummary, {jsonType: ClusterCapacitySummaryJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 35);
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterCapacitiesResponse
+ */
+export type ListClusterCapacitiesResponse = Message<"loco.cluster.v1.ListClusterCapacitiesResponse"> & {
+  /**
+   * @generated from field: repeated loco.cluster.v1.ClusterCapacitySummary capacities = 1;
+   */
+  capacities: ClusterCapacitySummary[];
+};
+
+/**
+ * @generated from message loco.cluster.v1.ListClusterCapacitiesResponse
+ */
+export type ListClusterCapacitiesResponseJson = {
+  /**
+   * @generated from field: repeated loco.cluster.v1.ClusterCapacitySummary capacities = 1;
+   */
+  capacities?: ClusterCapacitySummaryJson[];
+};
+
+/**
+ * Describes the message loco.cluster.v1.ListClusterCapacitiesResponse.
+ * Use `create(ListClusterCapacitiesResponseSchema)` to create a new message.
+ */
+export const ListClusterCapacitiesResponseSchema: GenMessage<ListClusterCapacitiesResponse, {jsonType: ListClusterCapacitiesResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 36);
 
 /**
  * ClusterRole is chosen when the worker is installed and reported by its agent.
@@ -1339,6 +2246,38 @@ export const ClusterAdminService: GenService<{
     methodKind: "unary";
     input: typeof GetClusterOperationsRequestSchema;
     output: typeof GetClusterOperationsResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusterCapacities
+   */
+  listClusterCapacities: {
+    methodKind: "unary";
+    input: typeof ListClusterCapacitiesRequestSchema;
+    output: typeof ListClusterCapacitiesResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusterNodes
+   */
+  listClusterNodes: {
+    methodKind: "unary";
+    input: typeof ListClusterNodesRequestSchema;
+    output: typeof ListClusterNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.GetNodeAllocations
+   */
+  getNodeAllocations: {
+    methodKind: "unary";
+    input: typeof GetNodeAllocationsRequestSchema;
+    output: typeof GetNodeAllocationsResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.ListWorkspaceAllocations
+   */
+  listWorkspaceAllocations: {
+    methodKind: "unary";
+    input: typeof ListWorkspaceAllocationsRequestSchema;
+    output: typeof ListWorkspaceAllocationsResponseSchema;
   },
   /**
    * @generated from rpc loco.cluster.v1.ClusterAdminService.PauseCluster

@@ -79,9 +79,9 @@ export const STATE_LABEL: Record<ClusterState, string> = {
 
 export const ROLE_LABEL: Record<ClusterRole, string> = {
 	[ClusterRole.UNSPECIFIED]: "Unknown",
-	[ClusterRole.APPS]: "Apps",
+	[ClusterRole.APPS]: "Resources",
 	[ClusterRole.BUILDS]: "Builds",
-	[ClusterRole.ALL]: "Apps and builds",
+	[ClusterRole.ALL]: "Resources and builds",
 };
 
 export interface RegionGroup {

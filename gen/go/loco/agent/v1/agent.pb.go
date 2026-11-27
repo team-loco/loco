@@ -144,7 +144,7 @@ func (StopReason) EnumDescriptor() ([]byte, []int) {
 type RegisterRequest struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	AgentVersion string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	Capacity     *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Capabilities *AgentCapabilities     `protobuf:"bytes,2,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
 	Role         v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	ClusterKey   string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
 	Enrollment   *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
@@ -197,9 +197,9 @@ func (x *RegisterRequest) GetAgentVersion() string {
 	return ""
 }
 
-func (x *RegisterRequest) GetCapacity() *AgentCapacity {
+func (x *RegisterRequest) GetCapabilities() *AgentCapabilities {
 	if x != nil {
-		return x.Capacity
+		return x.Capabilities
 	}
 	return nil
 }
@@ -1672,7 +1672,7 @@ func (x *CancelBuild) GetBuildId() string {
 // Heartbeat is sent periodically by the agent.
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Capacity      *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Capabilities  *AgentCapabilities     `protobuf:"bytes,1,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
 	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
@@ -1710,9 +1710,9 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *Heartbeat) GetCapacity() *AgentCapacity {
+func (x *Heartbeat) GetCapabilities() *AgentCapabilities {
 	if x != nil {
-		return x.Capacity
+		return x.Capabilities
 	}
 	return nil
 }
@@ -1738,36 +1738,28 @@ func (x *Heartbeat) GetDomains() []string {
 	return nil
 }
 
-// AgentCapacity reports cluster resource capacity.
-type AgentCapacity struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	CpuMillicoresTotal     int64                  `protobuf:"varint,1,opt,name=cpu_millicores_total,json=cpuMillicoresTotal,proto3" json:"cpu_millicores_total,omitempty"`
-	CpuMillicoresRequested int64                  `protobuf:"varint,2,opt,name=cpu_millicores_requested,json=cpuMillicoresRequested,proto3" json:"cpu_millicores_requested,omitempty"`
-	MemoryBytesTotal       int64                  `protobuf:"varint,3,opt,name=memory_bytes_total,json=memoryBytesTotal,proto3" json:"memory_bytes_total,omitempty"`
-	MemoryBytesRequested   int64                  `protobuf:"varint,4,opt,name=memory_bytes_requested,json=memoryBytesRequested,proto3" json:"memory_bytes_requested,omitempty"`
-	PodsTotal              int32                  `protobuf:"varint,5,opt,name=pods_total,json=podsTotal,proto3" json:"pods_total,omitempty"`
-	PodsRunning            int32                  `protobuf:"varint,6,opt,name=pods_running,json=podsRunning,proto3" json:"pods_running,omitempty"`
-	Platforms              []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
-	// Non-terminal pods assigned to a node; includes pods still starting.
-	PodsAssigned  int32 `protobuf:"varint,8,opt,name=pods_assigned,json=podsAssigned,proto3" json:"pods_assigned,omitempty"`
+// AgentCapabilities reports the worker platforms used for placement eligibility.
+type AgentCapabilities struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platforms     []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AgentCapacity) Reset() {
-	*x = AgentCapacity{}
+func (x *AgentCapabilities) Reset() {
+	*x = AgentCapabilities{}
 	mi := &file_loco_agent_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AgentCapacity) String() string {
+func (x *AgentCapabilities) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AgentCapacity) ProtoMessage() {}
+func (*AgentCapabilities) ProtoMessage() {}
 
-func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
+func (x *AgentCapabilities) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_agent_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1779,65 +1771,16 @@ func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AgentCapacity.ProtoReflect.Descriptor instead.
-func (*AgentCapacity) Descriptor() ([]byte, []int) {
+// Deprecated: Use AgentCapabilities.ProtoReflect.Descriptor instead.
+func (*AgentCapabilities) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *AgentCapacity) GetCpuMillicoresTotal() int64 {
-	if x != nil {
-		return x.CpuMillicoresTotal
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetCpuMillicoresRequested() int64 {
-	if x != nil {
-		return x.CpuMillicoresRequested
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetMemoryBytesTotal() int64 {
-	if x != nil {
-		return x.MemoryBytesTotal
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetMemoryBytesRequested() int64 {
-	if x != nil {
-		return x.MemoryBytesRequested
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetPodsTotal() int32 {
-	if x != nil {
-		return x.PodsTotal
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetPodsRunning() int32 {
-	if x != nil {
-		return x.PodsRunning
-	}
-	return 0
-}
-
-func (x *AgentCapacity) GetPlatforms() []string {
+func (x *AgentCapabilities) GetPlatforms() []string {
 	if x != nil {
 		return x.Platforms
 	}
 	return nil
-}
-
-func (x *AgentCapacity) GetPodsAssigned() int32 {
-	if x != nil {
-		return x.PodsAssigned
-	}
-	return 0
 }
 
 // AgentHealth reports agent and cluster health status.
@@ -1905,10 +1848,10 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\x95\x03\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\xa1\x03\n" +
 	"\x0fRegisterRequest\x12#\n" +
-	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
-	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
+	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x12D\n" +
+	"\fcapabilities\x18\x02 \x01(\v2 .loco.agent.v1.AgentCapabilitiesR\fcapabilities\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12)\n" +
 	"\vcluster_key\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
@@ -2039,23 +1982,15 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\x12*\n" +
 	"\vtraceparent\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\x89\x02\n" +
-	"\tHeartbeat\x128\n" +
-	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\x95\x02\n" +
+	"\tHeartbeat\x12D\n" +
+	"\fcapabilities\x18\x01 \x01(\v2 .loco.agent.v1.AgentCapabilitiesR\fcapabilities\x122\n" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"\x87\x03\n" +
-	"\rAgentCapacity\x120\n" +
-	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x128\n" +
-	"\x18cpu_millicores_requested\x18\x02 \x01(\x03R\x16cpuMillicoresRequested\x12,\n" +
-	"\x12memory_bytes_total\x18\x03 \x01(\x03R\x10memoryBytesTotal\x124\n" +
-	"\x16memory_bytes_requested\x18\x04 \x01(\x03R\x14memoryBytesRequested\x12\x1d\n" +
-	"\n" +
-	"pods_total\x18\x05 \x01(\x05R\tpodsTotal\x12!\n" +
-	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\x12?\n" +
-	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatforms\x12#\n" +
-	"\rpods_assigned\x18\b \x01(\x05R\fpodsAssigned\"\x85\x01\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"`\n" +
+	"\x11AgentCapabilities\x12?\n" +
+	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatformsJ\x04\b\x01\x10\aJ\x04\b\b\x10\t\"\x85\x01\n" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
@@ -2115,7 +2050,7 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*StartBuild)(nil),            // 19: loco.agent.v1.StartBuild
 	(*CancelBuild)(nil),           // 20: loco.agent.v1.CancelBuild
 	(*Heartbeat)(nil),             // 21: loco.agent.v1.Heartbeat
-	(*AgentCapacity)(nil),         // 22: loco.agent.v1.AgentCapacity
+	(*AgentCapabilities)(nil),     // 22: loco.agent.v1.AgentCapabilities
 	(*AgentHealth)(nil),           // 23: loco.agent.v1.AgentHealth
 	nil,                           // 24: loco.agent.v1.EnvSecret.DataEntry
 	(v1.ClusterRole)(0),           // 25: loco.cluster.v1.ClusterRole
@@ -2126,7 +2061,7 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*v11.ReplicaRestart)(nil),    // 30: loco.deployment.v1.ReplicaRestart
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
-	22, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	22, // 0: loco.agent.v1.RegisterRequest.capabilities:type_name -> loco.agent.v1.AgentCapabilities
 	25, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
 	3,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
 	26, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
@@ -2156,7 +2091,7 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	15, // 27: loco.agent.v1.SyncResponse.keep_workspaces:type_name -> loco.agent.v1.KeepWorkspaces
 	17, // 28: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
 	24, // 29: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	22, // 30: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	22, // 30: loco.agent.v1.Heartbeat.capabilities:type_name -> loco.agent.v1.AgentCapabilities
 	23, // 31: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
 	25, // 32: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
 	2,  // 33: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest

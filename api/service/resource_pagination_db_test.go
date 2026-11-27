@@ -21,7 +21,14 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 		ids[i] = f.otherResource(t, "page-"+strconv.Itoa(i))
 	}
 	slices.Reverse(ids)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	page := func(cursor string) ([]*resourcev1.Resource, string) {
 		t.Helper()
 		response, err := server.ListWorkspaceResources(

@@ -27,7 +27,14 @@ const (
 
 func createKeyedResource(t *testing.T, f *deployFixture, name string, slug *string) (genDb.Resource, error) {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	workspaceID := f.workspaceID(t)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
@@ -48,7 +55,14 @@ func createKeyedResource(t *testing.T, f *deployFixture, name string, slug *stri
 
 func updateKeys(t *testing.T, f *deployFixture, req *resourcev1.UpdateResourceRequest) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
@@ -119,7 +133,14 @@ func TestCreateResourceRejectsAnInvalidSlug(t *testing.T) {
 func TestCreateResourceChecksTheRegionSizeItWillDeployWith(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
 	}

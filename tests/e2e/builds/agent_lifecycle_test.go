@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-// TestAgentLifecycle checks the enrolled agent's registration, heartbeat and capacity, then deploys
+// TestAgentLifecycle checks the enrolled agent's registration, heartbeat and platforms, then deploys
 // an image and follows the placement from the API through the agent to a Ready Application, whose
 // workspace network policy admits only the workspace's own pods.
 func TestAgentLifecycle(t *testing.T) {
@@ -45,18 +45,23 @@ func TestAgentLifecycle(t *testing.T) {
 		}
 	})
 
-	t.Run("heartbeat and capacity", func(t *testing.T) {
-		platform.Eventually(t, 30*time.Second, "a healthy heartbeat with capacity", func(ctx context.Context) error {
-			var health string
-			var cpu, memory int64
-			if err := p.DB.QueryRow(ctx, clusterHealth, p.ClusterID).Scan(&health, &cpu, &memory); err != nil {
-				return err
-			}
-			if health != "healthy" || cpu <= 0 || memory <= 0 {
-				return fmt.Errorf("health %q, capacity %dm CPU and %d bytes", health, cpu, memory)
-			}
-			return nil
-		})
+	t.Run("heartbeat and platforms", func(t *testing.T) {
+		platform.Eventually(
+			t,
+			30*time.Second,
+			"a healthy heartbeat with supported platforms",
+			func(ctx context.Context) error {
+				var health string
+				var platforms []string
+				if err := p.DB.QueryRow(ctx, clusterHealth, p.ClusterID).Scan(&health, &platforms); err != nil {
+					return err
+				}
+				if health != "healthy" || len(platforms) == 0 {
+					return fmt.Errorf("health %q, platforms %v", health, platforms)
+				}
+				return nil
+			},
+		)
 	})
 
 	w := p.NewTenant(t)
@@ -158,6 +163,6 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 
 const (
 	readyAtRevisionOne = "SELECT ready_replicas > 0 AND observed_revision = 1 FROM placements WHERE resource_id = $1"
-	clusterHealth      = "SELECT health_status, reported_cpu_millicores, reported_memory_bytes FROM clusters " +
+	clusterHealth      = "SELECT health_status, platforms FROM clusters " +
 		"JOIN cluster_heartbeats ON cluster_id = id WHERE id = $1"
 )

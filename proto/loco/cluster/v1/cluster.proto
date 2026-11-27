@@ -5,6 +5,7 @@ package loco.cluster.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/capacity/v1/capacity.proto";
 import "loco/event/v1/event.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1";
@@ -14,6 +15,10 @@ service ClusterAdminService {
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
   rpc GetClusterOperations(GetClusterOperationsRequest) returns (GetClusterOperationsResponse);
+  rpc ListClusterCapacities(ListClusterCapacitiesRequest) returns (ListClusterCapacitiesResponse);
+  rpc ListClusterNodes(ListClusterNodesRequest) returns (ListClusterNodesResponse);
+  rpc GetNodeAllocations(GetNodeAllocationsRequest) returns (GetNodeAllocationsResponse);
+  rpc ListWorkspaceAllocations(ListWorkspaceAllocationsRequest) returns (ListWorkspaceAllocationsResponse);
   rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
   rpc ResumeCluster(ResumeClusterRequest) returns (ResumeClusterResponse);
   rpc RemoveCluster(RemoveClusterRequest) returns (RemoveClusterResponse);
@@ -60,8 +65,6 @@ message Cluster {
   reserved "dns_records", "gateway_hostname";
   // The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
   google.protobuf.Timestamp silent_since = 16;
-  // Last successful capacity sample; absent before the first successful sample.
-  ClusterCapacity capacity = 17;
   string health_message = 18;
 }
 
@@ -171,22 +174,6 @@ message ListRegionsResponse {
   repeated Region regions = 1;
 }
 
-// ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
-// Requested resources cover assigned, non-terminal pods including init containers and overhead.
-// Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
-message ClusterCapacity {
-  int64 cpu_millicores_allocatable = 1;
-  int64 cpu_millicores_requested = 2;
-  int64 memory_bytes_allocatable = 3;
-  int64 memory_bytes_requested = 4;
-  int32 pods_allocatable = 5;
-  int32 pods_running = 6;
-  google.protobuf.Timestamp reported_at = 7;
-  int32 pods_assigned = 8;
-  // Sample is older than the installation's configured heartbeat silence threshold.
-  bool stale = 9;
-}
-
 message GetClusterOperationsRequest {
   string cluster_id = 1 [(buf.validate.field).string.uuid = true];
 }
@@ -210,4 +197,140 @@ message ClusterWorkloadAttention {
   string status = 9;
   string message = 10;
   google.protobuf.Timestamp updated_at = 11;
+}
+
+// NodeCapacity combines independently sampled native node capacity and complete pod reservations.
+message NodeCapacity {
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 253
+  }];
+  optional bool ready = 2;
+  optional int64 cpu_millicores_allocatable = 3 [(buf.validate.field).int64.gte = 0];
+  optional int64 memory_bytes_allocatable = 4 [(buf.validate.field).int64.gte = 0];
+  int64 cpu_millicores_requested = 5 [(buf.validate.field).int64.gte = 0];
+  int64 memory_bytes_requested = 6 [(buf.validate.field).int64.gte = 0];
+  int32 resource_count = 7;
+  google.protobuf.Timestamp capacity_reported_at = 8;
+  bool capacity_stale = 9;
+}
+
+message ListClusterNodesRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  string query = 2 [(buf.validate.field).string.max_len = 200];
+  int32 page = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool memory = 4;
+}
+message ListClusterNodesResponse {
+  loco.capacity.v1.AllocationSample sample = 1;
+  repeated NodeCapacity nodes = 2;
+  int32 total_count = 3;
+  int32 resource_count = 4;
+  // Totals cover every node, independent of node search and pagination.
+  int64 cpu_millicores_requested = 5;
+  int64 memory_bytes_requested = 6;
+  // Absent if any observed node lacks that native dimension.
+  optional int64 cpu_millicores_allocatable = 7;
+  optional int64 memory_bytes_allocatable = 8;
+  google.protobuf.Timestamp capacity_reported_at = 9;
+  bool capacity_stale = 10;
+}
+
+message AllocationConsumer {
+  // Workspace ID in workspace scope; resource ID in resource scope. System/Other use literal IDs.
+  string id = 1;
+  string name = 2;
+  string org_id = 3;
+  string org_name = 4;
+  string workspace_id = 5;
+  // workspace, resource, system, or other. Resource reservations include workspace-scoped builds.
+  string kind = 6;
+  int64 cpu_millicores = 7;
+  int64 memory_bytes = 8;
+  int32 resource_count = 9;
+  int32 pods = 10;
+  // Links require an authoritative metadata record, independent of opaque CRD identities.
+  bool resource_link_available = 11;
+  bool org_link_available = 12;
+}
+message GetNodeAllocationsRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  string node = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 253
+  }];
+  string workspace_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.max_len = 63
+  ];
+  bool memory = 4;
+  string query = 5 [(buf.validate.field).string.max_len = 200];
+  int32 page = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool remainder_only = 7;
+  // Pins the inspector to the node list collection. An unavailable collection returns Aborted.
+  string sample_id = 8 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 200
+  }];
+}
+message GetNodeAllocationsResponse {
+  loco.capacity.v1.AllocationSample sample = 1;
+  NodeCapacity node = 2;
+  repeated AllocationConsumer top = 3;
+  AllocationConsumer remainder = 4;
+  AllocationConsumer system = 5;
+  repeated AllocationConsumer consumers = 6;
+  int32 total_count = 7;
+  bool memory = 8;
+  string workspace_id = 9;
+  string workspace_name = 10;
+  bool remainder_only = 11;
+}
+message ListWorkspaceAllocationsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string query = 2 [(buf.validate.field).string.max_len = 200];
+  int32 page = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  bool memory = 4;
+  bool ascending = 5;
+}
+message WorkspaceAllocation {
+  string workspace_id = 1;
+  string name = 2;
+  string org_id = 3;
+  int32 resource_count = 4;
+  int64 cpu_millicores = 5;
+  int64 memory_bytes = 6;
+}
+message ListWorkspaceAllocationsResponse {
+  repeated WorkspaceAllocation workspaces = 1;
+  int32 total_count = 2;
+  loco.capacity.v1.AllocationCoverage coverage = 3;
+  bool memory = 4;
+}
+
+// Fleet capacity is a separate read so a telemetry outage never hides cluster management.
+message ListClusterCapacitiesRequest {}
+message ClusterCapacitySummary {
+  string cluster_id = 1;
+  loco.capacity.v1.AllocationSample sample = 2;
+  int64 cpu_millicores_requested = 3;
+  int64 memory_bytes_requested = 4;
+  optional int64 cpu_millicores_allocatable = 5;
+  optional int64 memory_bytes_allocatable = 6;
+  google.protobuf.Timestamp capacity_reported_at = 7;
+  bool capacity_stale = 8;
+  int32 resource_count = 9;
+  int32 node_count = 10;
+}
+message ListClusterCapacitiesResponse {
+  repeated ClusterCapacitySummary capacities = 1;
 }

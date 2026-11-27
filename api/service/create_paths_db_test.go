@@ -28,7 +28,14 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 `, applyOptions{})
 	fromFile := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
 
-	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	resources := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	deployments := NewDeploymentServer(
 		f.pool,
 		f.queries,

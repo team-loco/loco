@@ -8,6 +8,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.api.replicaCount }}
+  # Startup migrations may remove fields used by the previous API binary.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: {{ .Release.Name }}-api

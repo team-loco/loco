@@ -23,7 +23,14 @@ func getResourceEnv(
 	resourceID, environmentID uuid.UUID,
 ) (*resourcev1.GetResourceEnvResponse, error) {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.GetResourceEnv(ctx, &resourcev1.GetResourceEnvRequest{
 		ResourceId: resourceID.String(), EnvironmentId: environmentID.String(),

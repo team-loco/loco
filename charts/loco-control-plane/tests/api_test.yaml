@@ -12,6 +12,13 @@ templates:
   - templates/ui.yaml
   - templates/obs-proxy-ingest-deployment.yaml
 tests:
+  - it: stops the previous API before a replacement can run startup migrations
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy
+          value: {type: Recreate}
+
   - it: installs the API and the observability proxy, and routes to the API
     set:
       ui.enabled: false

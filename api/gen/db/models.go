@@ -757,19 +757,11 @@ type ClusterAssertion struct {
 }
 
 type ClusterHeartbeat struct {
-	ClusterID              uuid.UUID  `json:"clusterId"`
-	LastHeartbeat          time.Time  `json:"lastHeartbeat"`
-	HealthStatus           string     `json:"healthStatus"`
-	SilentSince            *time.Time `json:"silentSince"`
-	CapacityReportedAt     *time.Time `json:"capacityReportedAt"`
-	ReportedCpuMillicores  int64      `json:"reportedCpuMillicores"`
-	RequestedCpuMillicores int64      `json:"requestedCpuMillicores"`
-	ReportedMemoryBytes    int64      `json:"reportedMemoryBytes"`
-	RequestedMemoryBytes   int64      `json:"requestedMemoryBytes"`
-	CapacityPods           int32      `json:"capacityPods"`
-	AssignedPods           int32      `json:"assignedPods"`
-	RunningPods            int32      `json:"runningPods"`
-	HealthMessage          string     `json:"healthMessage"`
+	ClusterID     uuid.UUID  `json:"clusterId"`
+	LastHeartbeat time.Time  `json:"lastHeartbeat"`
+	HealthStatus  string     `json:"healthStatus"`
+	SilentSince   *time.Time `json:"silentSince"`
+	HealthMessage string     `json:"healthMessage"`
 }
 
 type Deployment struct {

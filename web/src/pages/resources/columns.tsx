@@ -2,6 +2,10 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CopyIcon, PencilIcon, RocketIcon, ScrollTextIcon, Settings2Icon, Trash2Icon } from "lucide-react";
 import { createContext, use, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
+import type { AllocationCoverage } from "@gen/loco/capacity/v1/capacity_pb";
+import type { ResourceReservation } from "@gen/loco/resource/v1/resource_pb";
+import { Skeleton } from "@/components/design/Skeleton";
+import { reservationLabel } from "@/lib/reservation";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { useCopy } from "@/hooks/useCopy";
@@ -41,6 +45,9 @@ export interface ResourceCellValues {
 	active: Environment | undefined;
 	nowMs: number;
 	creators: ReadonlyMap<string, string>;
+	reservations: ReadonlyMap<string, ResourceReservation>;
+	reservationCoverage: AllocationCoverage | undefined;
+	reservationsLoading: boolean;
 }
 
 export const ResourceCellContext = createContext<ResourceCellValues | null>(null);
@@ -249,6 +256,30 @@ function envColumn(environment: Environment): DataColumn<ListRow> {
 	};
 }
 
+function ReservationCell({ row, memory }: { row: ListRow; memory: boolean }) {
+	const { reservations, reservationCoverage, reservationsLoading } = useCells();
+	if (isDraftRow(row)) return <Mono text={null} />;
+	if (reservationsLoading) return <Skeleton className="h-3 w-20" />;
+	const reservation = reservations.get(row.resource.id);
+	if (reservation === undefined) return <Mono text="Not reported" />;
+	const value = memory ? reservation.memoryBytes : reservation.cpuMillicores;
+	const builds = memory ? reservation.workspaceBuildMemoryBytes : reservation.workspaceBuildCpuMillicores;
+	return (
+		<div className="flex flex-col gap-0.5 font-mono text-[12px]">
+			<span>{reservationLabel(value, memory, reservationCoverage)}</span>
+			{builds > 0n && (
+				<span
+					className="text-[11px] whitespace-normal text-fg3"
+					title="Workspace build reservations across all environments"
+				>
+					Workspace builds{" "}
+					<span className="whitespace-nowrap">{reservationLabel(builds, memory, reservationCoverage)}</span>
+				</span>
+			)}
+		</div>
+	);
+}
+
 export function resourceColumns(environments: Environment[]): DataColumn<ListRow>[] {
 	return [
 		{
@@ -265,10 +296,10 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 		...environments.map(envColumn),
 		{
 			id: "size",
-			header: "Size",
-			size: 140,
-			minSize: 120,
-			maxSize: 220,
+			header: "Configured size",
+			size: 170,
+			minSize: 140,
+			maxSize: 240,
 			meta: { fit: true },
 			accessorFn: (row) => row.cpuMilli,
 			sortDescFirst: true,
@@ -276,6 +307,19 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 				<Mono text={row.cpuMilli === 0 ? null : `${formatCpu(row.cpuMilli)}, ${formatMemory(row.memMi)}`} />
 			),
 		},
+		...([false, true] as const).map((memory): DataColumn<ListRow> => ({
+			id: memory ? "reserved-memory" : "reserved-cpu",
+			header: () => (
+				<span title="Actual runtime pod reservations across all regions in the selected environment">
+					{memory ? "Reserved memory" : "Reserved CPU"}
+				</span>
+			),
+			size: 170,
+			minSize: 130,
+			enableSorting: false,
+			meta: { label: memory ? "Reserved memory" : "Reserved CPU" },
+			cell: ({ row }) => <ReservationCell row={row.original} memory={memory} />,
+		})),
 		{
 			id: "replicas",
 			header: "Replicas",

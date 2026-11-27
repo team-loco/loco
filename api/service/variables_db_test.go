@@ -365,7 +365,14 @@ func TestListResourceOutputsListsBuiltInsVariablesAndUsers(t *testing.T) {
 		t.Fatalf("deploy: %v", err)
 	}
 
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	server := NewResourceServer(
+		f.pool,
+		f.queries,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		limits.Defaults(),
+		nil,
+	)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
 	resp, err := server.ListResourceOutputs(
 		ctx,
