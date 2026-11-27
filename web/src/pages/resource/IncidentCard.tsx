@@ -178,7 +178,7 @@ export function IncidentCard({
 						)}
 					</div>
 				</div>
-				<dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-line pt-2.5 text-[12px] text-fg2 sm:max-w-[280px] sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+				<dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-line pt-2.5 text-[12px] text-fg2 sm:max-w-[280px] sm:self-center sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
 					<dt className="text-fg3">Affected regions</dt>
 					<dd className="m-0 font-mono [overflow-wrap:anywhere]">{region.name}</dd>
 					{diagnostics.map(({ label, value }, i) => (
