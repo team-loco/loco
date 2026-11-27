@@ -214,7 +214,7 @@ with session(out) as browser:
     page.goto(f"{base}?env=production")
     deployment_empty = card.locator('[data-slot="empty-state"]')
     expect(deployment_empty).to_have_text(
-        "No deployments to Production in the last 24 hours"
+        "No deployments to production in the last 24 hours"
     )
     expect(deployment_empty.locator("svg")).to_have_count(0)
     expect(
