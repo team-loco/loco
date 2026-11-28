@@ -48,6 +48,7 @@ import {
 // eslint-disable-next-line no-restricted-imports -- the query cache persister reads outside render
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
+import { SHARED_STALE_MS } from "@/lib/query-policy";
 import { pageImporters } from "@/lib/lazy-pages";
 
 const Deployments = lazy(async () => ({ default: (await pageImporters.Deployments()).Deployments }));
@@ -76,8 +77,6 @@ const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.Dash
 
 import { onSessionExpired, transport } from "./auth/connect-transport";
 
-// Every page mounts these; observers that mount while a page loads reuse the data fetched a moment earlier.
-const SHARED_STALE_MS = 10_000;
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
@@ -97,6 +96,7 @@ onSessionExpired(() => {
 	);
 });
 
+// Every page mounts these; observers that mount while a page loads reuse recently fetched data.
 const sharedQueryKeys = [
 	createConnectQueryKey({ schema: getConfig, cardinality: undefined }),
 	createConnectQueryKey({ schema: getScopes, cardinality: undefined }),

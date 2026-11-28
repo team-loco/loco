@@ -6,6 +6,7 @@ import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceS
 import { ListWorkspaceResourcesResponseSchema, ResourceService } from "@gen/loco/resource/v1/resource_pb";
 import { useMyScopes, type ResourceGrants } from "@/hooks/useMyScopes";
 import { collectPages } from "@/lib/collectPages";
+import { SHARED_STALE_MS } from "@/lib/query-policy";
 
 const RESOURCE_PAGE_SIZE = 200;
 
@@ -76,5 +77,6 @@ export function workspaceResourcesOptions(
 		queryKey: grants === undefined || grants === "workspace" ? prefix : [...prefix, ...grants],
 		queryFn: grants === undefined ? skipToken : grants === "workspace" ? listAll : listGranted(grants),
 		enabled: workspaceId !== "",
+		staleTime: SHARED_STALE_MS,
 	});
 }
