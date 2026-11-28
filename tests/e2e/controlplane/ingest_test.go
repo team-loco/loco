@@ -248,7 +248,8 @@ otel-col-daemon:
 					fmt.Sprintf(
 						"SELECT count() FROM loco_obs.otel_logs WHERE WorkspaceId = '%s' AND ServiceName = '%s' "+
 							"AND ResourceAttributes['k8s.node.name'] != '' AND ResourceAttributes['loco.telemetry.scope'] = 'platform' "+
-							"AND LogAttributes['log.file.path'] != '' AND Timestamp >= fromUnixTimestamp64Nano(%d)",
+							"AND LogAttributes['log.file.path'] != '' AND LogAttributes['version'] != '' "+
+							"AND Timestamp >= fromUnixTimestamp64Nano(%d)",
 						systemtenant.WorkspaceID,
 						component,
 						emittedAfter,
@@ -261,7 +262,8 @@ otel-col-daemon:
 			},
 		)
 		t.Logf(
-			"real %s pod stdout collected from node files, enriched with node identity and stored in the system tenant",
+			"real %s JSON startup log collected from node files, enriched with node identity "+
+				"and stored with its structured version field in the system tenant",
 			component,
 		)
 	}

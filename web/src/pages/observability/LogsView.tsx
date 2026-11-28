@@ -497,10 +497,7 @@ export function LogsView() {
 					}
 					body={
 						installation ? (
-							<>
-								Node collectors send platform stdout and stderr here with{" "}
-								<InlineCode>global.platformTelemetry.enabled</InlineCode> enabled in the worker chart.
-							</>
+							"Logs from platform services appear here."
 						) : (
 							<>
 								Anything{" "}

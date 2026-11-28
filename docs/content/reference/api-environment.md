@@ -10,7 +10,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. The control-plane chart defaults this to `PRODUCTION`. |
+| `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. The installer supplies this through `api.env` or the API environment Secret. |
 | `APP_PORT` | empty | Listen address, such as `:8000`. Empty listens on port 80. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`, for the JSON logs of `APP_ENV=PRODUCTION`. |
 | `GOMEMLIMIT` | none | Go runtime soft memory limit, such as `900MiB`. The chart sets it to the container memory limit. `GOMAXPROCS` follows the container CPU limit, at least 2, without being set. |

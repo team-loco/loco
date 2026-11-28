@@ -145,8 +145,7 @@ api:
     maxPerReplica: 500
     # @schema type: integer; minimum: 1; maximum: 2147483647
     maxPerCaller: 50
-  env:
-    APP_ENV: PRODUCTION
+  env: {}
   # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2; Go containers have a CPU limit of
   # at least 2. The chart sets GOMEMLIMIT to the memory limit; memory the kernel charges outside the
   # Go heap, such as page cache, is not counted.

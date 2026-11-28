@@ -37,6 +37,7 @@ api:
   registry:
     auth: token
   env:
+    APP_ENV: PRODUCTION
     ORG_LINKS: '[{"label":"Support","url":"https://support.e2e.test.local/orgs/{orgId}"}]'
 obsProxy:
   image:
