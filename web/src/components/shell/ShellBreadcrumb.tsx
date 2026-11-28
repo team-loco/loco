@@ -1,5 +1,13 @@
 import { callUnaryMethod, useQuery, useTransport } from "@connectrpc/connect-query";
-import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, Settings2Icon } from "lucide-react";
+import {
+	ArrowRightIcon,
+	CheckIcon,
+	ChevronDownIcon,
+	ChevronsUpDownIcon,
+	PlusIcon,
+	SettingsIcon,
+	Settings2Icon,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
@@ -78,15 +86,30 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 					<DropdownMenuGroup>
 						<DropdownMenuLabel>Organizations</DropdownMenuLabel>
 						{orgs.map((o) => (
-							<DropdownMenuItem
+							<div
 								key={o.id}
-								onClick={() => {
-									if (o.id !== org.id) void open(o.id);
-								}}
+								className="group/org relative flex items-center rounded-lg hover:bg-panel focus-within:bg-panel dark:hover:bg-panel2 dark:focus-within:bg-panel2"
 							>
-								<span className="flex-1 truncate">{o.name}</span>
-								{o.id === org.id && <CheckIcon className="size-3.5" />}
-							</DropdownMenuItem>
+								<DropdownMenuItem
+									className="min-w-0 flex-1 pr-9"
+									onClick={() => {
+										if (o.id !== org.id) void open(o.id);
+									}}
+								>
+									<span className="flex-1 truncate">{o.name}</span>
+									{o.id === org.id && (
+										<CheckIcon className="absolute right-2.5 size-3.5 group-hover/org:opacity-0 group-focus-within/org:opacity-0 pointer-coarse:opacity-0" />
+									)}
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									render={<Link to={orgSettingsPath(o.id, null)} />}
+									aria-label={`Settings for ${o.name}`}
+									title="Organization settings"
+									className="absolute right-0 px-2.5 text-fg3 opacity-0 group-hover/org:opacity-100 group-focus-within/org:opacity-100 pointer-coarse:opacity-100"
+								>
+									<SettingsIcon className="size-3.5" />
+								</DropdownMenuItem>
+							</div>
 						))}
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />

@@ -81,6 +81,49 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(page).to_have_url(
         re.compile(rf"/org/{created_org}/wks/{workspaces[0]['id']}(\?env=[\w-]+)?$")
     )
+    # Settings actions target their own organization, including an unselected one.
+    for target, label in ((org, "acme"), (created_org, "Acme & Partners 🚀")):
+        page.get_by_title("Switch organization", exact=True).click()
+        item = page.get_by_role("menuitem", name=label, exact=True)
+        settings = page.get_by_role(
+            "menuitem", name=f"Settings for {label}", exact=True
+        )
+        item.hover()
+        expect(settings).to_have_css("opacity", "1")
+        settings.click()
+        expect(page).to_have_url(
+            re.compile(rf"/org/{target}/wks/[^/]+/settings\?scope=org$")
+        )
+        expect(page.get_by_role("menu")).to_have_count(0)
+    # Arrow navigation reaches the separate settings action without selecting the row.
+    page.get_by_title("Switch organization", exact=True).click()
+    item = page.get_by_role("menuitem", name="Acme & Partners 🚀", exact=True)
+    item.focus()
+    page.keyboard.press("ArrowDown")
+    settings = page.get_by_role(
+        "menuitem", name="Settings for Acme & Partners 🚀", exact=True
+    )
+    expect(settings).to_be_focused()
+    expect(settings).to_have_css("opacity", "1")
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(
+        re.compile(rf"/org/{created_org}/wks/[^/]+/settings\?scope=org$")
+    )
+    touch_context, touch_page, touch_errors = open_page(
+        browser, state=state, narrow=True, has_touch=True, is_mobile=True
+    )
+    touch_page.goto(path)
+    touch_page.get_by_title("Switch organization", exact=True).tap()
+    touch_settings = touch_page.get_by_role(
+        "menuitem", name="Settings for acme", exact=True
+    )
+    expect(touch_settings).to_have_css("opacity", "1")
+    touch_settings.tap()
+    expect(touch_page).to_have_url(
+        re.compile(rf"/org/{org}/wks/[^/]+/settings\?scope=org$")
+    )
+    assert not touch_errors, touch_errors
+    touch_context.close()
     call(state, "loco.org.v1.OrgService/DeleteOrg", {"orgId": created_org})
     shared = state["workspaces"]["acme/shared"]
     page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/resources")
