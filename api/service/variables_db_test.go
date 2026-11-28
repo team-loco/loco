@@ -313,6 +313,81 @@ func TestReplayReadingASecretRequiresListingSecrets(t *testing.T) {
 	}
 }
 
+func TestReplayKeepsSecretAuthorizationAfterReferencedVariableBecomesPlain(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	f.setSecrets(t, provider, map[string]string{passwordName: plaintextValue})
+	secretReference := ref(varref.Secrets, passwordName)
+	api := f.referencedResource(t, map[string]string{dbHostName: secretReference}, varref.Resolved{
+		Plain:  map[string]string{},
+		Secret: map[string]string{dbHostName: secretReference},
+	})
+	created, err := f.deployVariables(t, api, map[string]string{databaseURL: ref(referencedService, dbHostName)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	original, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(created.GetDeploymentId()))
+	if err != nil || original.SecretEnv[databaseURL] != secretReference {
+		t.Fatalf("original secret binding = %v (%v)", original.SecretEnv, err)
+	}
+	if _, err = f.queries.UpdateResourceEnvironmentSpec(t.Context(), genDb.UpdateResourceEnvironmentSpecParams{
+		ResourceID: api, EnvironmentID: f.envID, Spec: []byte(sameRegionSpec),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plain := imageService()
+	plain.Env = map[string]string{dbHostName: dbHostValue}
+	if _, err = deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+		ResourceId: api.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
+		Spec: &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: plain}},
+	}, genDb.EntityScope{EntityType: genDb.EntityTypeResource, EntityID: api, Scope: genDb.ScopeWrite}); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	request := &deploymentv1.CreateDeploymentRequest{
+		ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
+		Trigger: deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY, SourceDeploymentId: original.ID.String(),
+	}
+	readAPI := genDb.EntityScope{EntityType: genDb.EntityTypeResource, EntityID: api, Scope: genDb.ScopeRead}
+	before := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
+	if _, err = deployRequest(t, f, request, readAPI); codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("replay of captured secret after dependency became plain without secret permission = %v", err)
+	}
+	if got := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`); got != before {
+		t.Fatal("denied replay created a deployment")
+	}
+	// The current dependency can no longer resolve; the replay still uses its captured bindings.
+	if _, err = f.pool.Exec(t.Context(), `UPDATE deployments
+		SET spec = jsonb_set(spec, '{env}', $2::jsonb) WHERE resource_id = $1`,
+		api, `{"DB_HOST":"${{secrets.MISSING}}"}`); err != nil {
+		t.Fatal(err)
+	}
+
+	authorized := append(f.workspaceReadScopes(t), readAPI)
+	replayed, err := deployRequest(t, f, request, authorized...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(replayed.GetDeploymentId()))
+	if err != nil || !maps.Equal(stored.SecretEnv, original.SecretEnv) ||
+		!maps.Equal(stored.PlainEnv, original.PlainEnv) {
+		t.Fatalf("authorized replay changed captured bindings: %v (%v)", stored, err)
+	}
+	f.storeSecret(t, provider, passwordName, strings.Repeat("s", testMaxPlacementBytes))
+	if _, err = deployRequest(t, f, request, authorized...); !errors.Is(err, ErrSecretEnvTooLarge) {
+		t.Fatalf("replay with oversized captured secret binding = %v", err)
+	}
+	if _, err = f.pool.Exec(t.Context(), `DELETE FROM secrets WHERE environment_id = $1 AND name = $2`,
+		f.envID, passwordName); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = deployRequest(t, f, request, authorized...); !errors.Is(err, varref.ErrUnknownSecret) {
+		t.Fatalf("replay with missing captured secret binding = %v", err)
+	}
+}
+
 func TestDeleteSecretsRefusesANameAResourceReads(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

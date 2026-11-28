@@ -356,13 +356,10 @@ func (s *DeploymentServer) CreateDeployment(
 			environmentID,
 			render.hostname,
 			mergedServiceSpec,
+			source,
 		)
 		if resolveErr != nil {
 			return resolveErr
-		}
-		if source != nil {
-			// Reference and secret permissions still apply; replay the values captured by the source.
-			resolved = storedResolution(*source)
 		}
 
 		var txErr error
