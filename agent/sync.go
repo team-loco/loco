@@ -69,7 +69,13 @@ func (ss *syncSession) sendLoop(ctx context.Context, sendErr chan<- error) {
 			return
 		case msg := <-ss.outbound:
 			if err := ss.stream.Send(msg); err != nil {
-				sendErr <- streamError(ss.stream, err)
+				// Receive owns the response body and returns the server's final status after Send gets EOF.
+				if !errors.Is(err, io.EOF) {
+					select {
+					case sendErr <- err:
+					case <-ctx.Done():
+					}
+				}
 				return
 			}
 		}
@@ -102,41 +108,23 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	var workers sync.WaitGroup
 	defer func() {
 		cancel()
-		workers.Wait()
 		closeStream(ctx, stream)
+		workers.Wait()
 	}()
-
-	err = a.sendInventory(streamCtx, func(inventory *agentv1.Inventory) error {
-		if sendErr := sendInventoryChunks(inventory, stream.Send); sendErr != nil {
-			openErr := streamError(stream, sendErr)
-			return fmt.Errorf("open sync stream: %w", openErr)
-		}
-		slog.InfoContext(ctx, "sync stream connected",
-			"inventory", len(inventory.GetEntries()),
-			"builds", len(inventory.GetBuilds()),
-		)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
 
 	buildOps := make(chan *agentv1.SyncResponse, a.cfg.BuildQueueSize)
 	sendErr := make(chan error, 1)
 	workers.Go(func() { rec.Run(streamCtx) })
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
-	workers.Go(func() { a.reportInventory(streamCtx, session) })
+	workers.Go(func() {
+		err := a.reportState(streamCtx, session)
+		select {
+		case sendErr <- err:
+		case <-streamCtx.Done():
+		}
+	})
 	workers.Go(func() { a.sendHeartbeats(streamCtx, session.enqueue) })
 	workers.Go(func() { a.runBuildOps(streamCtx, buildOps, session.enqueue) })
-	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
-		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
-	})
-	defer detach()
-	detachBuilds := a.builds.Attach(func(status *agentv1.BuildStatus) {
-		session.enqueue(buildStatusRequest(status))
-	})
-	defer detachBuilds()
-
 	received := make(chan *agentv1.SyncResponse)
 	recvErr := make(chan error, 1)
 	workers.Go(func() { receiveSync(streamCtx, stream, received, recvErr) })
@@ -189,7 +177,38 @@ func receiveSync(
 	}
 }
 
-func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
+// reportState sends inventory before replaying statuses, while syncLoop receives pending work.
+func (a *Agent) reportState(ctx context.Context, session *syncSession) error {
+	send := func(inventory *agentv1.Inventory) error {
+		return sendInventoryChunks(inventory, func(request *agentv1.SyncRequest) error {
+			session.enqueue(request)
+			return ctx.Err()
+		})
+	}
+	if err := a.sendInventory(ctx, func(inventory *agentv1.Inventory) error {
+		if err := send(inventory); err != nil {
+			return err
+		}
+		slog.InfoContext(ctx, "sync stream connected", "inventory", len(inventory.GetEntries()),
+			"builds", len(inventory.GetBuilds()))
+		return nil
+	}); err != nil {
+		return err
+	}
+	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
+		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
+	})
+	defer detach()
+	detachBuilds := a.builds.Attach(func(status *agentv1.BuildStatus) {
+		session.enqueue(buildStatusRequest(status))
+	})
+	defer detachBuilds()
+
+	a.reportInventory(ctx, send)
+	return ctx.Err()
+}
+
+func (a *Agent) reportInventory(ctx context.Context, send func(*agentv1.Inventory) error) {
 	ticker := time.NewTicker(a.cfg.InventoryInterval)
 	defer ticker.Stop()
 	for {
@@ -197,12 +216,7 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			err := a.sendInventory(ctx, func(inventory *agentv1.Inventory) error {
-				return sendInventoryChunks(inventory, func(request *agentv1.SyncRequest) error {
-					session.enqueue(request)
-					return ctx.Err()
-				})
-			})
+			err := a.sendInventory(ctx, send)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to build inventory", "error", err)
 			}
@@ -300,21 +314,7 @@ func envSecretOf(secret *agentv1.EnvSecret) *applier.EnvSecret {
 }
 
 func closeStream(ctx context.Context, stream agentv1connect.AgentServiceSyncClientStream) {
-	if err := stream.CloseSend(); err != nil {
-		slog.DebugContext(ctx, "close sync stream request", "error", err)
-	}
 	if err := stream.Close(); err != nil {
 		slog.DebugContext(ctx, "close sync stream response", "error", err)
 	}
-}
-
-func streamError(stream agentv1connect.AgentServiceSyncClientStream, sendErr error) error {
-	if !errors.Is(sendErr, io.EOF) {
-		return sendErr
-	}
-	_, recvErr := stream.Receive()
-	if recvErr == nil || errors.Is(recvErr, io.EOF) {
-		return sendErr
-	}
-	return recvErr
 }
