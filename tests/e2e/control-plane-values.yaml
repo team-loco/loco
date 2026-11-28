@@ -30,6 +30,10 @@ api:
   imagePullPolicy: Never
   existingSecret: api-env
   replicaCount: 2
+  # Leave room for the extra API/proxy replica during rollouts on the shared single CI node.
+  resources:
+    requests:
+      cpu: 100m
   registry:
     auth: token
   env:

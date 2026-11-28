@@ -186,10 +186,6 @@ otel-col-cluster: {enabled: false}
 otel-col-daemon:
   fullnameOverride: %[7]s
   namespaceOverride: %[4]s
-  # The shared single-node shard already reserves CPU for the control plane and metrics collectors.
-  resources:
-    requests:
-      cpu: 25m
   ports:
     jaeger-compact: {enabled: false}
     jaeger-grpc: {enabled: false}
