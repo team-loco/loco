@@ -1,14 +1,25 @@
 {{- if include "loco-control-plane.systemIngest" . }}
 {{- $name := include "loco-control-plane.systemIngestSecret" . }}
 {{- $existing := lookup "v1" "Secret" .Release.Namespace $name }}
+{{- $token := randBytes 32 | sha256sum | b64enc }}
+{{- if $existing }}{{- $token = index $existing.data "token" }}{{- end }}
+{{- $namespaces := list .Release.Namespace }}
+{{- if include "loco-control-plane.nodeLogs" . }}
+{{- $namespaces = append $namespaces (include "loco-control-plane.nodeCollectorName" .) }}
+{{- end }}
+{{- range $namespace := $namespaces | uniq }}
+---
 apiVersion: v1
 kind: Secret
 metadata:
   name: {{ $name }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $namespace }}
+  {{- if eq $namespace $.Release.Namespace }}
   annotations:
     helm.sh/resource-policy: keep
+  {{- end }}
 type: Opaque
 data:
-  token: {{ if $existing }}{{ index $existing.data "token" }}{{ else }}{{ randBytes 32 | sha256sum | b64enc }}{{ end }}
+  token: {{ $token }}
+{{- end }}
 {{- end }}

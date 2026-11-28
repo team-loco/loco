@@ -1,0 +1,11 @@
+apiVersion: v2
+name: loco-control-plane-telemetry
+description: Control-plane container log collector
+type: application
+version: 0.1.0
+dependencies:
+  - name: opentelemetry-collector
+    alias: logs
+    version: 0.178.2
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: logs.enabled

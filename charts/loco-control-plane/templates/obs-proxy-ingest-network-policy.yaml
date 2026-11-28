@@ -36,4 +36,16 @@ spec:
           port: {{ .Values.gateway.tracing.collector.port }}
         {{- end }}
     {{- end }}
+    {{- if and (include "loco-control-plane.systemIngest" .) (include "loco-control-plane.nodeLogs" .) }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ include "loco-control-plane.nodeCollectorName" . }}
+          podSelector:
+            matchLabels:
+              {{- include "loco-control-plane.nodeCollectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.obsProxy.ingest.httpPort }}
+    {{- end }}
 {{- end }}

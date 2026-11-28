@@ -1,0 +1,77 @@
+suite: control-plane node logs
+release:
+  name: regional
+  namespace: loco-system
+  revision: 7
+values:
+  - ../ci/default-values.yaml
+set:
+  platformTelemetry.region: test-region
+templates:
+  - templates/node-collector.yaml
+  - templates/api-deployment.yaml
+  - templates/obs-proxy-ingest-network-policy.yaml
+  - charts/platformTelemetry/charts/logs/templates/daemonset.yaml
+tests:
+  - it: installs no collector while platform telemetry is off
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/node-collector.yaml
+  - it: installs an upstream collector with persistent storage in its own namespace
+    set:
+      platformTelemetry.enabled: true
+    template: charts/platformTelemetry/charts/logs/templates/daemonset.yaml
+    asserts:
+      - equal: {path: metadata.namespace, value: loco-obs-control-plane}
+      - equal: {path: 'spec.template.metadata.annotations["loco.io/release-revision"]', value: "7"}
+      - equal: {path: 'spec.template.spec.containers[0].securityContext.runAsUser', value: 10001}
+      - equal: {path: 'spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem', value: true}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: checkpoints
+            hostPath: {path: /var/lib/otelcol/loco-obs-control-plane/regional-logs, type: DirectoryOrCreate}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: exporter-queue
+            hostPath: {path: /var/lib/otelcol-exporter/loco-obs-control-plane/regional-logs, type: DirectoryOrCreate}
+  - it: opts out of node logs while retaining SDK telemetry
+    set:
+      platformTelemetry.enabled: true
+      platformTelemetry.logs.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/node-collector.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://regional-obs-proxy-ingest.loco-system.svc.cluster.local:4318"}
+        template: templates/api-deployment.yaml
+      - notExists:
+          path: spec.template.metadata.labels["loco.io/platform-log-owner"]
+        template: templates/api-deployment.yaml
+  - it: supports an isolated collector namespace without changing the control-plane namespace
+    set:
+      platformTelemetry.enabled: true
+      platformTelemetry.logs.namespaceOverride: custom-node-logs
+    template: charts/platformTelemetry/charts/logs/templates/daemonset.yaml
+    asserts:
+      - equal: {path: metadata.namespace, value: custom-node-logs}
+  - it: admits only collector pods from their namespace on the configured ingest HTTP port
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.ingest.httpPort: 5518
+    template: templates/obs-proxy-ingest-network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: loco-obs-control-plane
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: regional
+                    component: agent-collector
+            ports: [{protocol: TCP, port: 5518}]

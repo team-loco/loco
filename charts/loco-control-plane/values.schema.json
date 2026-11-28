@@ -1021,6 +1021,12 @@
           },
           "additionalProperties": false
         },
+        "global": {
+          "type": "object"
+        },
+        "logs": {
+          "type": "object"
+        },
         "region": {
           "type": "string"
         }

@@ -166,8 +166,15 @@ api:
 # @schema additionalProperties: false
 platformTelemetry:
   enabled: false
+  # @schema skipProperties
+  global: {}
   # Physical region of this control plane; required when enabled. Exported as loco.region.
   region: ""
+  # Collect control-plane stdout on each node. Disable when an external collector owns these logs.
+  # @schema skipProperties
+  logs:
+    enabled: true
+    namespaceOverride: loco-obs-control-plane
   # without an endpoint, the API sends to the observability proxy, which stores everything under
   # the system tenant; obsProxy.enabled is then required.
   # @schema additionalProperties: false

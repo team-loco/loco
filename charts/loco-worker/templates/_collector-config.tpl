@@ -7,6 +7,20 @@
 {{- $config := include $template $collector | fromYaml -}}
 {{/* The subchart defines batch; only the persistent exporter queue buffers records. */}}
 {{- $_ := unset $config.processors "batch" -}}
+{{- if eq .name "otel-col-daemon" -}}
+{{- $metadata := index $config.processors "k8s_attributes/pod_uid" -}}
+{{- $_ := set $metadata "wait_for_metadata" true -}}
+{{- $_ := set $metadata.extract "labels" (append $metadata.extract.labels (dict "from" "pod" "key" "loco.io/platform-log-owner" "tag_name" "loco.platform.log.owner")) -}}
+{{- $_ := set $config.processors "filter/control_plane_logs" (dict "error_mode" "propagate" "log_conditions" (list "resource.attributes[\"loco.platform.log.owner\"] == \"control-plane\"")) -}}
+{{- $processors := list -}}
+{{- range $config.service.pipelines.logs.processors -}}
+{{- $processors = append $processors . -}}
+{{- if eq . "k8s_attributes/pod_uid" -}}
+{{- $processors = append $processors "filter/control_plane_logs" -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set $config.service.pipelines.logs "processors" $processors -}}
+{{- end -}}
 {{- $settings := .root.Values.global.platformTelemetry -}}
 {{- $export := .root.Values.global.exporter -}}
 {{- if and $settings.enabled (eq .name "otel-col-cluster") (or (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled) -}}
@@ -74,7 +88,7 @@
 {{- $_ := set $podMetadata.extract "labels" (append $podMetadata.extract.labels (dict "from" "pod" "key" "app.kubernetes.io/name" "tag_name" "loco.platform.service.name")) -}}
 {{- $_ := set $config.processors "filter/workload_logs" (dict "error_mode" "propagate" "log_conditions" (list (printf "resource.attributes[\"k8s.namespace.name\"] != nil and IsMatch(resource.attributes[\"k8s.namespace.name\"], %s)" ($pattern | toJson)))) -}}
 {{- $_ := set $config.service.pipelines.logs "processors" (append $config.service.pipelines.logs.processors "filter/workload_logs") -}}
-{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "file_log") "processors" (list "memory_limiter" "k8s_attributes/pod_uid" "filter/platform" "transform/log_severity" "transform/platform_log" "filter/platform_feedback" "resource/platform")) -}}
+{{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "file_log") "processors" (list "memory_limiter" "k8s_attributes/pod_uid" "filter/platform" "filter/control_plane_logs" "transform/log_severity" "transform/platform_log" "filter/platform_feedback" "resource/platform")) -}}
 {{- $excluded := index $config.receivers "file_log" "exclude" | default list -}}
 {{- range $collectorName := list "otel-col-daemon" "otel-col-deploy" "otel-col-cluster" -}}
 {{- if index $.root.Values $collectorName "enabled" -}}

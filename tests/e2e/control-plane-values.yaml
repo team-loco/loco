@@ -101,3 +101,5 @@ openbao:
 platformTelemetry:
   enabled: true
   region: local-1
+  logs:
+    namespaceOverride: loco-control-plane-node-logs

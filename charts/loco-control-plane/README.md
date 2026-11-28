@@ -166,7 +166,13 @@ The E2E suite builds the dashboard, API and proxy images, installs the CloudNati
 
 ## Platform telemetry
 
-`platformTelemetry.enabled: true` makes the API export its own traces and Go runtime metrics over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. The installer selects the API runtime mode through `api.env.APP_ENV` or the API environment Secret. Set `APP_ENV=PRODUCTION` to write structured JSON to stdout; it also enables the API's production CORS checks. The observability proxy always writes JSON to stdout. Enable the `loco-worker` chart's node collector platform pipeline in this cluster to collect those logs; add the control-plane namespace to `global.platformTelemetry.namespaces` if it differs from the worker release namespace. Logs follow the node collector's exporter settings. The proxy's runtime metrics are not exported over OTLP. `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
+`platformTelemetry.enabled: true` makes the API export its own traces and Go runtime metrics over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. These SDK exporters send directly to the configured endpoint. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. The proxy's runtime metrics are not exported over OTLP.
+
+The chart also installs a node collector through the upstream OpenTelemetry collector chart. It reads the API and proxy's container log files and sends them through `platformTelemetry.exporter`, with node and file identity. The installer selects the API runtime mode through `api.env.APP_ENV` or the API environment Secret. Set `APP_ENV=PRODUCTION` to write structured JSON to stdout; it also enables the API's production CORS checks. The observability proxy always writes JSON to stdout. The collector excludes ingestion failure diagnostics marked `loco.telemetry.internal=true` from forwarding to prevent collection loops; they remain visible on stdout.
+
+`platformTelemetry.logs.enabled` defaults to true. Set it to false to use another log collector while retaining SDK traces and metrics. Disabling `platformTelemetry.enabled` disables both SDK telemetry and this node collector. The node collector runs in the dedicated namespace `loco-obs-control-plane`; change `platformTelemetry.logs.namespaceOverride` to use another namespace. That namespace permits the host log mounts, while the control-plane namespace can retain its restricted Pod Security policy.
+
+`platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
 
 ```yaml
 platformTelemetry:
@@ -180,7 +186,7 @@ The chart's gateway also exports traces to the system ingest as `loco-gateway`. 
 
 Gateway tracing is enabled only with the built-in system ingest. With an external endpoint, configure gateway tracing separately against an OTLP/gRPC collector; `platformTelemetry.exporter.endpoint` configures OTLP/HTTP SDK exporters.
 
-With an endpoint, the API and proxy send only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
+With an endpoint, the API, proxy and node collector send only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
 
 ```yaml
 platformTelemetry:

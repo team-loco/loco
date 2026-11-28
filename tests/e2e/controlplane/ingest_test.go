@@ -1,10 +1,12 @@
 package controlplane
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -13,6 +15,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/team-loco/loco/internal/clusterassertion"
 	"github.com/team-loco/loco/internal/systemtenant"
@@ -20,10 +24,9 @@ import (
 )
 
 const (
-	assertionLifetime     = time.Minute
-	ingestTimeout         = 30 * time.Second
-	protobufContent       = "application/x-protobuf"
-	nodeLogsCollectorName = "cp-node-logs"
+	assertionLifetime = time.Minute
+	ingestTimeout     = 30 * time.Second
+	protobufContent   = "application/x-protobuf"
 )
 
 var selectGrant = regexp.MustCompile(`^GRANT SELECT `)
@@ -152,71 +155,39 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 			return err
 		},
 	)
-	cp.checkNodeLogs(t, issued.Token, reader, readerPassword, pod)
+	cp.checkNodeLogs(t, reader, readerPassword, pod)
 }
 
-func (cp *controlPlane) checkNodeLogs(t *testing.T, token, reader, password, clickhousePod string) {
+func (cp *controlPlane) checkNodeLogs(t *testing.T, reader, password, clickhousePod string) {
 	t.Helper()
-	nodeNamespace := cp.namespace
-	c.MustApply(t, namespace(nodeNamespace, "privileged"))
-	values := writeFile(t, "node-logs-values.yaml", fmt.Sprintf(`global:
-  region: %[1]s
-  platformTelemetry:
-    enabled: true
-    platformOnly: true
-    installation: node-logs-e2e
-    cluster: %[2]s
-    environment: test
-    namespaces: []
-  exporter:
-    endpoint: http://%[3]s-obs-proxy-ingest.%[4]s:%[5]d
-    headers:
-      Authorization: %[6]q
-    ingestToken:
-      enabled: false
-agent:
-  image: {tag: unused}
-controller:
-  image: {tag: unused}
-cluster: {role: apps}
-certManager: {existingTLSSecret: unused}
-gateway-helm: {enabled: false}
-otel-col-deploy: {enabled: false}
-otel-col-cluster: {enabled: false}
-otel-col-daemon:
-  fullnameOverride: %[7]s
-  namespaceOverride: %[4]s
-  ports:
-    jaeger-compact: {enabled: false}
-    jaeger-grpc: {enabled: false}
-    jaeger-thrift: {enabled: false}
-    otlp: {enabled: false}
-    otlp-http: {enabled: false}
-    zipkin: {enabled: false}
-  config:
-    extensions:
-      file_storage:
-        # Other suites run another node collector on this same kind node.
-        directory: /var/lib/otelcol/%[4]s-node-logs
-        create_directory: true
-`, metricsRegion, c.KindCluster(), release, nodeNamespace,
-		cp.values.ObsProxy.Ingest.HTTPPort, "Bearer "+token, nodeLogsCollectorName))
-	rendered := helm(t, "template", "platform-logs", c.Path("charts", "loco-worker"), "--namespace", cp.namespace,
-		"--values", values)
-	var objects []any
-	for _, object := range renderedDocuments(t, rendered) {
-		var identity struct {
-			Metadata struct {
-				Labels map[string]string `json:"labels"`
-			} `json:"metadata"`
-		}
-		roundTrip(t, object, &identity)
-		if identity.Metadata.Labels["app.kubernetes.io/part-of"] == collectorPartOf {
-			objects = append(objects, object)
-		}
+	var collectors appsv1.DaemonSetList
+	c.MustGet(t, &collectors, "daemonsets", "-A", "-l",
+		"app.kubernetes.io/component=agent-collector,app.kubernetes.io/instance="+release)
+	if len(collectors.Items) != 1 {
+		t.Fatalf("found %d control-plane node collectors, want the chart's one DaemonSet", len(collectors.Items))
 	}
-	applyJSON(t, objects...)
-	rollout(t, nodeNamespace, "daemonset/"+nodeLogsCollectorName+"-agent")
+	collector := collectors.Items[0]
+	nodeNamespace := collector.Namespace
+	if nodeNamespace == cp.namespace {
+		t.Fatal("node log access shares the control-plane namespace")
+	}
+	if collector.Annotations["meta.helm.sh/release-name"] != release ||
+		collector.Annotations["meta.helm.sh/release-namespace"] != cp.namespace {
+		t.Fatal("the node collector is not owned by the installed control-plane release")
+	}
+	var namespace corev1.Namespace
+	c.MustGet(t, &namespace, "namespace", nodeNamespace)
+	if namespace.Labels["pod-security.kubernetes.io/enforce"] != "privileged" {
+		t.Fatal("the node collector namespace does not permit its host log mounts")
+	}
+	var apiToken, collectorToken corev1.Secret
+	tokenName := release + "-system-ingest-token"
+	c.MustGet(t, &apiToken, "-n", cp.namespace, "secret", tokenName)
+	c.MustGet(t, &collectorToken, "-n", nodeNamespace, "secret", tokenName)
+	if len(apiToken.Data["token"]) == 0 || !bytes.Equal(apiToken.Data["token"], collectorToken.Data["token"]) {
+		t.Fatal("the node collector does not have the API's system ingest credential")
+	}
+	rollout(t, nodeNamespace, "daemonset/"+collector.Name)
 	// Restart the producers after collection is ready; checkpoints may already cover
 	// their earlier output when this suite reuses a kept cluster.
 	emittedAfter := time.Now().UnixNano()
@@ -225,12 +196,13 @@ otel-col-daemon:
 		rollout(t, cp.namespace, "deployment/"+workload)
 	}
 	for _, component := range []string{"loco-api", "loco-obs-proxy"} {
+		var receipt string
 		platform.Eventually(
 			t,
 			metricsTimeout,
 			component+" stdout reaches storage through the node collector",
 			func(ctx context.Context) error {
-				count, err := c.Kubectl(
+				row, err := c.Kubectl(
 					ctx,
 					"-n",
 					cp.namespace,
@@ -246,25 +218,28 @@ otel-col-daemon:
 					password,
 					"-q",
 					fmt.Sprintf(
-						"SELECT count() FROM loco_obs.otel_logs WHERE WorkspaceId = '%s' AND ServiceName = '%s' "+
+						"SELECT ServiceName, LogAttributes['version'] AS version, ResourceAttributes['k8s.node.name'] AS node, "+
+							"LogAttributes['log.file.path'] AS file, ResourceAttributes['loco.region'] AS region "+
+							"FROM loco_obs.otel_logs WHERE WorkspaceId = '%s' AND ServiceName = '%s' "+
 							"AND ResourceAttributes['k8s.node.name'] != '' AND ResourceAttributes['loco.telemetry.scope'] = 'platform' "+
 							"AND LogAttributes['log.file.path'] != '' AND LogAttributes['version'] != '' "+
-							"AND Timestamp >= fromUnixTimestamp64Nano(%d)",
+							"AND ResourceAttributes['loco.region'] != '' "+
+							"AND Timestamp >= fromUnixTimestamp64Nano(%d) LIMIT 1 FORMAT JSONEachRow",
 						systemtenant.WorkspaceID,
 						component,
 						emittedAfter,
 					),
 				)
-				if err == nil && strings.TrimSpace(count) == "0" {
+				if err != nil {
+					return err
+				}
+				receipt = strings.TrimSpace(row)
+				if !json.Valid([]byte(receipt)) {
 					return fmt.Errorf("no node-collected %s logs", component)
 				}
-				return err
+				return nil
 			},
 		)
-		t.Logf(
-			"real %s JSON startup log collected from node files, enriched with node identity "+
-				"and stored with its structured version field in the system tenant",
-			component,
-		)
+		t.Logf("synthetic installation: restarted %s; stored node-collected startup log: %s", component, receipt)
 	}
 }

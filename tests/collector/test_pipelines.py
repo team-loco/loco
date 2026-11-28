@@ -324,7 +324,10 @@ def test_tenancy_comes_from_pod_resource_labels(worker_relays):
             for rule in extract["labels"]
             if rule["from"] == "pod"
         }
-        assert labels == TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS, label
+        expected = TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS
+        if label == "otel-col-daemon-agent k8s_attributes/pod_uid":
+            expected |= {"loco.io/platform-log-owner": "loco.platform.log.owner"}
+        assert labels == expected, label
 
 
 def test_tenancy_comes_from_namespace_ownership_labels(worker_relays):
