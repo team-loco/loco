@@ -9,7 +9,6 @@
 		"build.ts",
 		"dev.ts",
 		"dev-proxy.ts",
-		"dev-proxy.test.ts",
 		"preview.ts",
 		"env-plugin.ts",
 		"vendor-chunks.ts",
