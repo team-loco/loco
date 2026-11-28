@@ -498,8 +498,9 @@ export function LogsView() {
 					body={
 						installation ? (
 							<>
-								The API sends its logs here once <InlineCode>platformTelemetry</InlineCode> is on in the control plane
-								chart.
+								Node collectors send platform stdout and stderr here with{" "}
+								<InlineCode>global.platformTelemetry.enabled</InlineCode>
+								enabled in the worker chart.
 							</>
 						) : (
 							<>
