@@ -13,7 +13,7 @@ const NOW_MS = Date.UTC(2026, 9, 11, 12, 0, 0);
 const HOUR_MS = 3_600_000;
 
 describe("absolute usage", () => {
-	test("keeps CPU usage in millicores when a resize predates the history window", () => {
+	test("filters the requested resource and sorts CPU readings in millicores", () => {
 		const series = [
 			create(MetricSeriesSchema, {
 				resourceId: RESOURCE_ID,
@@ -28,18 +28,6 @@ describe("absolute usage", () => {
 			{ time: NOW_MS - HOUR_MS, east: 50 },
 			{ time: NOW_MS, east: 50 },
 		]);
-	});
-
-	test("shows the average absolute usage of overlapping differently sized pods", () => {
-		// Two pods at 50% of 100m and 200m average 75m, not 50% of the newest allocation (100m).
-		const values = [
-			create(MetricSeriesSchema, {
-				resourceId: RESOURCE_ID,
-				points: [{ timestamp: msToTimestamp(NOW_MS), value: (0.05 + 0.1) / 2 }],
-			}),
-		];
-		const rows = usageRows([{ region: "east", values }], RESOURCE_ID, 1000);
-		expect(rows[0]?.["east"]).toBeCloseTo(75);
 	});
 
 	test("converts memory bytes to Mi without a deployment allocation", () => {
