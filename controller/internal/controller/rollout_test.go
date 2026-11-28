@@ -118,7 +118,7 @@ func TestObserveDeletedReplica(t *testing.T) {
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(2)).
 		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1))
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	got := app.Status.Rollout.Replicas
@@ -129,17 +129,30 @@ func TestObserveDeletedReplica(t *testing.T) {
 	pod.Status.ContainerStatuses[0].State.Terminated.ExitCode = 137
 	pod.Status.ContainerStatuses[0].State.Terminated.FinishedAt = metav1.NewTime(now)
 	r.recordDeletedPod(client.ObjectKeyFromObject(app), pod, now)
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	next, err := r.observeReplicas(t.Context(), app, dep, now)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if got := app.Status.Rollout.Problem; got == nil || got.Reason != locov1alpha1.ProblemUncleanShutdown {
 		t.Fatalf("killed problem=%+v", got)
 	}
+	if !next.at.Equal(now.Add(deletedPodRetention)) {
+		t.Fatalf("killed replica expiry = %s", next.at)
+	}
+	if _, err := r.observeReplicas(t.Context(), app, dep, next.at); err != nil {
+		t.Fatal(err)
+	}
+	if len(app.Status.Rollout.Replicas) != 0 {
+		t.Fatalf("expired replica remains: %+v", app.Status.Rollout.Replicas)
+	}
+	if app.Status.Rollout.Problem != nil {
+		t.Fatalf("expired shutdown problem remains: %+v", app.Status.Rollout.Problem)
+	}
 	pod.DeletionTimestamp = nil
 	pod.Status.ContainerStatuses = nil
 	pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
 	r.recordDeletedPod(client.ObjectKeyFromObject(app), pod, now)
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	setReadyReplicas(app)
@@ -156,7 +169,7 @@ func TestObserveDeletedReplica(t *testing.T) {
 	if err := r.Create(context.Background(), listed); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	if got := app.Status.Rollout.Replicas[0].State; got != locov1alpha1.ReplicaServing {
@@ -232,7 +245,7 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 			Client: kube, APIReader: kube, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
 		dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
-		if err := r.observeReplicas(context.Background(), app, dep, time.Now()); err != nil {
+		if _, err := r.observeReplicas(context.Background(), app, dep, time.Now()); err != nil {
 			t.Fatal(err)
 		}
 		if got := app.Status.Rollout.Problem != nil; got != tt.want {
@@ -262,7 +275,7 @@ func TestDeletedReplicaKeepsItsPreviousExit(t *testing.T) {
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
 		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1))
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	got := app.Status.Rollout.Replicas

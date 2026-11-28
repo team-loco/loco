@@ -59,7 +59,6 @@ const (
 	componentApplication    = "application"
 	servicePort             = int32(80)
 	applicationPortName     = "http"
-	deployingRequeue        = 15 * time.Second
 	envSecretRequeue        = 5 * time.Second
 	maxConcurrentReconciles = 4
 
@@ -202,25 +201,7 @@ func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request)
 func (r *ApplicationReconciler) reconcileResources(
 	ctx context.Context,
 	app *locov1alpha1.Application,
-) (result ctrl.Result, reconcileErr error) {
-	defer func() {
-		if app.Status.Rollout == nil {
-			return
-		}
-		now := time.Now()
-		for _, replica := range app.Status.Rollout.Replicas {
-			if replica.State != locov1alpha1.ReplicaStopping || replica.StateDeadline == nil {
-				continue
-			}
-			delay := replica.StateDeadline.Sub(now)
-			if delay <= 0 {
-				delay = deployingRequeue
-			}
-			if result.RequeueAfter == 0 || delay < result.RequeueAfter {
-				result.RequeueAfter = delay
-			}
-		}
-	}()
+) (ctrl.Result, error) {
 	if err := r.ensureEnvironment(ctx, app); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -265,8 +246,11 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
 	stopped := stoppedRevision(app) != nil
+	var next observationDeadline
 	if err = tracing.Step(ctx, replicasSpan, func(ctx context.Context) error {
-		return r.observeReplicas(ctx, app, dep, time.Now())
+		var observeErr error
+		next, observeErr = r.observeReplicas(ctx, app, dep, time.Now())
+		return observeErr
 	}); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -310,12 +294,15 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	revision, _ := app.PlacementRevision()
-	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil ||
-		app.Status.Rollout.ProvenRevision != revision {
-		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+	if next.at.IsZero() {
+		trace.SpanFromContext(ctx).SetAttributes(attribute.String("loco.reconcile.reason", "watch"))
+		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, nil
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String("loco.reconcile.reason", next.reason),
+		attribute.String("loco.reconcile.next_at", next.at.Format(time.RFC3339Nano)),
+	)
+	return ctrl.Result{RequeueAfter: max(time.Until(next.at), time.Nanosecond)}, nil
 }
 
 func observePlacementRevision(app *locov1alpha1.Application) {

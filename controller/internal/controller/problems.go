@@ -57,24 +57,9 @@ func replicaProblemReason(
 				found(loco.ProblemOutOfMemory)
 			}
 		}
-		if status.Ready {
-			continue
-		}
-
-		if status.State.Running != nil && ptr.Deref(status.Started, false) {
-			for _, container := range pod.Spec.Containers {
-				probe := container.ReadinessProbe
-				if container.Name != status.Name || probe == nil {
-					continue
-				}
-				// Readiness needs the configured startup grace and failure window.
-				grace := time.Duration(probe.InitialDelaySeconds)*time.Second +
-					time.Duration(probe.PeriodSeconds)*time.Duration(probe.FailureThreshold)*time.Second
-				startedAt := status.State.Running.StartedAt
-				if !startedAt.IsZero() && now.Sub(startedAt.Time) >= grace {
-					found(loco.ProblemHealthCheckFailing)
-				}
-			}
+		deadline := readinessFailureAt(pod, status)
+		if !deadline.IsZero() && !now.Before(deadline) {
+			found(loco.ProblemHealthCheckFailing)
 		}
 	}
 	return best
@@ -89,4 +74,27 @@ func waitingProblemReason(reason string) loco.ProblemReason {
 	default:
 		return ""
 	}
+}
+
+func readinessFailureAt(pod corev1.Pod, status corev1.ContainerStatus) time.Time {
+	if status.Ready || status.State.Running == nil {
+		return time.Time{}
+	}
+	if !ptr.Deref(status.Started, false) {
+		return time.Time{}
+	}
+	startedAt := status.State.Running.StartedAt
+	if startedAt.IsZero() {
+		return time.Time{}
+	}
+	for _, container := range pod.Spec.Containers {
+		probe := container.ReadinessProbe
+		if container.Name != status.Name || probe == nil {
+			continue
+		}
+		grace := time.Duration(probe.InitialDelaySeconds)*time.Second +
+			time.Duration(probe.PeriodSeconds)*time.Duration(probe.FailureThreshold)*time.Second
+		return startedAt.Add(grace)
+	}
+	return time.Time{}
 }

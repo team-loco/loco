@@ -299,11 +299,11 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 		if err := client.Status().Update(context.Background(), pod); err != nil {
 			t.Fatal(err)
 		}
-		if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+		if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	restart()
@@ -334,7 +334,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	}
 
 	app.Annotations[loco.KeyPlacementRevision] = "3"
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	if app.Status.Rollout.Stopped != nil {
@@ -361,7 +361,7 @@ func TestLivenessKillEventMakesTheRestartAHealthCheck(t *testing.T) {
 		HealthyAfter:             testHealthyAfter,
 	}
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	if got := app.Status.Rollout.Replicas[0].LastRestart; got == nil || got.Cause != loco.RestartExit {
@@ -381,7 +381,7 @@ func TestLivenessKillEventMakesTheRestartAHealthCheck(t *testing.T) {
 	if got := r.applicationForPodEvent(context.Background(), stopping); len(got) != 0 {
 		t.Fatalf("a deletion's Killing event was recorded: %v", got)
 	}
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+	if _, err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
 	if got := app.Status.Rollout.Replicas[0].LastRestart; got == nil || got.Cause != loco.RestartHealthCheck {

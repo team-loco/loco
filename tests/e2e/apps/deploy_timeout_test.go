@@ -110,6 +110,26 @@ func TestATimedOutDeployKeepsThePreviousVersionServing(t *testing.T) {
 			return nil
 		},
 	)
+	application, err := p.Application(t.Context(), resourceID, w.EnvironmentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollout := application.Status.Rollout
+	if rollout == nil {
+		t.Fatal("timed-out deployment has no rollout status")
+	}
+	if rollout.Stopped == nil {
+		t.Fatal("failed revision has no recorded stop")
+	}
+	if rollout.Stopped.Reason != locov1alpha1.ProblemDeployTimeout {
+		t.Fatalf("stop reason=%s, want deploy timeout", rollout.Stopped.Reason)
+	}
+	t.Logf(
+		"synthetic failing revision: reason=%s stopped_at=%s; previous deployment %s remains serving on two replicas",
+		rollout.Stopped.Reason,
+		rollout.Stopped.At,
+		previous,
+	)
 	requireServingReplicas(t, getDeployment(t, failed.GetId()), previous, 2)
 	logs, err := p.Kubectl(t.Context(), "-n", p.Namespace, "logs", poller)
 	if err != nil {

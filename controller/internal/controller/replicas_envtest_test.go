@@ -65,13 +65,15 @@ var _ = Describe("Replica rollout reports", func() {
 				WithReadyReplicas(2).
 				WithAvailableReplicas(2).
 				WithReplicas(3))
-		Expect(r.observeReplicas(ctx, app, dep, time.Now())).To(Succeed())
+		_, err = r.observeReplicas(ctx, app, dep, time.Now())
+		Expect(err).NotTo(HaveOccurred())
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Replicas).To(HaveLen(3))
 		Expect(app.Status.Rollout.Replicas[0].PlacementRevision).To(Equal(int64(2)))
 		Expect(app.Status.Rollout.Replicas[2].PlacementRevision).To(Equal(int64(1)))
 		dep.Status.WithReplicas(2)
-		Expect(r.observeReplicas(ctx, app, dep, time.Now())).To(Succeed())
+		_, err = r.observeReplicas(ctx, app, dep, time.Now())
+		Expect(err).NotTo(HaveOccurred())
 		Expect(app.Status.Rollout.Available).To(BeTrue())
 	})
 })

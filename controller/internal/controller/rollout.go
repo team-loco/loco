@@ -99,14 +99,14 @@ func (r *ApplicationReconciler) observeReplicas(
 	app *locov1alpha1.Application,
 	dep *appsv1ac.DeploymentApplyConfiguration,
 	now time.Time,
-) error {
+) (observationDeadline, error) {
 	revisions, err := r.replicaSetRevisions(ctx, app, dep)
 	if err != nil {
-		return err
+		return observationDeadline{}, err
 	}
 	listed, events, err := r.listRolloutPods(ctx, app)
 	if err != nil {
-		return err
+		return observationDeadline{}, err
 	}
 	pods := make(map[types.UID]corev1.Pod)
 	for _, pod := range r.deletedReplicas(client.ObjectKeyFromObject(app), now) {
@@ -193,7 +193,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		rollout.Problem.Since = previous.Problem.Since
 	}
 	app.Status.Rollout = rollout
-	return nil
+	return r.nextObservation(app, current, now), nil
 }
 
 // keepsServing is whether a deployed, available revision still has the ready replicas its desired count needs.
@@ -381,4 +381,65 @@ func replicaProblemDetail(
 		}
 	}
 	return detailWaitingForReadiness
+}
+
+// observationDeadline describes the next state transition that can occur without a watch event.
+type observationDeadline struct {
+	at     time.Time
+	reason string
+}
+
+func (r *ApplicationReconciler) nextObservation(
+	app *locov1alpha1.Application,
+	current []observedReplica,
+	now time.Time,
+) observationDeadline {
+	var next observationDeadline
+	consider := func(at time.Time, reason string) {
+		if !at.After(now) {
+			return
+		}
+		if next.at.IsZero() || at.Before(next.at) {
+			next = observationDeadline{at: at, reason: reason}
+		}
+	}
+	r.deletedMu.Lock()
+	for _, record := range r.deletedPods[client.ObjectKeyFromObject(app)] {
+		consider(record.at.Add(deletedPodRetention), "deleted replica expiry")
+	}
+	r.deletedMu.Unlock()
+	rollout := app.Status.Rollout
+	for _, replica := range rollout.Replicas {
+		if replica.StateDeadline != nil {
+			consider(replica.StateDeadline.Time, "termination deadline")
+		}
+	}
+	if rollout.Stopped != nil {
+		return next
+	}
+	if rollout.Deadline != nil {
+		consider(rollout.Deadline.At.Time, "deployment deadline")
+	}
+	if rollout.HealthyAt != nil {
+		consider(rollout.HealthyAt.Time, "restart recovery")
+	}
+	revision, _ := app.PlacementRevision()
+	proving := rollout.ProvenRevision != revision
+	for _, replica := range current {
+		if proving && replica.status.State == locov1alpha1.ReplicaServing {
+			if since := replica.status.StateSince; since != nil {
+				consider(since.Add(r.HealthyAfter), "stability qualification")
+			}
+		}
+		if restart := replica.status.LastRestart; restart != nil {
+			consider(restart.At.Add(r.HealthyAfter), "restart recovery")
+		}
+		for _, status := range replica.pod.Status.ContainerStatuses {
+			if running := status.State.Running; running != nil && len(replica.status.RestartsAt) > 0 {
+				consider(running.StartedAt.Add(r.HealthyAfter), "restart budget recovery")
+			}
+			consider(readinessFailureAt(replica.pod, status), "readiness grace")
+		}
+	}
+	return next
 }

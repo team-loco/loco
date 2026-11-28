@@ -61,7 +61,8 @@ var _ = Describe("Placement revisions", func() {
 		app := newApp("returning")
 		observe := func(dep *appsv1ac.DeploymentApplyConfiguration) map[string]int64 {
 			GinkgoHelper()
-			Expect(r.observeReplicas(ctx, app, dep, time.Now())).To(Succeed())
+			_, err := r.observeReplicas(ctx, app, dep, time.Now())
+			Expect(err).NotTo(HaveOccurred())
 			revisions := map[string]int64{}
 			for _, replica := range app.Status.Rollout.Replicas {
 				revisions[replica.UID] = replica.PlacementRevision
