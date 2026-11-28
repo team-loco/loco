@@ -1922,8 +1922,10 @@ type TraceSummary struct {
 	Status         TraceStatus            `protobuf:"varint,7,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
 	SpanCount      uint64                 `protobuf:"varint,8,opt,name=span_count,json=spanCount,proto3" json:"span_count,omitempty"`
 	HttpStatusCode uint32                 `protobuf:"varint,9,opt,name=http_status_code,json=httpStatusCode,proto3" json:"http_status_code,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The root span's http.route, or url.path when no route is recorded.
+	HttpPath      string `protobuf:"bytes,10,opt,name=http_path,json=httpPath,proto3" json:"http_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TraceSummary) Reset() {
@@ -2017,6 +2019,13 @@ func (x *TraceSummary) GetHttpStatusCode() uint32 {
 		return x.HttpStatusCode
 	}
 	return 0
+}
+
+func (x *TraceSummary) GetHttpPath() string {
+	if x != nil {
+		return x.HttpPath
+	}
+	return ""
 }
 
 type TraceSpan struct {
@@ -2509,7 +2518,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12R\n" +
 	"\btrace_id\x18\x02 \x01(\tB7\xbaH4r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\"J\n" +
 	"\x10GetTraceResponse\x126\n" +
-	"\x05spans\x18\x01 \x03(\v2 .loco.observability.v1.TraceSpanR\x05spans\"\xfa\x02\n" +
+	"\x05spans\x18\x01 \x03(\v2 .loco.observability.v1.TraceSpanR\x05spans\"\x97\x03\n" +
 	"\fTraceSummary\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12$\n" +
 	"\x0eroot_span_name\x18\x02 \x01(\tR\frootSpanName\x12!\n" +
@@ -2522,7 +2531,9 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x06status\x18\a \x01(\x0e2\".loco.observability.v1.TraceStatusR\x06status\x12\x1d\n" +
 	"\n" +
 	"span_count\x18\b \x01(\x04R\tspanCount\x12(\n" +
-	"\x10http_status_code\x18\t \x01(\rR\x0ehttpStatusCode\"\xd8\a\n" +
+	"\x10http_status_code\x18\t \x01(\rR\x0ehttpStatusCode\x12\x1b\n" +
+	"\thttp_path\x18\n" +
+	" \x01(\tR\bhttpPath\"\xd8\a\n" +
 	"\tTraceSpan\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12\x17\n" +
 	"\aspan_id\x18\x02 \x01(\tR\x06spanId\x12$\n" +

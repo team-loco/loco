@@ -14689,6 +14689,11 @@
           "httpStatusCode": {
             "type": "integer",
             "title": "http_status_code"
+          },
+          "httpPath": {
+            "type": "string",
+            "title": "http_path",
+            "description": "The root span's http.route, or url.path when no route is recorded."
           }
         },
         "title": "TraceSummary",

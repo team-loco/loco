@@ -448,6 +448,8 @@ message TraceSummary {
   TraceStatus status = 7;
   uint64 span_count = 8;
   uint32 http_status_code = 9;
+  // The root span's http.route, or url.path when no route is recorded.
+  string http_path = 10;
 }
 
 message TraceSpan {

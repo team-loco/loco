@@ -40,7 +40,9 @@ func buildTraceSummaryQuery(req traceRequest, filter TraceFilter, b *positionalB
 	}
 	query := "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId, " +
 		"toUInt32OrZero(coalesce(nullIf(SpanAttributes[" + b.str("http.response.status_code") + "], " +
-		b.str("") + "), SpanAttributes[" + b.str("http.status_code") + "]))), " +
+		b.str("") + "), SpanAttributes[" + b.str("http.status_code") + "])), " +
+		"coalesce(nullIf(SpanAttributes[" + b.str("http.route") + "], " + b.str("") +
+		"), SpanAttributes[" + b.str("url.path") + "])), " +
 		"tuple(ParentSpanId != '', Timestamp, SpanId)) AS root, min(Timestamp) AS start_time, " +
 		"toUInt64(max(toInt128(toUnixTimestamp64Nano(Timestamp)) + Duration) - " +
 		"toInt128(toUnixTimestamp64Nano(start_time))) AS duration_nanos, " +
@@ -96,7 +98,7 @@ func (c *Client) ListTraces(
 	if req.GetDescending() || req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_UNSPECIFIED {
 		direction = " DESC"
 	}
-	columns := "TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4"
+	columns := "TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4, root.5"
 	query = "WITH trace_summaries AS (" + query + ") SELECT *, " + sort + " AS sort_value FROM trace_summaries"
 	if req.GetIncludeTotalCount() {
 		// Count the whole matching range before seeking past the previous page.
@@ -123,13 +125,13 @@ func (c *Client) ListTraces(
 	var lastValue string
 	var total uint64
 	for rows.Next() {
-		var id, name, service, resource string
+		var id, name, service, resource, path string
 		var status int32
 		var httpStatus uint32
 		var start time.Time
 		var duration, count uint64
 		var value string
-		dest := []any{&id, &name, &service, &resource, &start, &duration, &status, &count, &httpStatus}
+		dest := []any{&id, &name, &service, &resource, &start, &duration, &status, &count, &httpStatus, &path}
 		if req.GetIncludeTotalCount() {
 			dest = append(dest, &total)
 		}
@@ -147,6 +149,7 @@ func (c *Client) ListTraces(
 			Status:         observabilityv1.TraceStatus(status),
 			SpanCount:      count,
 			HttpStatusCode: httpStatus,
+			HttpPath:       path,
 		})
 		if int32(len(summaries)) == limit {
 			lastValue = value
