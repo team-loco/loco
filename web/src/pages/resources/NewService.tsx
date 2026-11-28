@@ -125,6 +125,7 @@ export function NewService({
 					loading={loading}
 					image={image}
 					name={name}
+					nameEdited={editedName !== null}
 					taken={taken}
 					onImage={setImage}
 					onName={setEditedName}
@@ -154,6 +155,7 @@ function ImageStep({
 	loading,
 	image,
 	name,
+	nameEdited,
 	taken,
 	onImage,
 	onName,
@@ -165,6 +167,7 @@ function ImageStep({
 	loading: boolean;
 	image: string;
 	name: string;
+	nameEdited: boolean;
 	taken: TakenKeys;
 	onImage: (image: string) => void;
 	onName: (name: string) => void;
@@ -176,6 +179,7 @@ function ImageStep({
 	const shown =
 		edited && error !== null && image.trim() !== "" ? "Use registry/repository:tag or an @sha256 digest." : null;
 	const nameErr = nameError(name, taken.names) ?? derivedSlugError(name, taken.slugs);
+	const shownNameErr = nameEdited || name !== "" ? nameErr : null;
 
 	const waiting = scopes.isLoading || loading;
 	const ready = !waiting && error === null && nameErr === null;
@@ -226,19 +230,17 @@ function ImageStep({
 						}}
 					/>
 				</Field>
-				{error === null && (
-					<Field label="Name" error={nameErr}>
-						<Input
-							value={name}
-							className="h-9"
-							autoComplete="off"
-							aria-invalid={nameErr !== null}
-							onChange={(e) => {
-								onName(e.target.value);
-							}}
-						/>
-					</Field>
-				)}
+				<Field label="Name" error={shownNameErr}>
+					<Input
+						value={name}
+						className="h-9"
+						autoComplete="off"
+						aria-invalid={shownNameErr !== null}
+						onChange={(e) => {
+							onName(e.target.value);
+						}}
+					/>
+				</Field>
 			</DialogBody>
 			<DialogFooter>
 				<DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>

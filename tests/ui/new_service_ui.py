@@ -293,7 +293,7 @@ with session(out) as browser:
 
     repository = f"shop-{suffix}"
     image = f"registry.example.com/acme/{repository}:1.4.2"
-    name = repository
+    name = f"named-{repository}"
     context, page, errors = open_page(browser, "owner")
     deployments = []
     rejected = []
@@ -364,8 +364,10 @@ with session(out) as browser:
     image_input = ask.get_by_role("textbox", name="Container image")
     expect(image_input).to_be_focused()
     expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
-    expect(ask.get_by_role("textbox", name="Name")).to_have_count(0)
+    name_input = ask.get_by_role("textbox", name="Name")
+    name_input.fill(name)
     image_input.fill("not an image!")
+    expect(name_input).to_have_value(name)
     expect(
         ask.get_by_text("Use registry/repository:tag or an @sha256 digest.", exact=True)
     ).to_be_visible()
