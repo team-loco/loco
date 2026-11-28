@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -378,11 +379,60 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 	}
 }
 
-func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
+func TestRejectedDeliveriesFailWithoutRetrying(t *testing.T) {
+	for _, status := range []int{
+		http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden,
+		http.StatusNotFound, http.StatusGone, http.StatusUnprocessableEntity,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			assertRejectedDeliveryFails(t, status)
+		})
+	}
+}
+
+func assertRejectedDeliveryFails(t *testing.T, status int) {
+	t.Helper()
 	f := newFixture(t)
 	hook, secret := f.webhook(t, f.workspaceID)
 	r := newReceiver(t, secret)
-	r.status.Store(http.StatusInternalServerError)
+	r.status.Store(int32(status))
+	f.setURL(t, hook.ID, r.srv.URL)
+	f.record(t, f.workspaceID, events.ResourceUpdated)
+	d := f.dispatcher(true)
+	if _, err := d.DispatchDue(t.Context()); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	row := f.deliveries(t, hook.ID)[0]
+	if row.Status != webhooks.StatusFailed || row.Attempts != 1 || row.DeliveredAt != nil {
+		t.Fatalf("rejected delivery = %+v, want failed after one attempt", row)
+	}
+	wantError := fmt.Sprintf("endpoint returned %d %s", status, http.StatusText(status))
+	if row.LastError == nil || *row.LastError != wantError {
+		t.Fatalf("last error = %v, want %q", row.LastError, wantError)
+	}
+	f.makeDue(t)
+	if claimed, err := d.DispatchDue(t.Context()); err != nil || claimed != 0 {
+		t.Fatalf("reclaimed terminal delivery: %d, %v", claimed, err)
+	}
+	if got := len(r.types()); got != 1 {
+		t.Fatalf("receiver saw %d requests, want 1", got)
+	}
+}
+
+func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
+	for _, status := range []int{http.StatusRequestTimeout, http.StatusTooManyRequests, http.StatusInternalServerError} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			assertDeliveryRetriesThenFails(t, status)
+		})
+	}
+}
+
+func assertDeliveryRetriesThenFails(t *testing.T, status int) {
+	t.Helper()
+	f := newFixture(t)
+	hook, secret := f.webhook(t, f.workspaceID)
+	r := newReceiver(t, secret)
+	r.status.Store(int32(status))
 	f.setURL(t, hook.ID, r.srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
 	d := f.dispatcher(true)
@@ -392,7 +442,7 @@ func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
 	}
 	row := f.deliveries(t, hook.ID)[0]
 	if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastError == nil ||
-		*row.LastError != "endpoint returned 500 Internal Server Error" {
+		*row.LastError != fmt.Sprintf("endpoint returned %d %s", status, http.StatusText(status)) {
 		t.Fatalf("after one failure = %+v", row)
 	}
 	if again, againErr := d.DispatchDue(t.Context()); againErr != nil || again != 0 {
