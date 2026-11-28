@@ -100,7 +100,7 @@ try:
             )
             requests, replies = [], []
 
-            def lost_reply(route, requests=requests, replies=replies):
+            def lost_reply(route, _request, requests=requests, replies=replies):
                 requests.append(route.request.post_data_json)
                 response = route.fetch()
                 assert response.status == 200, response.text()
@@ -146,6 +146,29 @@ try:
                 drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
             ).to_be_visible()
             page.screenshot(path=out / f"{label}-reply-lost.png")
+            original_draft = page.url
+            drawer.get_by_role("button", name="Close", exact=True).click()
+            page.goto(
+                state["ui_url"]
+                + f"/org/{org}/wks/{workspace}/resources?env=production&new=1"
+            )
+            other = page.get_by_role("dialog", name="New resource", exact=True)
+            other.get_by_role("textbox", name="Container image", exact=True).fill(
+                f"127.0.0.1:{registry.server_port}/retry:latest"
+            )
+            other.get_by_role("textbox", name="Name", exact=True).fill(name + "-other")
+            other.get_by_role("button", name="Continue", exact=True).click()
+            expect(
+                page.get_by_role("dialog", name=name + "-other", exact=True)
+            ).to_be_visible()
+            page.goto(original_draft)
+            page.reload()
+            drawer = page.get_by_role("dialog", name=name, exact=True)
+            deploy = drawer.get_by_role("button", name="Deploy " + name, exact=True)
+            expect(
+                drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+            ).to_be_visible()
+            expect(deploy).to_be_enabled()
             if changed:
                 drawer.get_by_role("textbox", name="Port", exact=True).fill("9090")
             deploy.click()

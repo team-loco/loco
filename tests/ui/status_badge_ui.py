@@ -22,7 +22,9 @@ production = evidence.psql(
     state,
     f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production';",
 )
-drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
+drafts_key = (
+    f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{production}"
+)
 
 
 def runtime(replicas):

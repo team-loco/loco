@@ -62,7 +62,9 @@ production = sql(
 replica_limit = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"][
     "maxReplicas"
 ]
-drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
+drafts_key = (
+    f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{production}"
+)
 DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
 

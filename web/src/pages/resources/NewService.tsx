@@ -316,7 +316,10 @@ function DraftPanel({
 		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: open },
 	);
 	const domainsQuery = useRpcQuery(listAppDomains, { environmentId: env.id });
-	const deployment = useServiceDeploy(workspaceId, env);
+	const draft = store.drafts.find((d) => d.id === draftId);
+	const deployment = useServiceDeploy(workspaceId, env, draft, (operation, form) =>
+		store.setDeployment(draftId, operation, form),
+	);
 	const taken = useTakenKeys(orgId, workspaceId, [], deployment.pendingResourceId);
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
@@ -325,7 +328,6 @@ function DraftPanel({
 	const [saveFailed, setSaveFailed] = useState(false);
 	const [nameText, setNameText] = useState<string | null>(null);
 
-	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
@@ -592,7 +594,13 @@ function ServiceForm({
 		args: edits.args ?? "",
 	};
 	const imageCheck = useImageCheck(env.workspaceId, image);
-	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, deployment.pendingDomains);
+	const availability = useDomainAvailability(
+		form.isPublic ? form.subdomain : "",
+		form.appDomain,
+		deployment.pendingDomains,
+	);
+	// A retained draft already owns this address; recovery uses it rather than adding it again.
+	const check = availability.state === "mine" ? { ...availability, state: "available" as const } : availability;
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: ReactNode, field: keyof NewResourceForm): ReactNode => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);

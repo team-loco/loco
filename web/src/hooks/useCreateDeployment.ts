@@ -14,6 +14,7 @@ export function useCreateDeployment() {
 	return {
 		...mutation,
 		mutateAsync: async (input: MessageInitShape<typeof CreateDeploymentRequestSchema>) => {
+			if (input.requestId) return await mutation.mutateAsync(input);
 			const request = create(CreateDeploymentRequestSchema, input);
 			request.requestId = "";
 			const key = hashKey([toJson(CreateDeploymentRequestSchema, request)]);

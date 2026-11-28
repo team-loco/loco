@@ -21,14 +21,15 @@ function draft(id: string, name = id): Draft {
 }
 
 describe("draftsKey", () => {
-	test("keeps organizations, workspaces and environments apart", () => {
+	test("keeps accounts, organizations, workspaces and environments apart", () => {
 		const keys = new Set([
-			draftsKey("o1", "w1", "e1"),
-			draftsKey("o2", "w1", "e1"),
-			draftsKey("o1", "w2", "e1"),
-			draftsKey("o1", "w1", "e2"),
+			draftsKey("u1", "o1", "w1", "e1"),
+			draftsKey("u2", "o1", "w1", "e1"),
+			draftsKey("u1", "o2", "w1", "e1"),
+			draftsKey("u1", "o1", "w2", "e1"),
+			draftsKey("u1", "o1", "w1", "e2"),
 		]);
-		expect(keys.size).toBe(4);
+		expect(keys.size).toBe(5);
 	});
 });
 
