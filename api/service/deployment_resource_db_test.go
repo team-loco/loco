@@ -41,9 +41,13 @@ func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
 		t.Fatal(err)
 	}
 	updatedSpec := strings.Replace(sameRegionSpec, "100m", biggerCPU, 1)
-	if err := qtx.UpdateResourceSpec(
+	if _, err := qtx.UpdateResourceEnvironmentSpec(
 		ctx,
-		genDb.UpdateResourceSpecParams{ID: f.resourceID, Spec: []byte(updatedSpec)},
+		genDb.UpdateResourceEnvironmentSpecParams{
+			ResourceID:    f.resourceID,
+			EnvironmentID: f.envID,
+			Spec:          []byte(updatedSpec),
+		},
 	); err != nil {
 		t.Fatal(err)
 	}

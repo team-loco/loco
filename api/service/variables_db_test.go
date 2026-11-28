@@ -18,6 +18,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -266,6 +267,50 @@ func TestCreateDeploymentReadingASecretRequiresListingSecrets(t *testing.T) {
 	service.Env = map[string]string{databaseURL: ref(varref.Secrets, passwordName)}
 	_, err := createDeploymentWith(t, f, sameRegionSpec, service)
 	wantCode(t, err, connect.CodePermissionDenied)
+}
+
+func TestReplayReadingASecretRequiresListingSecrets(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	f.setSecrets(t, provider, map[string]string{passwordName: plaintextValue})
+	seedDeployment(t, f, sameRegionSpec)
+	service := imageService()
+	service.Env = map[string]string{databaseURL: ref(varref.Secrets, passwordName)}
+	read := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead}
+	initial := &deploymentv1.CreateDeploymentRequest{
+		ResourceId:    f.resourceID.String(),
+		EnvironmentId: f.envID.String(),
+		Regions:       []string{testRegion},
+		Spec:          &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
+	}
+	created, err := deployRequest(t, f, initial, read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	request := &deploymentv1.CreateDeploymentRequest{
+		ResourceId:         f.resourceID.String(),
+		EnvironmentId:      f.envID.String(),
+		Regions:            []string{testRegion},
+		Trigger:            deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
+		SourceDeploymentId: created.GetDeploymentId(),
+	}
+	before := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
+	if _, err = deployRequest(t, f, request); codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("replay without secret read permission = %v", err)
+	}
+	if got := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`); got != before {
+		t.Fatal("denied replay created a deployment")
+	}
+	replayed, err := deployRequest(t, f, request, read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := f.getDeployment(t, created.GetDeploymentId())
+	if got := f.getDeployment(t, replayed.GetDeploymentId()); !proto.Equal(got.GetSpec(), original.GetSpec()) {
+		t.Fatal("authorized replay changed the source snapshot")
+	}
 }
 
 func TestDeleteSecretsRefusesANameAResourceReads(t *testing.T) {

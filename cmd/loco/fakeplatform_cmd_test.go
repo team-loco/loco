@@ -533,8 +533,10 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 	}
 	for _, res := range platform.resources {
 		if res.GetSlug() == service {
-			res.FailurePolicy = &deploymentv1.FailurePolicy{
-				RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 5,
+			for _, replica := range region.GetReplicas() {
+				replica.FailurePolicy = &deploymentv1.FailurePolicy{
+					RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 5,
+				}
 			}
 			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
 				{

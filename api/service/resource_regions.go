@@ -39,7 +39,15 @@ func (s *ResourceServer) updateRegions(
 	if res.Partial != nil {
 		return errPartialRegionEdit
 	}
-	if res.Revision != req.GetRevision() {
+	environmentID, err := parseID("environment_id", req.GetEnvironmentId())
+	if err != nil {
+		return err
+	}
+	config, err := resourceEnvironment(ctx, qtx, res.ID, environmentID)
+	if err != nil {
+		return err
+	}
+	if config.Revision != req.GetRevision() {
 		return errResourceRevisionMoved
 	}
 	if res.Type != genDb.ResourceTypeService {
@@ -64,114 +72,124 @@ func (s *ResourceServer) updateRegions(
 	if err != nil {
 		return err
 	}
-	environments, err := qtx.ListWorkspaceEnvironments(ctx, res.WorkspaceID)
+	env, err := qtx.GetEnvironmentByID(ctx, environmentID)
 	if err != nil {
-		return fmt.Errorf("list environments: %w", err)
+		return fmt.Errorf("get environment: %w", err)
 	}
-	for _, env := range environments {
-		index := slices.IndexFunc(latest, func(d genDb.Deployment) bool { return d.EnvironmentID == env.ID })
-		if index < 0 {
-			continue
+
+	index := slices.IndexFunc(latest, func(d genDb.Deployment) bool { return d.EnvironmentID == env.ID })
+	if index < 0 {
+		return errRegionTemplateMissing
+	}
+	var active []liveDeployment
+	for _, deployment := range live {
+		if deployment.EnvironmentID == env.ID {
+			active = append(active, deployment)
 		}
-		var active []liveDeployment
-		for _, deployment := range live {
-			if deployment.EnvironmentID == env.ID {
-				active = append(active, deployment)
-			}
+	}
+	// liveState reads the image, env and commit from its first deployment, which must be
+	// what runs now; with no region live, the newest deployment.
+	runtime := active
+	if len(runtime) == 0 {
+		placements, placementsErr := qtx.ListDeploymentPlacements(ctx, latest[index].ID)
+		if placementsErr != nil {
+			return fmt.Errorf("list deployment placements: %w", placementsErr)
 		}
-		// liveState reads the image, env and commit from its first deployment, which must be
-		// what runs now; with no region live, the newest deployment.
-		runtime := active
-		if len(runtime) == 0 {
-			placements, placementsErr := qtx.ListDeploymentPlacements(ctx, latest[index].ID)
-			if placementsErr != nil {
-				return fmt.Errorf("list deployment placements: %w", placementsErr)
-			}
-			runtime = []liveDeployment{{
-				Deployment: latest[index],
-				ClusterID:  placements[0].ClusterID,
-				Region:     placements[0].Region,
-				Replicas:   placements[0].Replicas,
-			}}
+		runtime = []liveDeployment{{
+			Deployment: latest[index],
+			ClusterID:  placements[0].ClusterID,
+			Region:     placements[0].Region,
+			Replicas:   placements[0].Replicas,
+		}}
+	}
+	template, templateErr := currentServiceSpec(runtime[0].Deployment, res.Type)
+	if templateErr != nil {
+		return templateErr
+	}
+	defaults := s.defaults
+	defaults.TargetPlatform = workloadplatform.Platform(template.GetPlatform())
+	var envDomains []genDb.ResourceDomain
+	for _, domain := range domains {
+		if domain.EnvironmentID == env.ID {
+			envDomains = append(envDomains, domain)
 		}
-		template, templateErr := currentServiceSpec(runtime[0].Deployment, res.Type)
-		if templateErr != nil {
-			return templateErr
-		}
-		defaults := s.defaults
-		defaults.TargetPlatform = workloadplatform.Platform(template.GetPlatform())
-		var envDomains []genDb.ResourceDomain
-		for _, domain := range domains {
-			if domain.EnvironmentID == env.ID {
-				envDomains = append(envDomains, domain)
-			}
-		}
-		state, stateErr := liveState(ctx, qtx, s.defaults, res, envDomains, runtime)
-		if stateErr != nil {
-			return stateErr
-		}
-		current := configplan.Service{
-			Name:           res.Slug,
-			Built:          true,
-			RunningRegions: deploymentRegions(active),
-			State:          state,
-		}
-		if len(active) == 0 {
-			current.State.Regions = map[string]configplan.Region{}
-		}
-		desired := state
-		desired.Regions = make(map[string]configplan.Region, len(req.GetRegions().GetTargets()))
-		for name, target := range req.GetRegions().GetTargets() {
-			size := s.defaults.Fill(target, nil)
-			if sizeErr := validateSize(size.CPU, size.Memory); sizeErr != nil {
-				return &invalidInputError{public: publicInvalidRequest, err: sizeErr}
-			}
-			if !target.GetEnabled() {
-				continue
-			}
-			desired.Regions[name] = configplan.Region{
-				CPU:         target.GetCpu(),
-				Memory:      target.GetMemory(),
-				MinReplicas: target.GetMinReplicas(),
-				MaxReplicas: target.GetMaxReplicas(),
-				Autoscaling: liveAutoscaling(target.GetScalers()),
-			}
-		}
-		clusters, clusterErr := eligibleClusters(
-			ctx,
-			qtx,
-			s.clusterSilentAfter,
-			defaults.TargetPlatform,
-		)
-		if clusterErr != nil {
-			return clusterErr
-		}
-		targets := regionClusters(clusters)
-		if errs := configplan.ValidateState(res.Slug, desired, targets); len(errs) > 0 {
-			return applyRefused(errPlanHasErrors, &planv1.ApplyRefusal{Errors: planErrorsToProto(errs)})
-		}
-		builds := map[string]*deploymentv1.BuildSource{}
-		if len(active) == 0 && desired.Image == "" {
-			builds[res.Slug] = template.GetBuild()
-		}
-		var commit *deploymentv1.SourceCommit
-		if sha := runtime[0].CommitSha; sha != nil {
-			commit = &deploymentv1.SourceCommit{Sha: *sha, Dirty: runtime[0].CommitDirty}
-		}
-		a := newApplier(env, organizationID, counts, defaults, s.clusterSilentAfter)
-		a.live = liveEnvironment{
-			resources:   map[string]genDb.Resource{res.Slug: res},
-			deployments: map[uuid.UUID][]liveDeployment{res.ID: active},
-			domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
-		}
-		a.resolved = map[string]varref.Resolved{res.Slug: storedResolution(runtime[0].Deployment)}
-		a.builds = builds
-		a.appDomains = appdomain.Served(targets)
-		a.commit = commit
-		a.regionTargets = req.GetRegions()
-		if applyErr := a.apply(ctx, qtx, configplan.Update(current, desired)); applyErr != nil {
-			return applyErr
-		}
+	}
+	state, stateErr := liveState(ctx, qtx, s.defaults, res, config, envDomains, runtime)
+	if stateErr != nil {
+		return stateErr
+	}
+	current := configplan.Service{
+		Name:           res.Slug,
+		Built:          true,
+		RunningRegions: deploymentRegions(active),
+		State:          state,
+	}
+	if len(active) == 0 {
+		current.State.Regions = map[string]configplan.Region{}
+	}
+	desired := state
+	desired.Regions, err = s.desiredRegions(req.GetRegions().GetTargets())
+	if err != nil {
+		return err
+	}
+	clusters, clusterErr := eligibleClusters(
+		ctx,
+		qtx,
+		s.clusterSilentAfter,
+		defaults.TargetPlatform,
+	)
+	if clusterErr != nil {
+		return clusterErr
+	}
+	targets := regionClusters(clusters)
+	if errs := configplan.ValidateState(res.Slug, desired, targets); len(errs) > 0 {
+		return applyRefused(errPlanHasErrors, &planv1.ApplyRefusal{Errors: planErrorsToProto(errs)})
+	}
+	builds := map[string]*deploymentv1.BuildSource{}
+	if len(active) == 0 && desired.Image == "" {
+		builds[res.Slug] = template.GetBuild()
+	}
+	var commit *deploymentv1.SourceCommit
+	if sha := runtime[0].CommitSha; sha != nil {
+		commit = &deploymentv1.SourceCommit{Sha: *sha, Dirty: runtime[0].CommitDirty}
+	}
+	a := newApplier(env, organizationID, counts, defaults, s.clusterSilentAfter)
+	a.live = liveEnvironment{
+		resources:      map[string]genDb.Resource{res.Slug: res},
+		configurations: map[uuid.UUID]genDb.ResourceEnvironment{res.ID: config},
+		deployments:    map[uuid.UUID][]liveDeployment{res.ID: active},
+		domains:        map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
+	}
+	a.resolved = map[string]varref.Resolved{res.Slug: storedResolution(runtime[0].Deployment)}
+	a.builds = builds
+	a.appDomains = appdomain.Served(targets)
+	a.commit = commit
+	a.regionTargets = req.GetRegions()
+	if applyErr := a.apply(ctx, qtx, configplan.Update(current, desired)); applyErr != nil {
+		return applyErr
 	}
 	return nil
+}
+
+func (s *ResourceServer) desiredRegions(
+	targets map[string]*resourcev1.RegionTarget,
+) (map[string]configplan.Region, error) {
+	regions := make(map[string]configplan.Region, len(targets))
+	for name, target := range targets {
+		size := s.defaults.Fill(target, nil)
+		if sizeErr := validateSize(size.CPU, size.Memory); sizeErr != nil {
+			return nil, &invalidInputError{public: publicInvalidRequest, err: sizeErr}
+		}
+		if !target.GetEnabled() {
+			continue
+		}
+		regions[name] = configplan.Region{
+			CPU:         target.GetCpu(),
+			Memory:      target.GetMemory(),
+			MinReplicas: target.GetMinReplicas(),
+			MaxReplicas: target.GetMaxReplicas(),
+			Autoscaling: liveAutoscaling(target.GetScalers()),
+		}
+	}
+	return regions, nil
 }

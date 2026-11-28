@@ -61,7 +61,8 @@ CREATE TABLE
         revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, slug)
+        UNIQUE (workspace_id, slug),
+        UNIQUE (id, workspace_id)
     );
 
 CREATE UNIQUE INDEX uniq_environments_workspace_lower_name ON environments (workspace_id, lower(name));
@@ -147,22 +148,40 @@ CREATE TABLE
         name TEXT NOT NULL CHECK (char_length(name) <= 63 AND name ~ '\S'),
         type resource_type NOT NULL,
         description TEXT NOT NULL,
-        spec JSONB NOT NULL,
-        spec_version INT NOT NULL,
-        revision BIGINT NOT NULL DEFAULT 1,
         partial TEXT CHECK (partial ~ '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'),
-        restart_policy TEXT,
-        max_restarts INT,
-        deploy_timeout_seconds INT,
         created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, slug)
+        UNIQUE (workspace_id, slug),
+        UNIQUE (id, workspace_id)
     );
 
 CREATE UNIQUE INDEX uniq_resources_workspace_lower_name ON resources (workspace_id, lower(name));
 
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
+
+-- Desired runtime configuration belongs to one resource in one environment. The workspace
+-- key makes it impossible to attach a resource to another workspace's environment.
+CREATE TABLE resource_environments (
+    resource_id UUID NOT NULL,
+    environment_id UUID NOT NULL,
+    workspace_id UUID NOT NULL,
+    spec JSONB NOT NULL,
+    spec_version INT NOT NULL,
+    revision BIGINT NOT NULL DEFAULT 1,
+    restart_policy TEXT,
+    max_restarts INT,
+    deploy_timeout_seconds INT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+    PRIMARY KEY (resource_id, environment_id),
+    FOREIGN KEY (resource_id, workspace_id) REFERENCES resources (id, workspace_id) ON DELETE CASCADE,
+    FOREIGN KEY (environment_id, workspace_id) REFERENCES environments (id, workspace_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_resource_environments_environment ON resource_environments (environment_id, workspace_id);
+
+CREATE INDEX idx_resource_environments_resource_workspace ON resource_environments (resource_id, workspace_id);
 
 -- Secret values of one environment, AES-256-GCM ciphertext under the environment's data-encryption key
 CREATE TABLE
@@ -186,8 +205,8 @@ CREATE TABLE
 CREATE TABLE
     resource_domains (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
-        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
+        resource_id UUID NOT NULL,
+        environment_id UUID NOT NULL,
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
@@ -195,6 +214,7 @@ CREATE TABLE
         is_primary BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        FOREIGN KEY (resource_id, environment_id) REFERENCES resource_environments (resource_id, environment_id) ON DELETE CASCADE,
         CONSTRAINT domain_source_check CHECK (
             (
                 domain_source = 'app'
@@ -209,7 +229,7 @@ CREATE TABLE
         )
     );
 
-CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, is_primary DESC, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, environment_id, is_primary DESC, created_at ASC);
 
 CREATE INDEX idx_resource_domains_environment_id ON resource_domains (environment_id);
 
@@ -757,6 +777,7 @@ DROP TYPE IF EXISTS deployment_method;
 DROP TYPE IF EXISTS deployment_actor_type;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS secrets;
+DROP TABLE IF EXISTS resource_environments;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS cluster_assertions;
 DROP TABLE IF EXISTS cluster_heartbeats;

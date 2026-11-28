@@ -51,15 +51,30 @@ func app(name, placementID, revision string) *locoControllerV1.Application {
 }
 
 func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
+	const observedID = "observed-a"
 	w := newWatcher(nil, nil, testNamespace)
 	lagging := app("resource-a", "p1", "5")
+	lagging.Spec.DeploymentID = "desired-b"
+	lagging.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{
+		RestartPolicy: locoControllerV1.RestartPolicySpec{Mode: locoControllerV1.RestartOnFailure, MaxRestarts: 7},
+	}
 	lagging.Status.ObservedPlacementRevision = 4
+	lagging.Status.ObservedDeploymentID = observedID
+	lagging.Status.Rollout = &locoControllerV1.RolloutStatus{
+		Replicas: []locoControllerV1.ReplicaStatus{{
+			UID: "replica-a", DeploymentID: observedID, PlacementRevision: 4,
+			RestartPolicy: &locoControllerV1.RestartPolicySpec{Mode: locoControllerV1.RestartOnFailure, MaxRestarts: 3},
+		}},
+	}
 
 	var got []*agentv1.PlacementStatus
 	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
 	w.observe(lagging)
 	if len(got) != 1 || got[0].GetObservedRevision() != 4 {
 		t.Fatalf("statuses = %v, want observed revision 4", got)
+	}
+	if got[0].GetDeploymentId() != observedID || got[0].GetReplicas()[0].GetFailurePolicy().GetMaxRestarts() != 3 {
+		t.Fatalf("desired deployment policy replaced the observed context: %v", got[0])
 	}
 }
 
@@ -289,7 +304,7 @@ func TestRolloutForwarding(t *testing.T) {
 	application.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{
 		RestartPolicy: locoControllerV1.RestartPolicySpec{
 			Mode:        locoControllerV1.RestartOnFailure,
-			MaxRestarts: 3,
+			MaxRestarts: 7,
 		},
 		DeployTimeoutSeconds: 120,
 	}
@@ -298,7 +313,7 @@ func TestRolloutForwarding(t *testing.T) {
 	restart := locoControllerV1.ReplicaRestart{At: at, Cause: locoControllerV1.RestartHealthCheck, ExitCode: 137}
 	wantRestart := &deploymentv1.ReplicaRestart{At: timestamppb.New(at.Time), Cause: "health_check", ExitCode: 137}
 	wantPolicy := &deploymentv1.FailurePolicy{
-		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3, DeployTimeoutSeconds: 120,
+		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3,
 	}
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
 		DesiredReplicas:  2,
@@ -323,15 +338,18 @@ func TestRolloutForwarding(t *testing.T) {
 				Node:              "node-a",
 				PlacementRevision: 5,
 				DeploymentID:      observedDeploymentID,
-				Ready:             true,
-				State:             locoControllerV1.ReplicaServing,
-				StateSince:        &at,
-				Restarts:          2,
-				StartedAt:         &at,
-				LastExit:          &locoControllerV1.ReplicaExit{Reason: "OOMKilled", ExitCode: 137, FinishedAt: at},
-				RestartsAt:        []metav1.Time{at, at},
-				LastRestart:       &restart,
-				Detail:            "ready",
+				RestartPolicy: &locoControllerV1.RestartPolicySpec{
+					Mode: locoControllerV1.RestartOnFailure, MaxRestarts: 3,
+				},
+				Ready:       true,
+				State:       locoControllerV1.ReplicaServing,
+				StateSince:  &at,
+				Restarts:    2,
+				StartedAt:   &at,
+				LastExit:    &locoControllerV1.ReplicaExit{Reason: "OOMKilled", ExitCode: 137, FinishedAt: at},
+				RestartsAt:  []metav1.Time{at, at},
+				LastRestart: &restart,
+				Detail:      "ready",
 			},
 			{
 				UID:               "previous",
@@ -356,7 +374,6 @@ func TestRolloutForwarding(t *testing.T) {
 		PlacementId:      testPlacementID,
 		DeploymentId:     observedDeploymentID,
 		ObservedRevision: 5,
-		FailurePolicy:    wantPolicy,
 		DesiredReplicas:  2,
 		Available:        true,
 		Healthy:          true,
@@ -378,6 +395,7 @@ func TestRolloutForwarding(t *testing.T) {
 				Node:              "node-a",
 				PlacementRevision: 5,
 				DeploymentId:      observedDeploymentID,
+				FailurePolicy:     wantPolicy,
 				Ready:             true,
 				State:             "Serving",
 				StateSince:        timestamppb.New(at.Time),
@@ -421,7 +439,6 @@ func TestRolloutForwarding(t *testing.T) {
 		PlacementId:      testPlacementID,
 		DeploymentId:     observedDeploymentID,
 		ObservedRevision: 5,
-		FailurePolicy:    wantPolicy,
 	}
 	if len(got) != 3 || !proto.Equal(got[2], want) {
 		t.Fatalf("nil rollout=%v", got)

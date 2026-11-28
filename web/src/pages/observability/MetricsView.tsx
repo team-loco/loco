@@ -1,4 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
+import { resourceConfiguration } from "@/lib/resource-regions";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
@@ -330,7 +331,7 @@ function usePlacementSizing(rows: Placement[], recent: Deployment[], environment
 	for (const p of rows) {
 		const deployment = current.get(p.deploymentId);
 		const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
-		const spec = p.resource.raw.spec?.spec;
+		const spec = resourceConfiguration(p.resource.raw, environmentId)?.spec?.spec;
 		const intent = spec?.case === "service" ? spec.value.regions[p.region] : undefined;
 		sizing.set(p.key, {
 			deployments: [...(earlier.get(p.resource.id) ?? []), ...known(p)],

@@ -43,7 +43,7 @@ export function itemRank(item: DashboardItem): number {
 }
 
 export function itemIsPublic(item: DashboardItem): boolean {
-	return isDraftItem(item) ? draftIsPublic(item.draft) : primaryDomain(item.resource) !== null;
+	return isDraftItem(item) ? draftIsPublic(item.draft) : primaryDomain(item.resource, item.environmentId) !== null;
 }
 
 export const ALL = "all";

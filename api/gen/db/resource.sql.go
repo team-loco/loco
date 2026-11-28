@@ -12,15 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const bumpResourceRevision = `-- name: BumpResourceRevision :exec
-UPDATE resources SET revision = revision + 1 WHERE id = $1
-`
-
-func (q *Queries) BumpResourceRevision(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, bumpResourceRevision, id)
-	return err
-}
-
 const countOrgResources = `-- name: CountOrgResources :one
 SELECT COUNT(*) FROM (
   SELECT 1 FROM resources r
@@ -62,8 +53,8 @@ func (q *Queries) CountOrgResources(ctx context.Context, arg CountOrgResourcesPa
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, slug, name, type, description, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO resources (workspace_id, slug, name, type, description, created_by)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
@@ -73,8 +64,6 @@ type CreateResourceParams struct {
 	Name        string       `json:"name"`
 	Type        ResourceType `json:"type"`
 	Description string       `json:"description"`
-	Spec        []byte       `json:"spec"`
-	SpecVersion int32        `json:"specVersion"`
 	CreatedBy   uuid.UUID    `json:"createdBy"`
 }
 
@@ -86,8 +75,6 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.Name,
 		arg.Type,
 		arg.Description,
-		arg.Spec,
-		arg.SpecVersion,
 		arg.CreatedBy,
 	)
 	var id uuid.UUID
@@ -105,7 +92,7 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -120,13 +107,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Name,
 		&i.Type,
 		&i.Description,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.Revision,
 		&i.Partial,
-		&i.RestartPolicy,
-		&i.MaxRestarts,
-		&i.DeployTimeoutSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -135,7 +116,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceBySlugAndWorkspace = `-- name: GetResourceBySlugAndWorkspace :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.slug = $2
 `
@@ -155,13 +136,7 @@ func (q *Queries) GetResourceBySlugAndWorkspace(ctx context.Context, arg GetReso
 		&i.Name,
 		&i.Type,
 		&i.Description,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.Revision,
 		&i.Partial,
-		&i.RestartPolicy,
-		&i.MaxRestarts,
-		&i.DeployTimeoutSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -622,7 +597,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 }
 
 const listResourcesByIDs = `-- name: ListResourcesByIDs :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = ANY($1::uuid[])
 `
@@ -643,13 +618,7 @@ func (q *Queries) ListResourcesByIDs(ctx context.Context, ids []uuid.UUID) ([]Re
 			&i.Name,
 			&i.Type,
 			&i.Description,
-			&i.Spec,
-			&i.SpecVersion,
-			&i.Revision,
 			&i.Partial,
-			&i.RestartPolicy,
-			&i.MaxRestarts,
-			&i.DeployTimeoutSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -696,7 +665,7 @@ func (q *Queries) ListWorkspaceResourceSlugs(ctx context.Context, workspaceID uu
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.slug ASC
@@ -718,13 +687,7 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.Name,
 			&i.Type,
 			&i.Description,
-			&i.Spec,
-			&i.SpecVersion,
-			&i.Revision,
 			&i.Partial,
-			&i.RestartPolicy,
-			&i.MaxRestarts,
-			&i.DeployTimeoutSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -793,32 +756,6 @@ func (q *Queries) SetPlacementRegionStatus(ctx context.Context, arg SetPlacement
 	return err
 }
 
-const setResourceDeployPolicy = `-- name: SetResourceDeployPolicy :exec
-UPDATE resources
-SET restart_policy = $2,
-    max_restarts = $3,
-    deploy_timeout_seconds = $4,
-    updated_at = NOW()
-WHERE id = $1
-`
-
-type SetResourceDeployPolicyParams struct {
-	ID                   uuid.UUID `json:"id"`
-	RestartPolicy        *string   `json:"restartPolicy"`
-	MaxRestarts          *int32    `json:"maxRestarts"`
-	DeployTimeoutSeconds *int32    `json:"deployTimeoutSeconds"`
-}
-
-func (q *Queries) SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error {
-	_, err := q.db.Exec(ctx, setResourceDeployPolicy,
-		arg.ID,
-		arg.RestartPolicy,
-		arg.MaxRestarts,
-		arg.DeployTimeoutSeconds,
-	)
-	return err
-}
-
 const setResourcePartial = `-- name: SetResourcePartial :exec
 UPDATE resources
 SET partial = $2, updated_at = NOW()
@@ -862,22 +799,6 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const updateResourceSpec = `-- name: UpdateResourceSpec :exec
-UPDATE resources
-SET spec = $2, revision = revision + 1, updated_at = NOW()
-WHERE id = $1
-`
-
-type UpdateResourceSpecParams struct {
-	ID   uuid.UUID `json:"id"`
-	Spec []byte    `json:"spec"`
-}
-
-func (q *Queries) UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error {
-	_, err := q.db.Exec(ctx, updateResourceSpec, arg.ID, arg.Spec)
-	return err
 }
 
 const workspaceHoldsAnyResource = `-- name: WorkspaceHoldsAnyResource :one

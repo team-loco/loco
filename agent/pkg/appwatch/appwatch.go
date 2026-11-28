@@ -140,13 +140,6 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		ReadyReplicas:    app.Status.ReadyReplicas,
 	}
-	if spec := app.Spec.ServiceSpec; spec != nil {
-		status.FailurePolicy = &deploymentv1.FailurePolicy{
-			RestartPolicy:        restartPolicy(spec.RestartPolicy.Mode),
-			MaxRestarts:          spec.RestartPolicy.MaxRestarts,
-			DeployTimeoutSeconds: spec.DeployTimeoutSeconds,
-		}
-	}
 	if rollout := app.Status.Rollout; rollout != nil {
 		status.DesiredReplicas = rollout.DesiredReplicas
 		status.Available = rollout.Available
@@ -180,6 +173,11 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				State:             string(replica.State),
 				Restarts:          replica.Restarts,
 				Detail:            replica.Detail,
+			}
+			if policy := replica.RestartPolicy; policy != nil {
+				report.FailurePolicy = &deploymentv1.FailurePolicy{
+					RestartPolicy: restartPolicy(policy.Mode), MaxRestarts: policy.MaxRestarts,
+				}
 			}
 			if replica.StartedAt != nil {
 				report.StartedAt = timestamppb.New(replica.StartedAt.Time)

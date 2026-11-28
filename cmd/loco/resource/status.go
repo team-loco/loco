@@ -123,7 +123,7 @@ func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resour
 	}
 	now := time.Now()
 	for _, environment := range statuses {
-		if err := renderEnvironmentStatus(stdout, environment, resource.GetFailurePolicy(), now); err != nil {
+		if err := renderEnvironmentStatus(stdout, environment, now); err != nil {
 			return err
 		}
 	}
@@ -133,7 +133,6 @@ func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resour
 func renderEnvironmentStatus(
 	stdout io.Writer,
 	environment *resourcev1.EnvironmentStatus,
-	policy *deploymentv1.FailurePolicy,
 	now time.Time,
 ) error {
 	nameStyle := lipgloss.NewStyle().Foreground(ui.Fg).Bold(true)
@@ -162,7 +161,7 @@ func renderEnvironmentStatus(
 		return err
 	}
 	for _, region := range environment.GetRegions() {
-		if err := renderReplicas(stdout, region, policy, now); err != nil {
+		if err := renderReplicas(stdout, region, now); err != nil {
 			return err
 		}
 	}
@@ -171,7 +170,8 @@ func renderEnvironmentStatus(
 
 // replicaStateLabel is the replica's state, or Restarting with the restarts its restart policy
 // counts, against the on-failure budget, while a replica that restarted has not stopped.
-func replicaStateLabel(replica *deploymentv1.Replica, policy *deploymentv1.FailurePolicy) string {
+func replicaStateLabel(replica *deploymentv1.Replica) string {
+	policy := replica.GetFailurePolicy()
 	restarts := len(replica.GetRestartsAt())
 	// Replica states are owned by k8sapi/v1alpha1/replicas.go.
 	switch state := replica.GetState(); {
@@ -188,7 +188,6 @@ func replicaStateLabel(replica *deploymentv1.Replica, policy *deploymentv1.Failu
 func renderReplicas(
 	stdout io.Writer,
 	region *resourcev1.RegionStatus,
-	policy *deploymentv1.FailurePolicy,
 	now time.Time,
 ) error {
 	if len(region.GetReplicas()) == 0 {
@@ -213,7 +212,7 @@ func renderReplicas(
 		}
 		rows = append(rows, []string{
 			replica.GetName(),
-			replicaStateLabel(replica, policy),
+			replicaStateLabel(replica),
 			strconv.Itoa(int(replica.GetRestarts())),
 			lastExit,
 			started,

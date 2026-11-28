@@ -204,17 +204,19 @@ func TestStoppedReplicaWarnsOnlyForAnUncleanExit(t *testing.T) {
 func TestDiffRolloutRecordsEachNewRestart(t *testing.T) {
 	first := timestamppb.New(time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC))
 	second := timestamppb.New(first.AsTime().Add(20 * time.Second))
-	replica := func(cause string, restarts ...*timestamppb.Timestamp) *deploymentv1.Replica {
-		return &deploymentv1.Replica{
-			Uid: activityReplicaUID, State: string(loco.ReplicaServing), RestartsAt: restarts,
-			LastRestart: &deploymentv1.ReplicaRestart{At: restarts[len(restarts)-1], Cause: cause, ExitCode: 1},
-		}
-	}
 	onFailure := &deploymentv1.FailurePolicy{
 		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 5,
 	}
+
+	replica := func(cause string, restarts ...*timestamppb.Timestamp) *deploymentv1.Replica {
+		return &deploymentv1.Replica{
+			Uid: activityReplicaUID, State: string(loco.ReplicaServing), RestartsAt: restarts,
+			LastRestart:   &deploymentv1.ReplicaRestart{At: restarts[len(restarts)-1], Cause: cause, ExitCode: 1},
+			FailurePolicy: onFailure,
+		}
+	}
 	report := func(replica *deploymentv1.Replica) *agentv1.PlacementStatus {
-		return &agentv1.PlacementStatus{FailurePolicy: onFailure, Replicas: []*deploymentv1.Replica{replica}}
+		return &agentv1.PlacementStatus{Replicas: []*deploymentv1.Replica{replica}}
 	}
 	entries := diffRollout(rolloutSnapshot{}, report(replica(string(loco.RestartExit), first)))
 	assertActivityMessages(t, entries, []string{"Restarted after exit 1 · 1 of 5", testServingMessage})
@@ -227,9 +229,20 @@ func TestDiffRolloutRecordsEachNewRestart(t *testing.T) {
 		[]string{"Restarted after failing its health check · 2 of 5"},
 	)
 	assertActivityMessages(t, diffRollout(previous, report(replica(string(loco.RestartExit), first))), nil)
-	always := &agentv1.PlacementStatus{
-		FailurePolicy: &deploymentv1.FailurePolicy{RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS},
-		Replicas:      []*deploymentv1.Replica{replica(string(loco.RestartExit), first, second)},
+	for _, tt := range []struct {
+		policy *deploymentv1.FailurePolicy
+		want   string
+	}{
+		{&deploymentv1.FailurePolicy{
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 7,
+		}, "Restarted after exit 1 · 2 of 7"},
+		{&deploymentv1.FailurePolicy{
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS,
+		}, "Restarted after exit 1 · 2"},
+		{nil, "Restarted after exit 1 · 2"},
+	} {
+		current := replica(string(loco.RestartExit), first, second)
+		current.FailurePolicy = tt.policy
+		assertActivityMessages(t, diffRollout(previous, report(current)), []string{tt.want})
 	}
-	assertActivityMessages(t, diffRollout(previous, always), []string{"Restarted after exit 1 · 2"})
 }

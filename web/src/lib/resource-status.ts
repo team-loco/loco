@@ -40,7 +40,10 @@ export function statusRank(status: ResourceStatus): number {
 	}
 }
 
-export function primaryDomain(resource: Resource): string | null {
-	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
+export function primaryDomain(resource: Resource, environmentId?: string): string | null {
+	const domains = resource.domains.filter(
+		(domain) => environmentId === undefined || domain.environmentId === environmentId,
+	);
+	const domain = domains.find((d) => d.isPrimary) ?? domains[0];
 	return domain?.domain ?? null;
 }

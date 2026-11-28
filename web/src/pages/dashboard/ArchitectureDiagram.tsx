@@ -200,7 +200,7 @@ export function ArchitectureDiagram({
 							<ResourceNode
 								key={itemKey(node.row)}
 								node={node}
-								sub={isDraftItem(node.row) ? "" : (primaryDomain(node.row.resource) ?? "")}
+								sub={isDraftItem(node.row) ? "" : (primaryDomain(node.row.resource, node.row.environmentId) ?? "")}
 								href={hrefFor(node.row)}
 								dim={dimmed?.(node.row) ?? false}
 								onSelect={onSelect}

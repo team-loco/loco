@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -31,11 +32,14 @@ func regionTargets(t *testing.T, f *deployFixture) (map[string]*resourcev1.Regio
 	if err != nil {
 		t.Fatal(err)
 	}
-	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	spec, err := converter.DeserializeResourceSpec(
+		testResourceConfiguration(t, f.queries, res.ID, f.envID).Spec,
+		res.Type,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return spec.GetService().GetRegions(), res.Revision
+	return spec.GetService().GetRegions(), testResourceConfiguration(t, f.queries, res.ID, f.envID).Revision
 }
 
 func updateResourceRegions(
@@ -57,9 +61,10 @@ func updateResourceRegions(
 	_, err := server.UpdateResource(
 		ctx,
 		&resourcev1.UpdateResourceRequest{
-			ResourceId: f.resourceID.String(),
-			Regions:    &resourcev1.RegionTargets{Targets: targets},
-			Revision:   revision,
+			ResourceId:    f.resourceID.String(),
+			EnvironmentId: f.envID.String(),
+			Regions:       &resourcev1.RegionTargets{Targets: targets},
+			Revision:      revision,
 		},
 	)
 	return err
@@ -88,6 +93,10 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 	for _, action := range []string{regionResize, "off", "omit", regionClear} {
 		t.Run(action, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
+			identityBefore, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
+			if err != nil {
+				t.Fatal(err)
+			}
 			targets, revision := regionTargets(t, f)
 			targets[otherRegion] = proto.CloneOf(targets[testRegion])
 			if err := updateResourceRegions(t, f, targets, revision); err != nil {
@@ -96,6 +105,13 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 			active := f.activeDeployments(t, f.envID)
 			if len(active) != 2 {
 				t.Fatalf("added deployments = %v", active)
+			}
+			if identityAfter, err := f.queries.GetResourceByID(
+				t.Context(),
+				f.resourceID,
+			); err != nil ||
+				!reflect.DeepEqual(identityAfter, identityBefore) {
+				t.Fatalf("region edit changed shared identity: %v", err)
 			}
 			f.finishRollouts(t)
 			targets, revision = regionTargets(t, f)
@@ -234,10 +250,11 @@ func TestUpdateResourceRegionsAcceptsDisabledTargetWithoutSize(t *testing.T) {
 	}
 }
 
-func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) {
+func TestUpdateResourceRegionsValidatesAndChangesOnlyTheRequestedEnvironment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.deployToProductionAndStaging(t)
+	staging := f.deployToProductionAndStaging(t)
+	stagingBefore := testResourceConfiguration(t, f.queries, f.resourceID, staging)
 	f.finishRollouts(t)
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
@@ -252,14 +269,25 @@ VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false) RETURNING id`
 	before := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
 	wantCode(t, updateResourceRegions(t, f, targets, revision), connect.CodeFailedPrecondition)
 	if after := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`); after != before {
-		t.Fatal("invalid multi-environment update deployed partially")
+		t.Fatal("invalid region update deployed partially")
 	}
 	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, extra)
 	if err := updateResourceRegions(t, f, targets, revision); err != nil {
 		t.Fatal(err)
 	}
-	if after := f.count(t, `SELECT count(*) FROM live_deployment_placements WHERE resource_id=$1`); after != 4 {
+	if after := f.count(t, `SELECT count(*) FROM live_deployment_placements WHERE resource_id=$1`); after != 3 {
 		t.Fatalf("active deployments = %d", after)
+	}
+	if after := testResourceConfiguration(
+		t,
+		f.queries,
+		f.resourceID,
+		staging,
+	); !reflect.DeepEqual(
+		after,
+		stagingBefore,
+	) {
+		t.Fatal("production region update changed staging configuration")
 	}
 }
 
@@ -292,10 +320,11 @@ func TestApplyBumpsResourceSpecRevision(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
-	before, _ := f.resourceByName(t, applyWorker)
+	resource, _ := f.resourceByName(t, applyWorker)
+	before := testResourceConfiguration(t, f.queries, resource.ID, f.envID)
 	f.finishRollouts(t)
 	applyOK(t, f, planFileHeader+applyFileWorkerMoreReplicas, applyOptions{})
-	after, _ := f.resourceByName(t, applyWorker)
+	after := testResourceConfiguration(t, f.queries, resource.ID, f.envID)
 	if after.Revision <= before.Revision {
 		t.Fatalf("apply revision = %d, previous %d", after.Revision, before.Revision)
 	}
@@ -403,9 +432,10 @@ func TestRegionUpdatesRetainDeploymentPlatformAfterTargetChanges(t *testing.T) {
 				}},
 			})
 			_, err := server.UpdateResource(ctx, &resourcev1.UpdateResourceRequest{
-				ResourceId: f.resourceID.String(),
-				Regions:    &resourcev1.RegionTargets{Targets: targets},
-				Revision:   revision,
+				ResourceId:    f.resourceID.String(),
+				EnvironmentId: f.envID.String(),
+				Regions:       &resourcev1.RegionTargets{Targets: targets},
+				Revision:      revision,
 			})
 			if err != nil {
 				t.Fatal(err)

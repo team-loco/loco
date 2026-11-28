@@ -58,8 +58,6 @@ func newScopedAuditFixture(t *testing.T) *scopedAuditFixture {
 				Slug:        name,
 				Name:        name,
 				Type:        genDb.ResourceTypeService,
-				Spec:        []byte(`{}`),
-				SpecVersion: 1,
 			},
 		)
 		if err != nil {
@@ -371,7 +369,7 @@ func TestDeploymentAndScaleEventsStayInTheirEnvironment(t *testing.T) {
 	stagingID := f.deployToProductionAndStaging(t)
 	for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
 		f.finishRollouts(t)
-		if err := scaleResourceIn(t, f, environmentID, 2); err != nil {
+		if err := scaleResourceIn(t, f, environmentID, 3); err != nil {
 			t.Fatal(err)
 		}
 	}

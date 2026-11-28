@@ -3,7 +3,7 @@ import json
 import uuid
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session, sql
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,8 +22,21 @@ workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
 name = "regions-" + uuid.uuid4().hex[:8]
 with session(out) as browser:
-    east_cluster = evidence.seed_cluster(state, "us-ca-1")
-    west_cluster = evidence.seed_cluster(state, "us-va-1")
+    staging = call(
+        state,
+        "loco.environment.v1.EnvironmentService/CreateEnvironment",
+        {"workspaceId": workspace, "name": "staging"},
+    )["environmentId"]
+    production = sql(
+        state,
+        f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production';",
+    )
+    east_cluster = evidence.seed_cluster(
+        state, "us-ca-1", domains=["apps.example.test"]
+    )
+    west_cluster = evidence.seed_cluster(
+        state, "us-va-1", domains=["apps.example.test"]
+    )
     resource = evidence.seed_resources(
         state,
         [
@@ -51,7 +64,38 @@ with session(out) as browser:
                                 }
                             },
                         },
-                    }
+                    },
+                    {
+                        "environment": "staging",
+                        "placements": {"us-ca-1": {"cluster": east_cluster}},
+                        "spec": {
+                            "platform": "linux/amd64",
+                            "observability": {"injectOtel": True},
+                            "build": {
+                                "type": "image",
+                                "image": "registry.example.com/shop:staging",
+                            },
+                            "port": 9090,
+                            "regions": {
+                                "us-ca-1": {
+                                    "cpu": "250m",
+                                    "memory": "256Mi",
+                                    "minReplicas": 1,
+                                    "maxReplicas": 1,
+                                }
+                            },
+                        },
+                    },
+                ],
+                "domains": [
+                    {
+                        "environment": "production",
+                        "domain": f"prod-{name}.apps.example.test",
+                    },
+                    {
+                        "environment": "staging",
+                        "domain": f"staging-{name}.apps.example.test",
+                    },
                 ],
             }
         ],
@@ -65,6 +109,19 @@ with session(out) as browser:
     calls = []
     concurrent_edit = []
 
+    def staging_state():
+        return sql(
+            state,
+            f"""SELECT jsonb_build_object(
+            'revision', (SELECT revision FROM environments WHERE id='{staging}'),
+            'configuration', (SELECT to_jsonb(c) FROM resource_environments c WHERE resource_id='{resource}' AND environment_id='{staging}'),
+            'deployments', (SELECT jsonb_agg(to_jsonb(d) ORDER BY d.id) FROM deployments d WHERE resource_id='{resource}' AND environment_id='{staging}'),
+            'placements', (SELECT jsonb_agg(to_jsonb(p) ORDER BY p.id) FROM placements p WHERE resource_id='{resource}' AND environment_id='{staging}')
+        );""",
+        )
+
+    staging_before = staging_state()
+
     def record(route):
         calls.append(
             (route.request.url.rsplit("/", 1)[-1], route.request.post_data_json)
@@ -74,7 +131,7 @@ with session(out) as browser:
             # Another save lands between the page's last read and this request.
             sql(
                 state,
-                f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';",
+                f"UPDATE resource_environments SET revision=revision+1 WHERE resource_id='{resource}' AND environment_id=(SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production');",
             )
         route.continue_()
 
@@ -83,7 +140,10 @@ with session(out) as browser:
 
     def stored():
         return json.loads(
-            sql(state, f"SELECT spec FROM resources WHERE id='{resource}';")
+            sql(
+                state,
+                f"SELECT spec FROM resource_environments WHERE resource_id='{resource}' AND environment_id=(SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production');",
+            )
         )["regions"]
 
     def save():
@@ -115,7 +175,10 @@ with session(out) as browser:
     expect(west).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#set-regions")).to_contain_text("Will be added")
     expect(east).to_be_enabled()
-    revision = sql(state, f"SELECT revision FROM resources WHERE id='{resource}';")
+    revision = sql(
+        state,
+        f"SELECT revision FROM resource_environments WHERE resource_id='{resource}' AND environment_id=(SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production');",
+    )
     save()
     expect(page.get_by_text("Rolling out in us-va-1.", exact=False)).to_be_visible()
     assert [call[0] for call in calls] == ["UpdateResource"], calls
@@ -129,11 +192,39 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-va-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND environment_id='{production}' AND region='us-va-1';",
         )
         == "1"
     )
     expect(west).to_have_attribute("aria-pressed", "true")
+    assert request["environmentId"] == production, request
+    assert staging_state() == staging_before, "production region update changed staging"
+    page.goto(
+        state["ui_url"]
+        + f"/org/{org}/wks/{workspace}/resource/{resource}?env=staging&tab=settings"
+    )
+    expect(
+        page.get_by_role("button", name="Run in us-va-1", exact=True)
+    ).to_have_attribute("aria-pressed", "false")
+    expect(page.get_by_role("slider", name="CPU", exact=True)).to_have_attribute(
+        "aria-valuetext", "0.25 vCPU"
+    )
+    expect(page.get_by_role("textbox", name="Port", exact=True)).to_have_value("9090")
+    expect(page.locator("#set-net")).to_contain_text(
+        f"staging-{name}.apps.example.test"
+    )
+    expect(page.locator("#set-net")).not_to_contain_text(
+        f"prod-{name}.apps.example.test"
+    )
+    page.goto(
+        state["ui_url"]
+        + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings"
+    )
+    expect(page.get_by_role("textbox", name="Port", exact=True)).to_have_value("8080")
+    expect(page.locator("#set-net")).to_contain_text(f"prod-{name}.apps.example.test")
+    expect(page.locator("#set-net")).not_to_contain_text(
+        f"staging-{name}.apps.example.test"
+    )
 
     sql(
         state,
@@ -150,7 +241,7 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-ca-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND environment_id='{production}' AND region='us-ca-1';",
         )
         == "0"
     )
@@ -179,7 +270,7 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-va-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND environment_id='{production}' AND region='us-va-1';",
         )
         == "0"
     )

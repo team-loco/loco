@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -9,6 +10,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -176,6 +178,8 @@ func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
 				scaledID, otherID = stagingID, f.envID
 			}
 			untouched := f.activeDeployment(t, otherID)
+			otherConfig := testResourceConfiguration(t, f.queries, f.resourceID, otherID)
+			scaledBefore := testResourceConfiguration(t, f.queries, f.resourceID, scaledID)
 
 			const scaled = 3
 			f.finishRollouts(t)
@@ -184,6 +188,29 @@ func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
 			}
 			if got := f.activeDeployment(t, scaledID).Replicas; got != scaled {
 				t.Errorf("%s replicas = %d after the scale, want %d", scaledName, got, scaled)
+			}
+			if after := testResourceConfiguration(
+				t,
+				f.queries,
+				f.resourceID,
+				otherID,
+			); !reflect.DeepEqual(
+				after,
+				otherConfig,
+			) {
+				t.Fatal("scaling changed another environment's desired configuration")
+			}
+			selected := testResourceConfiguration(t, f.queries, f.resourceID, scaledID)
+			if selected.Revision <= scaledBefore.Revision {
+				t.Fatal("scaling did not advance selected configuration revision")
+			}
+			desired, err := converter.DeserializeResourceSpec(selected.Spec, genDb.ResourceTypeService)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if target := desired.GetService().GetRegions()[testRegion]; target.GetMinReplicas() != scaled ||
+				target.GetMaxReplicas() != scaled {
+				t.Fatalf("desired replicas after scaling = %v, want %d", target, scaled)
 			}
 			other := f.activeDeployment(t, otherID)
 			if other.ID != untouched.ID || other.Replicas != untouched.Replicas {

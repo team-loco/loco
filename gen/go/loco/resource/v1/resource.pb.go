@@ -163,7 +163,8 @@ const (
 	ResourceOrder_RESOURCE_ORDER_STATUS ResourceOrder = 2
 	// Creation time.
 	ResourceOrder_RESOURCE_ORDER_CREATED ResourceOrder = 3
-	// CPU, then memory, of the live deployment in the sort environment, else of the resource's spec.
+	// CPU, then memory, of the first region in the sort environment, using its live deployment
+	// or desired configuration. Across environments, use the largest of those sizes.
 	ResourceOrder_RESOURCE_ORDER_SIZE ResourceOrder = 4
 	// The first of the resource's regions, alphabetically.
 	ResourceOrder_RESOURCE_ORDER_REGION ResourceOrder = 5
@@ -422,7 +423,7 @@ func (x *RegionTarget) GetScalers() *v1.Scalers {
 	return nil
 }
 
-// ServiceSpec is the resource specification for SERVICE type resources.
+// ServiceSpec is the desired runtime configuration of a service in one environment.
 type ServiceSpec struct {
 	state       protoimpl.MessageState   `protogen:"open.v1"`
 	Routing     *RoutingConfig           `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
@@ -492,7 +493,7 @@ func (x *ServiceSpec) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
-// ResourceSpec defines the global infrastructure intent for a resource.
+// ResourceSpec defines the desired runtime configuration in one environment.
 // Uses oneof to support different resource types.
 type ResourceSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -569,20 +570,15 @@ type Resource struct {
 	Slug                string                 `protobuf:"bytes,3,opt,name=slug,proto3" json:"slug,omitempty"`
 	Type                ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domains             []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
-	Spec                *ResourceSpec          `protobuf:"bytes,6,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
-	SpecVersion         int32                  `protobuf:"varint,7,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Description         *string                `protobuf:"bytes,8,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	CreatedBy           string                 `protobuf:"bytes,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	Partial             *string                `protobuf:"bytes,12,opt,name=partial,proto3,oneof" json:"partial,omitempty"`
 	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
-	// revision increases with every change to the resource spec or its scaling.
-	Revision int64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
 	// name is the label the dashboard shows.
-	Name string `protobuf:"bytes,16,opt,name=name,proto3" json:"name,omitempty"`
-	// The failure policy the service's next deployment runs under, with the defaults filled in.
-	FailurePolicy *v1.FailurePolicy `protobuf:"bytes,17,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
+	Name          string                 `protobuf:"bytes,16,opt,name=name,proto3" json:"name,omitempty"`
+	Environments  []*ResourceEnvironment `protobuf:"bytes,18,rep,name=environments,proto3" json:"environments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -652,20 +648,6 @@ func (x *Resource) GetDomains() []*v11.ResourceDomain {
 	return nil
 }
 
-func (x *Resource) GetSpec() *ResourceSpec {
-	if x != nil {
-		return x.Spec
-	}
-	return nil
-}
-
-func (x *Resource) GetSpecVersion() int32 {
-	if x != nil {
-		return x.SpecVersion
-	}
-	return 0
-}
-
 func (x *Resource) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
@@ -708,13 +690,6 @@ func (x *Resource) GetEnvironmentStatuses() []*EnvironmentStatus {
 	return nil
 }
 
-func (x *Resource) GetRevision() int64 {
-	if x != nil {
-		return x.Revision
-	}
-	return 0
-}
-
 func (x *Resource) GetName() string {
 	if x != nil {
 		return x.Name
@@ -722,7 +697,87 @@ func (x *Resource) GetName() string {
 	return ""
 }
 
-func (x *Resource) GetFailurePolicy() *v1.FailurePolicy {
+func (x *Resource) GetEnvironments() []*ResourceEnvironment {
+	if x != nil {
+		return x.Environments
+	}
+	return nil
+}
+
+// ResourceEnvironment is the desired runtime configuration of one resource in one environment.
+// An absent entry means this resource has no configuration in that environment.
+type ResourceEnvironment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Spec          *ResourceSpec          `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	SpecVersion   int32                  `protobuf:"varint,3,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	// revision increases whenever this environment's desired configuration changes.
+	Revision int64 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	// The policy the next deployment snapshots, with installation defaults filled in.
+	FailurePolicy *v1.FailurePolicy `protobuf:"bytes,5,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceEnvironment) Reset() {
+	*x = ResourceEnvironment{}
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceEnvironment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceEnvironment) ProtoMessage() {}
+
+func (x *ResourceEnvironment) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceEnvironment.ProtoReflect.Descriptor instead.
+func (*ResourceEnvironment) Descriptor() ([]byte, []int) {
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ResourceEnvironment) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *ResourceEnvironment) GetSpec() *ResourceSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+func (x *ResourceEnvironment) GetSpecVersion() int32 {
+	if x != nil {
+		return x.SpecVersion
+	}
+	return 0
+}
+
+func (x *ResourceEnvironment) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ResourceEnvironment) GetFailurePolicy() *v1.FailurePolicy {
 	if x != nil {
 		return x.FailurePolicy
 	}
@@ -746,7 +801,7 @@ type EnvironmentStatus struct {
 
 func (x *EnvironmentStatus) Reset() {
 	*x = EnvironmentStatus{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[5]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +813,7 @@ func (x *EnvironmentStatus) String() string {
 func (*EnvironmentStatus) ProtoMessage() {}
 
 func (x *EnvironmentStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[5]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +826,7 @@ func (x *EnvironmentStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvironmentStatus.ProtoReflect.Descriptor instead.
 func (*EnvironmentStatus) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{5}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EnvironmentStatus) GetEnvironmentId() string {
@@ -842,7 +897,7 @@ type RegionStatus struct {
 
 func (x *RegionStatus) Reset() {
 	*x = RegionStatus{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[6]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +909,7 @@ func (x *RegionStatus) String() string {
 func (*RegionStatus) ProtoMessage() {}
 
 func (x *RegionStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[6]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +922,7 @@ func (x *RegionStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegionStatus.ProtoReflect.Descriptor instead.
 func (*RegionStatus) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{6}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RegionStatus) GetRegion() string {
@@ -964,8 +1019,8 @@ type CreateResourceRequest struct {
 	Domain      *v11.DomainInput `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	Spec        *ResourceSpec    `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
 	Description *string          `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// The environment for domain. If omitted, the workspace's production environment is used.
-	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
+	// The environment receiving the initial runtime configuration and optional domain.
+	EnvironmentId string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// A DNS label other than localhost and resource-<UUID>, unique in the workspace. If omitted,
 	// it is derived from name.
 	Slug          *string `protobuf:"bytes,8,opt,name=slug,proto3,oneof" json:"slug,omitempty"`
@@ -975,7 +1030,7 @@ type CreateResourceRequest struct {
 
 func (x *CreateResourceRequest) Reset() {
 	*x = CreateResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[7]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -987,7 +1042,7 @@ func (x *CreateResourceRequest) String() string {
 func (*CreateResourceRequest) ProtoMessage() {}
 
 func (x *CreateResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[7]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +1055,7 @@ func (x *CreateResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResourceRequest.ProtoReflect.Descriptor instead.
 func (*CreateResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{7}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateResourceRequest) GetWorkspaceId() string {
@@ -1046,8 +1101,8 @@ func (x *CreateResourceRequest) GetDescription() string {
 }
 
 func (x *CreateResourceRequest) GetEnvironmentId() string {
-	if x != nil && x.EnvironmentId != nil {
-		return *x.EnvironmentId
+	if x != nil {
+		return x.EnvironmentId
 	}
 	return ""
 }
@@ -1069,7 +1124,7 @@ type CreateResourceResponse struct {
 
 func (x *CreateResourceResponse) Reset() {
 	*x = CreateResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[8]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1081,7 +1136,7 @@ func (x *CreateResourceResponse) String() string {
 func (*CreateResourceResponse) ProtoMessage() {}
 
 func (x *CreateResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[8]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1094,7 +1149,7 @@ func (x *CreateResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResourceResponse.ProtoReflect.Descriptor instead.
 func (*CreateResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{8}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateResourceResponse) GetResourceId() string {
@@ -1115,7 +1170,7 @@ type GetResourceSlugKey struct {
 
 func (x *GetResourceSlugKey) Reset() {
 	*x = GetResourceSlugKey{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1127,7 +1182,7 @@ func (x *GetResourceSlugKey) String() string {
 func (*GetResourceSlugKey) ProtoMessage() {}
 
 func (x *GetResourceSlugKey) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1140,7 +1195,7 @@ func (x *GetResourceSlugKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceSlugKey.ProtoReflect.Descriptor instead.
 func (*GetResourceSlugKey) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{9}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetResourceSlugKey) GetWorkspaceId() string {
@@ -1171,7 +1226,7 @@ type GetResourceRequest struct {
 
 func (x *GetResourceRequest) Reset() {
 	*x = GetResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[10]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +1238,7 @@ func (x *GetResourceRequest) String() string {
 func (*GetResourceRequest) ProtoMessage() {}
 
 func (x *GetResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[10]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,7 +1251,7 @@ func (x *GetResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceRequest.ProtoReflect.Descriptor instead.
 func (*GetResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{10}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetResourceRequest) GetKey() isGetResourceRequest_Key {
@@ -1250,7 +1305,7 @@ type GetResourceResponse struct {
 
 func (x *GetResourceResponse) Reset() {
 	*x = GetResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[11]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1317,7 @@ func (x *GetResourceResponse) String() string {
 func (*GetResourceResponse) ProtoMessage() {}
 
 func (x *GetResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[11]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1330,7 @@ func (x *GetResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceResponse.ProtoReflect.Descriptor instead.
 func (*GetResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{11}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetResourceResponse) GetResource() *Resource {
@@ -1286,7 +1341,7 @@ func (x *GetResourceResponse) GetResource() *Resource {
 }
 
 // ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
-// regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+// regions its live deployments run in and the enabled regions of its desired configurations. environment_id scopes
 // the status, live regions, image and size that query, the filters, the facets and the order read;
 // without it they read every environment, and a resource matches a status or region any
 // environment has.
@@ -1309,7 +1364,7 @@ type ListWorkspaceResourcesRequest struct {
 	Region string `protobuf:"bytes,8,opt,name=region,proto3" json:"region,omitempty"`
 	// Only resources of this type.
 	Type ResourceType `protobuf:"varint,9,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	// Only resources with a deployment in environment_id, or with no deployment anywhere.
+	// Resources configured in environment_id, plus shared identities with no configuration anywhere.
 	EnvironmentScoped bool          `protobuf:"varint,10,opt,name=environment_scoped,json=environmentScoped,proto3" json:"environment_scoped,omitempty"`
 	OrderBy           ResourceOrder `protobuf:"varint,11,opt,name=order_by,json=orderBy,proto3,enum=loco.resource.v1.ResourceOrder" json:"order_by,omitempty"`
 	Descending        bool          `protobuf:"varint,12,opt,name=descending,proto3" json:"descending,omitempty"`
@@ -1329,7 +1384,7 @@ type ListWorkspaceResourcesRequest struct {
 
 func (x *ListWorkspaceResourcesRequest) Reset() {
 	*x = ListWorkspaceResourcesRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[12]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1341,7 +1396,7 @@ func (x *ListWorkspaceResourcesRequest) String() string {
 func (*ListWorkspaceResourcesRequest) ProtoMessage() {}
 
 func (x *ListWorkspaceResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[12]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1354,7 +1409,7 @@ func (x *ListWorkspaceResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspaceResourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspaceResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{12}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListWorkspaceResourcesRequest) GetWorkspaceId() string {
@@ -1485,7 +1540,7 @@ type ListWorkspaceResourcesResponse struct {
 
 func (x *ListWorkspaceResourcesResponse) Reset() {
 	*x = ListWorkspaceResourcesResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[13]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1552,7 @@ func (x *ListWorkspaceResourcesResponse) String() string {
 func (*ListWorkspaceResourcesResponse) ProtoMessage() {}
 
 func (x *ListWorkspaceResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[13]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1565,7 @@ func (x *ListWorkspaceResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspaceResourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkspaceResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{13}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListWorkspaceResourcesResponse) GetResources() []*Resource {
@@ -1562,7 +1617,7 @@ type ResourceFacets struct {
 
 func (x *ResourceFacets) Reset() {
 	*x = ResourceFacets{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[14]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1574,7 +1629,7 @@ func (x *ResourceFacets) String() string {
 func (*ResourceFacets) ProtoMessage() {}
 
 func (x *ResourceFacets) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[14]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1587,7 +1642,7 @@ func (x *ResourceFacets) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceFacets.ProtoReflect.Descriptor instead.
 func (*ResourceFacets) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{14}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ResourceFacets) GetStatuses() []*ResourceStatusCount {
@@ -1628,7 +1683,7 @@ type ResourceStatusCount struct {
 
 func (x *ResourceStatusCount) Reset() {
 	*x = ResourceStatusCount{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[15]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1640,7 +1695,7 @@ func (x *ResourceStatusCount) String() string {
 func (*ResourceStatusCount) ProtoMessage() {}
 
 func (x *ResourceStatusCount) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[15]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1653,7 +1708,7 @@ func (x *ResourceStatusCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceStatusCount.ProtoReflect.Descriptor instead.
 func (*ResourceStatusCount) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{15}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ResourceStatusCount) GetStatus() ResourceStatus {
@@ -1680,7 +1735,7 @@ type ResourceRegionCount struct {
 
 func (x *ResourceRegionCount) Reset() {
 	*x = ResourceRegionCount{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[16]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1692,7 +1747,7 @@ func (x *ResourceRegionCount) String() string {
 func (*ResourceRegionCount) ProtoMessage() {}
 
 func (x *ResourceRegionCount) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[16]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1705,7 +1760,7 @@ func (x *ResourceRegionCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceRegionCount.ProtoReflect.Descriptor instead.
 func (*ResourceRegionCount) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{16}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ResourceRegionCount) GetRegion() string {
@@ -1732,7 +1787,7 @@ type ResourceTypeCount struct {
 
 func (x *ResourceTypeCount) Reset() {
 	*x = ResourceTypeCount{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[17]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1744,7 +1799,7 @@ func (x *ResourceTypeCount) String() string {
 func (*ResourceTypeCount) ProtoMessage() {}
 
 func (x *ResourceTypeCount) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[17]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1757,7 +1812,7 @@ func (x *ResourceTypeCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceTypeCount.ProtoReflect.Descriptor instead.
 func (*ResourceTypeCount) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{17}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ResourceTypeCount) GetType() ResourceType {
@@ -1774,29 +1829,30 @@ func (x *ResourceTypeCount) GetCount() int32 {
 	return 0
 }
 
-// UpdateResourceRequest is the request to update a resource.
+// UpdateResourceRequest updates shared identity or one environment's runtime configuration.
 type UpdateResourceRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	// The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace.
 	Name        *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// regions replaces the resource's whole region map when set; omitted regions are torn down.
+	// regions replaces this environment's whole region map; omitted regions are torn down.
 	Regions *RegionTargets `protobuf:"bytes,4,opt,name=regions,proto3,oneof" json:"regions,omitempty"`
-	// revision is the Resource.revision the caller loaded; a regions update fails when it moved.
+	// revision is the ResourceEnvironment.revision loaded; a region update fails when it moved.
 	Revision int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
-	// failure_policy replaces the service's failure policy; it applies from the next deployment.
+	// failure_policy changes only this environment's next deployment.
 	FailurePolicy *v1.FailurePolicy `protobuf:"bytes,6,opt,name=failure_policy,json=failurePolicy,proto3,oneof" json:"failure_policy,omitempty"`
 	// A new slug: a DNS label other than localhost and resource-<UUID>, unique in the workspace.
 	// Resources that loco.yaml manages keep the slug the file names them by.
 	Slug          *string `protobuf:"bytes,7,opt,name=slug,proto3,oneof" json:"slug,omitempty"`
+	EnvironmentId string  `protobuf:"bytes,8,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateResourceRequest) Reset() {
 	*x = UpdateResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[18]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1808,7 +1864,7 @@ func (x *UpdateResourceRequest) String() string {
 func (*UpdateResourceRequest) ProtoMessage() {}
 
 func (x *UpdateResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[18]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1821,7 +1877,7 @@ func (x *UpdateResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResourceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{18}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateResourceRequest) GetResourceId() string {
@@ -1873,7 +1929,14 @@ func (x *UpdateResourceRequest) GetSlug() string {
 	return ""
 }
 
-// RegionTargets is a resource's desired region map, keyed by region name.
+func (x *UpdateResourceRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+// RegionTargets is one environment's desired region map, keyed by region name.
 type RegionTargets struct {
 	state         protoimpl.MessageState   `protogen:"open.v1"`
 	Targets       map[string]*RegionTarget `protobuf:"bytes,1,rep,name=targets,proto3" json:"targets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -1883,7 +1946,7 @@ type RegionTargets struct {
 
 func (x *RegionTargets) Reset() {
 	*x = RegionTargets{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[19]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1895,7 +1958,7 @@ func (x *RegionTargets) String() string {
 func (*RegionTargets) ProtoMessage() {}
 
 func (x *RegionTargets) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[19]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1908,7 +1971,7 @@ func (x *RegionTargets) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegionTargets.ProtoReflect.Descriptor instead.
 func (*RegionTargets) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{19}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RegionTargets) GetTargets() map[string]*RegionTarget {
@@ -1928,7 +1991,7 @@ type UpdateResourceResponse struct {
 
 func (x *UpdateResourceResponse) Reset() {
 	*x = UpdateResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[20]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1940,7 +2003,7 @@ func (x *UpdateResourceResponse) String() string {
 func (*UpdateResourceResponse) ProtoMessage() {}
 
 func (x *UpdateResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[20]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1953,7 +2016,7 @@ func (x *UpdateResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResourceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{20}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateResourceResponse) GetResourceId() string {
@@ -1973,7 +2036,7 @@ type DeleteResourceRequest struct {
 
 func (x *DeleteResourceRequest) Reset() {
 	*x = DeleteResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[21]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1985,7 +2048,7 @@ func (x *DeleteResourceRequest) String() string {
 func (*DeleteResourceRequest) ProtoMessage() {}
 
 func (x *DeleteResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[21]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1998,7 +2061,7 @@ func (x *DeleteResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResourceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{21}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteResourceRequest) GetResourceId() string {
@@ -2017,7 +2080,7 @@ type DeleteResourceResponse struct {
 
 func (x *DeleteResourceResponse) Reset() {
 	*x = DeleteResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[22]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2029,7 +2092,7 @@ func (x *DeleteResourceResponse) String() string {
 func (*DeleteResourceResponse) ProtoMessage() {}
 
 func (x *DeleteResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[22]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2042,7 +2105,7 @@ func (x *DeleteResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResourceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{22}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{23}
 }
 
 // RegionInfo describes a region served by an environment's eligible clusters.
@@ -2057,7 +2120,7 @@ type RegionInfo struct {
 
 func (x *RegionInfo) Reset() {
 	*x = RegionInfo{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[23]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2069,7 +2132,7 @@ func (x *RegionInfo) String() string {
 func (*RegionInfo) ProtoMessage() {}
 
 func (x *RegionInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[23]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2082,7 +2145,7 @@ func (x *RegionInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegionInfo.ProtoReflect.Descriptor instead.
 func (*RegionInfo) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{23}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RegionInfo) GetRegion() string {
@@ -2125,7 +2188,7 @@ type ListOrgResourcesRequest struct {
 
 func (x *ListOrgResourcesRequest) Reset() {
 	*x = ListOrgResourcesRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[24]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2137,7 +2200,7 @@ func (x *ListOrgResourcesRequest) String() string {
 func (*ListOrgResourcesRequest) ProtoMessage() {}
 
 func (x *ListOrgResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[24]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2150,7 +2213,7 @@ func (x *ListOrgResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgResourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListOrgResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{24}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListOrgResourcesRequest) GetOrgId() string {
@@ -2209,7 +2272,7 @@ type ListOrgResourcesResponse struct {
 
 func (x *ListOrgResourcesResponse) Reset() {
 	*x = ListOrgResourcesResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[25]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2221,7 +2284,7 @@ func (x *ListOrgResourcesResponse) String() string {
 func (*ListOrgResourcesResponse) ProtoMessage() {}
 
 func (x *ListOrgResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[25]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2234,7 +2297,7 @@ func (x *ListOrgResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgResourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListOrgResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{25}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListOrgResourcesResponse) GetResources() []*OrgResource {
@@ -2273,7 +2336,7 @@ type OrgResource struct {
 
 func (x *OrgResource) Reset() {
 	*x = OrgResource{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[26]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2285,7 +2348,7 @@ func (x *OrgResource) String() string {
 func (*OrgResource) ProtoMessage() {}
 
 func (x *OrgResource) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[26]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2298,7 +2361,7 @@ func (x *OrgResource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrgResource.ProtoReflect.Descriptor instead.
 func (*OrgResource) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{26}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *OrgResource) GetId() string {
@@ -2354,7 +2417,7 @@ type GetEnvironmentAllocationRequest struct {
 
 func (x *GetEnvironmentAllocationRequest) Reset() {
 	*x = GetEnvironmentAllocationRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[27]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2366,7 +2429,7 @@ func (x *GetEnvironmentAllocationRequest) String() string {
 func (*GetEnvironmentAllocationRequest) ProtoMessage() {}
 
 func (x *GetEnvironmentAllocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[27]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2379,7 +2442,7 @@ func (x *GetEnvironmentAllocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEnvironmentAllocationRequest.ProtoReflect.Descriptor instead.
 func (*GetEnvironmentAllocationRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{27}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetEnvironmentAllocationRequest) GetWorkspaceId() string {
@@ -2414,7 +2477,7 @@ type GetEnvironmentAllocationResponse struct {
 
 func (x *GetEnvironmentAllocationResponse) Reset() {
 	*x = GetEnvironmentAllocationResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[28]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2426,7 +2489,7 @@ func (x *GetEnvironmentAllocationResponse) String() string {
 func (*GetEnvironmentAllocationResponse) ProtoMessage() {}
 
 func (x *GetEnvironmentAllocationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[28]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2439,7 +2502,7 @@ func (x *GetEnvironmentAllocationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEnvironmentAllocationResponse.ProtoReflect.Descriptor instead.
 func (*GetEnvironmentAllocationResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{28}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetEnvironmentAllocationResponse) GetCpuMillicores() int64 {
@@ -2483,7 +2546,7 @@ type ResourceAllocation struct {
 
 func (x *ResourceAllocation) Reset() {
 	*x = ResourceAllocation{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[29]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2495,7 +2558,7 @@ func (x *ResourceAllocation) String() string {
 func (*ResourceAllocation) ProtoMessage() {}
 
 func (x *ResourceAllocation) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[29]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2508,7 +2571,7 @@ func (x *ResourceAllocation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceAllocation.ProtoReflect.Descriptor instead.
 func (*ResourceAllocation) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{29}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ResourceAllocation) GetResourceId() string {
@@ -2549,7 +2612,7 @@ type ListRegionsRequest struct {
 
 func (x *ListRegionsRequest) Reset() {
 	*x = ListRegionsRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[30]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2561,7 +2624,7 @@ func (x *ListRegionsRequest) String() string {
 func (*ListRegionsRequest) ProtoMessage() {}
 
 func (x *ListRegionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[30]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2574,7 +2637,7 @@ func (x *ListRegionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRegionsRequest.ProtoReflect.Descriptor instead.
 func (*ListRegionsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{30}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListRegionsRequest) GetEnvironmentId() string {
@@ -2594,7 +2657,7 @@ type ListRegionsResponse struct {
 
 func (x *ListRegionsResponse) Reset() {
 	*x = ListRegionsResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2606,7 +2669,7 @@ func (x *ListRegionsResponse) String() string {
 func (*ListRegionsResponse) ProtoMessage() {}
 
 func (x *ListRegionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2619,7 +2682,7 @@ func (x *ListRegionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRegionsResponse.ProtoReflect.Descriptor instead.
 func (*ListRegionsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{31}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListRegionsResponse) GetRegions() []*RegionInfo {
@@ -2640,7 +2703,7 @@ type GetResourceEnvRequest struct {
 
 func (x *GetResourceEnvRequest) Reset() {
 	*x = GetResourceEnvRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2652,7 +2715,7 @@ func (x *GetResourceEnvRequest) String() string {
 func (*GetResourceEnvRequest) ProtoMessage() {}
 
 func (x *GetResourceEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2665,7 +2728,7 @@ func (x *GetResourceEnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceEnvRequest.ProtoReflect.Descriptor instead.
 func (*GetResourceEnvRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{32}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetResourceEnvRequest) GetResourceId() string {
@@ -2693,7 +2756,7 @@ type GetResourceEnvResponse struct {
 
 func (x *GetResourceEnvResponse) Reset() {
 	*x = GetResourceEnvResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2705,7 +2768,7 @@ func (x *GetResourceEnvResponse) String() string {
 func (*GetResourceEnvResponse) ProtoMessage() {}
 
 func (x *GetResourceEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2718,7 +2781,7 @@ func (x *GetResourceEnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceEnvResponse.ProtoReflect.Descriptor instead.
 func (*GetResourceEnvResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{33}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetResourceEnvResponse) GetEnv() map[string]string {
@@ -2738,7 +2801,7 @@ type ListResourceOutputsRequest struct {
 
 func (x *ListResourceOutputsRequest) Reset() {
 	*x = ListResourceOutputsRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2750,7 +2813,7 @@ func (x *ListResourceOutputsRequest) String() string {
 func (*ListResourceOutputsRequest) ProtoMessage() {}
 
 func (x *ListResourceOutputsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2763,7 +2826,7 @@ func (x *ListResourceOutputsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourceOutputsRequest.ProtoReflect.Descriptor instead.
 func (*ListResourceOutputsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{34}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListResourceOutputsRequest) GetEnvironmentId() string {
@@ -2789,7 +2852,7 @@ type ResourceOutput struct {
 
 func (x *ResourceOutput) Reset() {
 	*x = ResourceOutput{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2801,7 +2864,7 @@ func (x *ResourceOutput) String() string {
 func (*ResourceOutput) ProtoMessage() {}
 
 func (x *ResourceOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2814,7 +2877,7 @@ func (x *ResourceOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceOutput.ProtoReflect.Descriptor instead.
 func (*ResourceOutput) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{35}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ResourceOutput) GetKey() string {
@@ -2854,7 +2917,7 @@ type ResourceOutputs struct {
 
 func (x *ResourceOutputs) Reset() {
 	*x = ResourceOutputs{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2866,7 +2929,7 @@ func (x *ResourceOutputs) String() string {
 func (*ResourceOutputs) ProtoMessage() {}
 
 func (x *ResourceOutputs) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2879,7 +2942,7 @@ func (x *ResourceOutputs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceOutputs.ProtoReflect.Descriptor instead.
 func (*ResourceOutputs) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{36}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ResourceOutputs) GetResourceId() string {
@@ -2920,7 +2983,7 @@ type ListResourceOutputsResponse struct {
 
 func (x *ListResourceOutputsResponse) Reset() {
 	*x = ListResourceOutputsResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2932,7 +2995,7 @@ func (x *ListResourceOutputsResponse) String() string {
 func (*ListResourceOutputsResponse) ProtoMessage() {}
 
 func (x *ListResourceOutputsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2945,7 +3008,7 @@ func (x *ListResourceOutputsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourceOutputsResponse.ProtoReflect.Descriptor instead.
 func (*ListResourceOutputsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{37}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListResourceOutputsResponse) GetResources() []*ResourceOutputs {
@@ -2970,7 +3033,7 @@ type ScaleResourceRequest struct {
 
 func (x *ScaleResourceRequest) Reset() {
 	*x = ScaleResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[38]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2982,7 +3045,7 @@ func (x *ScaleResourceRequest) String() string {
 func (*ScaleResourceRequest) ProtoMessage() {}
 
 func (x *ScaleResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[38]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2995,7 +3058,7 @@ func (x *ScaleResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleResourceRequest.ProtoReflect.Descriptor instead.
 func (*ScaleResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{38}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ScaleResourceRequest) GetResourceId() string {
@@ -3049,7 +3112,7 @@ type ScaleResourceResponse struct {
 
 func (x *ScaleResourceResponse) Reset() {
 	*x = ScaleResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[39]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3061,7 +3124,7 @@ func (x *ScaleResourceResponse) String() string {
 func (*ScaleResourceResponse) ProtoMessage() {}
 
 func (x *ScaleResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[39]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3074,7 +3137,7 @@ func (x *ScaleResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleResourceResponse.ProtoReflect.Descriptor instead.
 func (*ScaleResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{39}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{40}
 }
 
 // TransferPartialRequest is the request to move a resource to another partial.
@@ -3088,7 +3151,7 @@ type TransferPartialRequest struct {
 
 func (x *TransferPartialRequest) Reset() {
 	*x = TransferPartialRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[40]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3100,7 +3163,7 @@ func (x *TransferPartialRequest) String() string {
 func (*TransferPartialRequest) ProtoMessage() {}
 
 func (x *TransferPartialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[40]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3113,7 +3176,7 @@ func (x *TransferPartialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferPartialRequest.ProtoReflect.Descriptor instead.
 func (*TransferPartialRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{40}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TransferPartialRequest) GetResourceId() string {
@@ -3139,7 +3202,7 @@ type TransferPartialResponse struct {
 
 func (x *TransferPartialResponse) Reset() {
 	*x = TransferPartialResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[41]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3151,7 +3214,7 @@ func (x *TransferPartialResponse) String() string {
 func (*TransferPartialResponse) ProtoMessage() {}
 
 func (x *TransferPartialResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[41]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3164,7 +3227,7 @@ func (x *TransferPartialResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferPartialResponse.ProtoReflect.Descriptor instead.
 func (*TransferPartialResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{41}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{42}
 }
 
 // RestartResourceRequest targets one environment; omitting region restarts every region.
@@ -3179,7 +3242,7 @@ type RestartResourceRequest struct {
 
 func (x *RestartResourceRequest) Reset() {
 	*x = RestartResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[42]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3191,7 +3254,7 @@ func (x *RestartResourceRequest) String() string {
 func (*RestartResourceRequest) ProtoMessage() {}
 
 func (x *RestartResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[42]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3204,7 +3267,7 @@ func (x *RestartResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartResourceRequest.ProtoReflect.Descriptor instead.
 func (*RestartResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{42}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RestartResourceRequest) GetResourceId() string {
@@ -3237,7 +3300,7 @@ type RestartResourceResponse struct {
 
 func (x *RestartResourceResponse) Reset() {
 	*x = RestartResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[43]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3249,7 +3312,7 @@ func (x *RestartResourceResponse) String() string {
 func (*RestartResourceResponse) ProtoMessage() {}
 
 func (x *RestartResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[43]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3262,7 +3325,7 @@ func (x *RestartResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartResourceResponse.ProtoReflect.Descriptor instead.
 func (*RestartResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{43}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{44}
 }
 
 var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
@@ -3298,16 +3361,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\r_health_checkJ\x04\b\x05\x10\x06\"Q\n" +
 	"\fResourceSpec\x129\n" +
 	"\aservice\x18\x01 \x01(\v2\x1d.loco.resource.v1.ServiceSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xed\x05\n" +
+	"\x04spec\"\xb3\x05\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04slug\x18\x03 \x01(\tR\x04slug\x122\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x128\n" +
-	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x127\n" +
-	"\x04spec\x18\x06 \x01(\v2\x1e.loco.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
-	"\fspec_version\x18\a \x01(\x05R\vspecVersion\x12%\n" +
-	"\vdescription\x18\b \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
+	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x12%\n" +
+	"\vdescription\x18\b \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\t \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
@@ -3315,15 +3376,19 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
-	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
-	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x1a\n" +
-	"\brevision\x18\x0f \x01(\x03R\brevision\x12\x12\n" +
-	"\x04name\x18\x10 \x01(\tR\x04name\x12H\n" +
-	"\x0efailure_policy\x18\x11 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyB\a\n" +
-	"\x05_specB\x0e\n" +
+	"\apartial\x18\f \x01(\tH\x01R\apartial\x88\x01\x01\x12V\n" +
+	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x12\n" +
+	"\x04name\x18\x10 \x01(\tR\x04name\x12I\n" +
+	"\fenvironments\x18\x12 \x03(\v2%.loco.resource.v1.ResourceEnvironmentR\fenvironmentsB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
-	"\b_partial\"\xae\x02\n" +
+	"\b_partialJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\x0f\x10\x10J\x04\b\x11\x10\x12R\x04specR\fspec_versionR\brevisionR\x0efailure_policy\"\xf9\x01\n" +
+	"\x13ResourceEnvironment\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x122\n" +
+	"\x04spec\x18\x02 \x01(\v2\x1e.loco.resource.v1.ResourceSpecR\x04spec\x12!\n" +
+	"\fspec_version\x18\x03 \x01(\x05R\vspecVersion\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x03R\brevision\x12H\n" +
+	"\x0efailure_policy\x18\x05 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicy\"\xae\x02\n" +
 	"\x11EnvironmentStatus\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
 	"\x10environment_slug\x18\x02 \x01(\tR\x0fenvironmentSlug\x128\n" +
@@ -3349,20 +3414,19 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"\b_messageB\x0e\n" +
 	"\f_reported_atB\x0f\n" +
-	"\r_status_sinceJ\x04\b\v\x10\f\"\x83\x05\n" +
+	"\r_status_sinceJ\x04\b\v\x10\f\"\xeb\x04\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeB\b\xbaH\x05\x82\x01\x02\x18\x01R\x04type\x128\n" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
-	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x124\n" +
-	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01\x12\x17\n" +
-	"\x04slug\x18\b \x01(\tH\x03R\x04slug\x88\x01\x01:\xbd\x01\xbaH\xb9\x01\x1a\xb6\x01\n" +
+	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12/\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x17\n" +
+	"\x04slug\x18\b \x01(\tH\x02R\x04slug\x88\x01\x01:\xbd\x01\xbaH\xb9\x01\x1a\xb6\x01\n" +
 	"$create_resource.domain_requires_port\x12Tdomain needs spec.service.routing.port: a service without a port receives no traffic\x1a8!has(this.domain) || has(this.spec.service.routing.port)B\t\n" +
 	"\a_domainB\x0e\n" +
-	"\f_descriptionB\x11\n" +
-	"\x0f_environment_idB\a\n" +
+	"\f_descriptionB\a\n" +
 	"\x05_slug\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
@@ -3420,7 +3484,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\"]\n" +
 	"\x11ResourceTypeCount\x122\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\x91\x03\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x86\x05\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\x17\n" +
@@ -3429,7 +3493,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\aregions\x18\x04 \x01(\v2\x1f.loco.resource.v1.RegionTargetsH\x02R\aregions\x88\x01\x01\x12\x1a\n" +
 	"\brevision\x18\x05 \x01(\x03R\brevision\x12M\n" +
 	"\x0efailure_policy\x18\x06 \x01(\v2!.loco.deployment.v1.FailurePolicyH\x03R\rfailurePolicy\x88\x01\x01\x12\x17\n" +
-	"\x04slug\x18\a \x01(\tH\x04R\x04slug\x88\x01\x01B\a\n" +
+	"\x04slug\x18\a \x01(\tH\x04R\x04slug\x88\x01\x01\x122\n" +
+	"\x0eenvironment_id\x18\b \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\xbe\x01\xbaH\xba\x01\x1a\xb7\x01\n" +
+	"2update_resource.configuration_requires_environment\x121regions and failure_policy require environment_id\x1aN(!has(this.regions) && !has(this.failure_policy)) || this.environment_id != ''B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
@@ -3599,7 +3665,7 @@ func file_loco_resource_v1_resource_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_resource_v1_resource_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_loco_resource_v1_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_loco_resource_v1_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(ResourceType)(0),                        // 0: loco.resource.v1.ResourceType
 	(ResourceStatus)(0),                      // 1: loco.resource.v1.ResourceStatus
@@ -3610,139 +3676,141 @@ var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(*ServiceSpec)(nil),                      // 6: loco.resource.v1.ServiceSpec
 	(*ResourceSpec)(nil),                     // 7: loco.resource.v1.ResourceSpec
 	(*Resource)(nil),                         // 8: loco.resource.v1.Resource
-	(*EnvironmentStatus)(nil),                // 9: loco.resource.v1.EnvironmentStatus
-	(*RegionStatus)(nil),                     // 10: loco.resource.v1.RegionStatus
-	(*CreateResourceRequest)(nil),            // 11: loco.resource.v1.CreateResourceRequest
-	(*CreateResourceResponse)(nil),           // 12: loco.resource.v1.CreateResourceResponse
-	(*GetResourceSlugKey)(nil),               // 13: loco.resource.v1.GetResourceSlugKey
-	(*GetResourceRequest)(nil),               // 14: loco.resource.v1.GetResourceRequest
-	(*GetResourceResponse)(nil),              // 15: loco.resource.v1.GetResourceResponse
-	(*ListWorkspaceResourcesRequest)(nil),    // 16: loco.resource.v1.ListWorkspaceResourcesRequest
-	(*ListWorkspaceResourcesResponse)(nil),   // 17: loco.resource.v1.ListWorkspaceResourcesResponse
-	(*ResourceFacets)(nil),                   // 18: loco.resource.v1.ResourceFacets
-	(*ResourceStatusCount)(nil),              // 19: loco.resource.v1.ResourceStatusCount
-	(*ResourceRegionCount)(nil),              // 20: loco.resource.v1.ResourceRegionCount
-	(*ResourceTypeCount)(nil),                // 21: loco.resource.v1.ResourceTypeCount
-	(*UpdateResourceRequest)(nil),            // 22: loco.resource.v1.UpdateResourceRequest
-	(*RegionTargets)(nil),                    // 23: loco.resource.v1.RegionTargets
-	(*UpdateResourceResponse)(nil),           // 24: loco.resource.v1.UpdateResourceResponse
-	(*DeleteResourceRequest)(nil),            // 25: loco.resource.v1.DeleteResourceRequest
-	(*DeleteResourceResponse)(nil),           // 26: loco.resource.v1.DeleteResourceResponse
-	(*RegionInfo)(nil),                       // 27: loco.resource.v1.RegionInfo
-	(*ListOrgResourcesRequest)(nil),          // 28: loco.resource.v1.ListOrgResourcesRequest
-	(*ListOrgResourcesResponse)(nil),         // 29: loco.resource.v1.ListOrgResourcesResponse
-	(*OrgResource)(nil),                      // 30: loco.resource.v1.OrgResource
-	(*GetEnvironmentAllocationRequest)(nil),  // 31: loco.resource.v1.GetEnvironmentAllocationRequest
-	(*GetEnvironmentAllocationResponse)(nil), // 32: loco.resource.v1.GetEnvironmentAllocationResponse
-	(*ResourceAllocation)(nil),               // 33: loco.resource.v1.ResourceAllocation
-	(*ListRegionsRequest)(nil),               // 34: loco.resource.v1.ListRegionsRequest
-	(*ListRegionsResponse)(nil),              // 35: loco.resource.v1.ListRegionsResponse
-	(*GetResourceEnvRequest)(nil),            // 36: loco.resource.v1.GetResourceEnvRequest
-	(*GetResourceEnvResponse)(nil),           // 37: loco.resource.v1.GetResourceEnvResponse
-	(*ListResourceOutputsRequest)(nil),       // 38: loco.resource.v1.ListResourceOutputsRequest
-	(*ResourceOutput)(nil),                   // 39: loco.resource.v1.ResourceOutput
-	(*ResourceOutputs)(nil),                  // 40: loco.resource.v1.ResourceOutputs
-	(*ListResourceOutputsResponse)(nil),      // 41: loco.resource.v1.ListResourceOutputsResponse
-	(*ScaleResourceRequest)(nil),             // 42: loco.resource.v1.ScaleResourceRequest
-	(*ScaleResourceResponse)(nil),            // 43: loco.resource.v1.ScaleResourceResponse
-	(*TransferPartialRequest)(nil),           // 44: loco.resource.v1.TransferPartialRequest
-	(*TransferPartialResponse)(nil),          // 45: loco.resource.v1.TransferPartialResponse
-	(*RestartResourceRequest)(nil),           // 46: loco.resource.v1.RestartResourceRequest
-	(*RestartResourceResponse)(nil),          // 47: loco.resource.v1.RestartResourceResponse
-	nil,                                      // 48: loco.resource.v1.ServiceSpec.RegionsEntry
-	nil,                                      // 49: loco.resource.v1.RegionTargets.TargetsEntry
-	nil,                                      // 50: loco.resource.v1.GetResourceEnvResponse.EnvEntry
-	(*v1.Scalers)(nil),                       // 51: loco.deployment.v1.Scalers
-	(*v1.HealthCheckConfig)(nil),             // 52: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil),           // 53: loco.deployment.v1.ObservabilityConfig
-	(*v11.ResourceDomain)(nil),               // 54: loco.domain.v1.ResourceDomain
-	(*timestamppb.Timestamp)(nil),            // 55: google.protobuf.Timestamp
-	(*v1.FailurePolicy)(nil),                 // 56: loco.deployment.v1.FailurePolicy
-	(v1.PlacementStatus)(0),                  // 57: loco.deployment.v1.PlacementStatus
-	(*v1.Replica)(nil),                       // 58: loco.deployment.v1.Replica
-	(*v11.DomainInput)(nil),                  // 59: loco.domain.v1.DomainInput
+	(*ResourceEnvironment)(nil),              // 9: loco.resource.v1.ResourceEnvironment
+	(*EnvironmentStatus)(nil),                // 10: loco.resource.v1.EnvironmentStatus
+	(*RegionStatus)(nil),                     // 11: loco.resource.v1.RegionStatus
+	(*CreateResourceRequest)(nil),            // 12: loco.resource.v1.CreateResourceRequest
+	(*CreateResourceResponse)(nil),           // 13: loco.resource.v1.CreateResourceResponse
+	(*GetResourceSlugKey)(nil),               // 14: loco.resource.v1.GetResourceSlugKey
+	(*GetResourceRequest)(nil),               // 15: loco.resource.v1.GetResourceRequest
+	(*GetResourceResponse)(nil),              // 16: loco.resource.v1.GetResourceResponse
+	(*ListWorkspaceResourcesRequest)(nil),    // 17: loco.resource.v1.ListWorkspaceResourcesRequest
+	(*ListWorkspaceResourcesResponse)(nil),   // 18: loco.resource.v1.ListWorkspaceResourcesResponse
+	(*ResourceFacets)(nil),                   // 19: loco.resource.v1.ResourceFacets
+	(*ResourceStatusCount)(nil),              // 20: loco.resource.v1.ResourceStatusCount
+	(*ResourceRegionCount)(nil),              // 21: loco.resource.v1.ResourceRegionCount
+	(*ResourceTypeCount)(nil),                // 22: loco.resource.v1.ResourceTypeCount
+	(*UpdateResourceRequest)(nil),            // 23: loco.resource.v1.UpdateResourceRequest
+	(*RegionTargets)(nil),                    // 24: loco.resource.v1.RegionTargets
+	(*UpdateResourceResponse)(nil),           // 25: loco.resource.v1.UpdateResourceResponse
+	(*DeleteResourceRequest)(nil),            // 26: loco.resource.v1.DeleteResourceRequest
+	(*DeleteResourceResponse)(nil),           // 27: loco.resource.v1.DeleteResourceResponse
+	(*RegionInfo)(nil),                       // 28: loco.resource.v1.RegionInfo
+	(*ListOrgResourcesRequest)(nil),          // 29: loco.resource.v1.ListOrgResourcesRequest
+	(*ListOrgResourcesResponse)(nil),         // 30: loco.resource.v1.ListOrgResourcesResponse
+	(*OrgResource)(nil),                      // 31: loco.resource.v1.OrgResource
+	(*GetEnvironmentAllocationRequest)(nil),  // 32: loco.resource.v1.GetEnvironmentAllocationRequest
+	(*GetEnvironmentAllocationResponse)(nil), // 33: loco.resource.v1.GetEnvironmentAllocationResponse
+	(*ResourceAllocation)(nil),               // 34: loco.resource.v1.ResourceAllocation
+	(*ListRegionsRequest)(nil),               // 35: loco.resource.v1.ListRegionsRequest
+	(*ListRegionsResponse)(nil),              // 36: loco.resource.v1.ListRegionsResponse
+	(*GetResourceEnvRequest)(nil),            // 37: loco.resource.v1.GetResourceEnvRequest
+	(*GetResourceEnvResponse)(nil),           // 38: loco.resource.v1.GetResourceEnvResponse
+	(*ListResourceOutputsRequest)(nil),       // 39: loco.resource.v1.ListResourceOutputsRequest
+	(*ResourceOutput)(nil),                   // 40: loco.resource.v1.ResourceOutput
+	(*ResourceOutputs)(nil),                  // 41: loco.resource.v1.ResourceOutputs
+	(*ListResourceOutputsResponse)(nil),      // 42: loco.resource.v1.ListResourceOutputsResponse
+	(*ScaleResourceRequest)(nil),             // 43: loco.resource.v1.ScaleResourceRequest
+	(*ScaleResourceResponse)(nil),            // 44: loco.resource.v1.ScaleResourceResponse
+	(*TransferPartialRequest)(nil),           // 45: loco.resource.v1.TransferPartialRequest
+	(*TransferPartialResponse)(nil),          // 46: loco.resource.v1.TransferPartialResponse
+	(*RestartResourceRequest)(nil),           // 47: loco.resource.v1.RestartResourceRequest
+	(*RestartResourceResponse)(nil),          // 48: loco.resource.v1.RestartResourceResponse
+	nil,                                      // 49: loco.resource.v1.ServiceSpec.RegionsEntry
+	nil,                                      // 50: loco.resource.v1.RegionTargets.TargetsEntry
+	nil,                                      // 51: loco.resource.v1.GetResourceEnvResponse.EnvEntry
+	(*v1.Scalers)(nil),                       // 52: loco.deployment.v1.Scalers
+	(*v1.HealthCheckConfig)(nil),             // 53: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil),           // 54: loco.deployment.v1.ObservabilityConfig
+	(*v11.ResourceDomain)(nil),               // 55: loco.domain.v1.ResourceDomain
+	(*timestamppb.Timestamp)(nil),            // 56: google.protobuf.Timestamp
+	(*v1.FailurePolicy)(nil),                 // 57: loco.deployment.v1.FailurePolicy
+	(v1.PlacementStatus)(0),                  // 58: loco.deployment.v1.PlacementStatus
+	(*v1.Replica)(nil),                       // 59: loco.deployment.v1.Replica
+	(*v11.DomainInput)(nil),                  // 60: loco.domain.v1.DomainInput
 }
 var file_loco_resource_v1_resource_proto_depIdxs = []int32{
-	51, // 0: loco.resource.v1.RegionTarget.scalers:type_name -> loco.deployment.v1.Scalers
+	52, // 0: loco.resource.v1.RegionTarget.scalers:type_name -> loco.deployment.v1.Scalers
 	4,  // 1: loco.resource.v1.ServiceSpec.routing:type_name -> loco.resource.v1.RoutingConfig
-	48, // 2: loco.resource.v1.ServiceSpec.regions:type_name -> loco.resource.v1.ServiceSpec.RegionsEntry
-	52, // 3: loco.resource.v1.ServiceSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	53, // 4: loco.resource.v1.ServiceSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
+	49, // 2: loco.resource.v1.ServiceSpec.regions:type_name -> loco.resource.v1.ServiceSpec.RegionsEntry
+	53, // 3: loco.resource.v1.ServiceSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	54, // 4: loco.resource.v1.ServiceSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
 	6,  // 5: loco.resource.v1.ResourceSpec.service:type_name -> loco.resource.v1.ServiceSpec
 	0,  // 6: loco.resource.v1.Resource.type:type_name -> loco.resource.v1.ResourceType
-	54, // 7: loco.resource.v1.Resource.domains:type_name -> loco.domain.v1.ResourceDomain
-	7,  // 8: loco.resource.v1.Resource.spec:type_name -> loco.resource.v1.ResourceSpec
-	55, // 9: loco.resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
-	55, // 10: loco.resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 11: loco.resource.v1.Resource.environment_statuses:type_name -> loco.resource.v1.EnvironmentStatus
-	56, // 12: loco.resource.v1.Resource.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
-	1,  // 13: loco.resource.v1.EnvironmentStatus.status:type_name -> loco.resource.v1.ResourceStatus
-	10, // 14: loco.resource.v1.EnvironmentStatus.regions:type_name -> loco.resource.v1.RegionStatus
-	55, // 15: loco.resource.v1.EnvironmentStatus.status_since:type_name -> google.protobuf.Timestamp
-	1,  // 16: loco.resource.v1.RegionStatus.status:type_name -> loco.resource.v1.ResourceStatus
-	57, // 17: loco.resource.v1.RegionStatus.placement_status:type_name -> loco.deployment.v1.PlacementStatus
-	55, // 18: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
-	55, // 19: loco.resource.v1.RegionStatus.status_since:type_name -> google.protobuf.Timestamp
-	58, // 20: loco.resource.v1.RegionStatus.replicas:type_name -> loco.deployment.v1.Replica
-	0,  // 21: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
-	59, // 22: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
-	7,  // 23: loco.resource.v1.CreateResourceRequest.spec:type_name -> loco.resource.v1.ResourceSpec
-	13, // 24: loco.resource.v1.GetResourceRequest.slug_key:type_name -> loco.resource.v1.GetResourceSlugKey
-	8,  // 25: loco.resource.v1.GetResourceResponse.resource:type_name -> loco.resource.v1.Resource
-	1,  // 26: loco.resource.v1.ListWorkspaceResourcesRequest.status:type_name -> loco.resource.v1.ResourceStatus
-	0,  // 27: loco.resource.v1.ListWorkspaceResourcesRequest.type:type_name -> loco.resource.v1.ResourceType
-	2,  // 28: loco.resource.v1.ListWorkspaceResourcesRequest.order_by:type_name -> loco.resource.v1.ResourceOrder
-	8,  // 29: loco.resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> loco.resource.v1.Resource
-	18, // 30: loco.resource.v1.ListWorkspaceResourcesResponse.facets:type_name -> loco.resource.v1.ResourceFacets
-	19, // 31: loco.resource.v1.ResourceFacets.statuses:type_name -> loco.resource.v1.ResourceStatusCount
-	20, // 32: loco.resource.v1.ResourceFacets.regions:type_name -> loco.resource.v1.ResourceRegionCount
-	21, // 33: loco.resource.v1.ResourceFacets.types:type_name -> loco.resource.v1.ResourceTypeCount
-	1,  // 34: loco.resource.v1.ResourceStatusCount.status:type_name -> loco.resource.v1.ResourceStatus
-	0,  // 35: loco.resource.v1.ResourceTypeCount.type:type_name -> loco.resource.v1.ResourceType
-	23, // 36: loco.resource.v1.UpdateResourceRequest.regions:type_name -> loco.resource.v1.RegionTargets
-	56, // 37: loco.resource.v1.UpdateResourceRequest.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
-	49, // 38: loco.resource.v1.RegionTargets.targets:type_name -> loco.resource.v1.RegionTargets.TargetsEntry
-	3,  // 39: loco.resource.v1.RegionInfo.availability:type_name -> loco.resource.v1.RegionAvailability
-	30, // 40: loco.resource.v1.ListOrgResourcesResponse.resources:type_name -> loco.resource.v1.OrgResource
-	0,  // 41: loco.resource.v1.OrgResource.type:type_name -> loco.resource.v1.ResourceType
-	33, // 42: loco.resource.v1.GetEnvironmentAllocationResponse.resources:type_name -> loco.resource.v1.ResourceAllocation
-	27, // 43: loco.resource.v1.ListRegionsResponse.regions:type_name -> loco.resource.v1.RegionInfo
-	50, // 44: loco.resource.v1.GetResourceEnvResponse.env:type_name -> loco.resource.v1.GetResourceEnvResponse.EnvEntry
-	39, // 45: loco.resource.v1.ResourceOutputs.outputs:type_name -> loco.resource.v1.ResourceOutput
-	40, // 46: loco.resource.v1.ListResourceOutputsResponse.resources:type_name -> loco.resource.v1.ResourceOutputs
-	5,  // 47: loco.resource.v1.ServiceSpec.RegionsEntry.value:type_name -> loco.resource.v1.RegionTarget
-	5,  // 48: loco.resource.v1.RegionTargets.TargetsEntry.value:type_name -> loco.resource.v1.RegionTarget
-	11, // 49: loco.resource.v1.ResourceService.CreateResource:input_type -> loco.resource.v1.CreateResourceRequest
-	14, // 50: loco.resource.v1.ResourceService.GetResource:input_type -> loco.resource.v1.GetResourceRequest
-	22, // 51: loco.resource.v1.ResourceService.UpdateResource:input_type -> loco.resource.v1.UpdateResourceRequest
-	25, // 52: loco.resource.v1.ResourceService.DeleteResource:input_type -> loco.resource.v1.DeleteResourceRequest
-	16, // 53: loco.resource.v1.ResourceService.ListWorkspaceResources:input_type -> loco.resource.v1.ListWorkspaceResourcesRequest
-	28, // 54: loco.resource.v1.ResourceService.ListOrgResources:input_type -> loco.resource.v1.ListOrgResourcesRequest
-	31, // 55: loco.resource.v1.ResourceService.GetEnvironmentAllocation:input_type -> loco.resource.v1.GetEnvironmentAllocationRequest
-	34, // 56: loco.resource.v1.ResourceService.ListRegions:input_type -> loco.resource.v1.ListRegionsRequest
-	36, // 57: loco.resource.v1.ResourceService.GetResourceEnv:input_type -> loco.resource.v1.GetResourceEnvRequest
-	38, // 58: loco.resource.v1.ResourceService.ListResourceOutputs:input_type -> loco.resource.v1.ListResourceOutputsRequest
-	42, // 59: loco.resource.v1.ResourceService.ScaleResource:input_type -> loco.resource.v1.ScaleResourceRequest
-	46, // 60: loco.resource.v1.ResourceService.RestartResource:input_type -> loco.resource.v1.RestartResourceRequest
-	44, // 61: loco.resource.v1.ResourceService.TransferPartial:input_type -> loco.resource.v1.TransferPartialRequest
-	12, // 62: loco.resource.v1.ResourceService.CreateResource:output_type -> loco.resource.v1.CreateResourceResponse
-	15, // 63: loco.resource.v1.ResourceService.GetResource:output_type -> loco.resource.v1.GetResourceResponse
-	24, // 64: loco.resource.v1.ResourceService.UpdateResource:output_type -> loco.resource.v1.UpdateResourceResponse
-	26, // 65: loco.resource.v1.ResourceService.DeleteResource:output_type -> loco.resource.v1.DeleteResourceResponse
-	17, // 66: loco.resource.v1.ResourceService.ListWorkspaceResources:output_type -> loco.resource.v1.ListWorkspaceResourcesResponse
-	29, // 67: loco.resource.v1.ResourceService.ListOrgResources:output_type -> loco.resource.v1.ListOrgResourcesResponse
-	32, // 68: loco.resource.v1.ResourceService.GetEnvironmentAllocation:output_type -> loco.resource.v1.GetEnvironmentAllocationResponse
-	35, // 69: loco.resource.v1.ResourceService.ListRegions:output_type -> loco.resource.v1.ListRegionsResponse
-	37, // 70: loco.resource.v1.ResourceService.GetResourceEnv:output_type -> loco.resource.v1.GetResourceEnvResponse
-	41, // 71: loco.resource.v1.ResourceService.ListResourceOutputs:output_type -> loco.resource.v1.ListResourceOutputsResponse
-	43, // 72: loco.resource.v1.ResourceService.ScaleResource:output_type -> loco.resource.v1.ScaleResourceResponse
-	47, // 73: loco.resource.v1.ResourceService.RestartResource:output_type -> loco.resource.v1.RestartResourceResponse
-	45, // 74: loco.resource.v1.ResourceService.TransferPartial:output_type -> loco.resource.v1.TransferPartialResponse
-	62, // [62:75] is the sub-list for method output_type
-	49, // [49:62] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	55, // 7: loco.resource.v1.Resource.domains:type_name -> loco.domain.v1.ResourceDomain
+	56, // 8: loco.resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
+	56, // 9: loco.resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 10: loco.resource.v1.Resource.environment_statuses:type_name -> loco.resource.v1.EnvironmentStatus
+	9,  // 11: loco.resource.v1.Resource.environments:type_name -> loco.resource.v1.ResourceEnvironment
+	7,  // 12: loco.resource.v1.ResourceEnvironment.spec:type_name -> loco.resource.v1.ResourceSpec
+	57, // 13: loco.resource.v1.ResourceEnvironment.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	1,  // 14: loco.resource.v1.EnvironmentStatus.status:type_name -> loco.resource.v1.ResourceStatus
+	11, // 15: loco.resource.v1.EnvironmentStatus.regions:type_name -> loco.resource.v1.RegionStatus
+	56, // 16: loco.resource.v1.EnvironmentStatus.status_since:type_name -> google.protobuf.Timestamp
+	1,  // 17: loco.resource.v1.RegionStatus.status:type_name -> loco.resource.v1.ResourceStatus
+	58, // 18: loco.resource.v1.RegionStatus.placement_status:type_name -> loco.deployment.v1.PlacementStatus
+	56, // 19: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
+	56, // 20: loco.resource.v1.RegionStatus.status_since:type_name -> google.protobuf.Timestamp
+	59, // 21: loco.resource.v1.RegionStatus.replicas:type_name -> loco.deployment.v1.Replica
+	0,  // 22: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
+	60, // 23: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
+	7,  // 24: loco.resource.v1.CreateResourceRequest.spec:type_name -> loco.resource.v1.ResourceSpec
+	14, // 25: loco.resource.v1.GetResourceRequest.slug_key:type_name -> loco.resource.v1.GetResourceSlugKey
+	8,  // 26: loco.resource.v1.GetResourceResponse.resource:type_name -> loco.resource.v1.Resource
+	1,  // 27: loco.resource.v1.ListWorkspaceResourcesRequest.status:type_name -> loco.resource.v1.ResourceStatus
+	0,  // 28: loco.resource.v1.ListWorkspaceResourcesRequest.type:type_name -> loco.resource.v1.ResourceType
+	2,  // 29: loco.resource.v1.ListWorkspaceResourcesRequest.order_by:type_name -> loco.resource.v1.ResourceOrder
+	8,  // 30: loco.resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> loco.resource.v1.Resource
+	19, // 31: loco.resource.v1.ListWorkspaceResourcesResponse.facets:type_name -> loco.resource.v1.ResourceFacets
+	20, // 32: loco.resource.v1.ResourceFacets.statuses:type_name -> loco.resource.v1.ResourceStatusCount
+	21, // 33: loco.resource.v1.ResourceFacets.regions:type_name -> loco.resource.v1.ResourceRegionCount
+	22, // 34: loco.resource.v1.ResourceFacets.types:type_name -> loco.resource.v1.ResourceTypeCount
+	1,  // 35: loco.resource.v1.ResourceStatusCount.status:type_name -> loco.resource.v1.ResourceStatus
+	0,  // 36: loco.resource.v1.ResourceTypeCount.type:type_name -> loco.resource.v1.ResourceType
+	24, // 37: loco.resource.v1.UpdateResourceRequest.regions:type_name -> loco.resource.v1.RegionTargets
+	57, // 38: loco.resource.v1.UpdateResourceRequest.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	50, // 39: loco.resource.v1.RegionTargets.targets:type_name -> loco.resource.v1.RegionTargets.TargetsEntry
+	3,  // 40: loco.resource.v1.RegionInfo.availability:type_name -> loco.resource.v1.RegionAvailability
+	31, // 41: loco.resource.v1.ListOrgResourcesResponse.resources:type_name -> loco.resource.v1.OrgResource
+	0,  // 42: loco.resource.v1.OrgResource.type:type_name -> loco.resource.v1.ResourceType
+	34, // 43: loco.resource.v1.GetEnvironmentAllocationResponse.resources:type_name -> loco.resource.v1.ResourceAllocation
+	28, // 44: loco.resource.v1.ListRegionsResponse.regions:type_name -> loco.resource.v1.RegionInfo
+	51, // 45: loco.resource.v1.GetResourceEnvResponse.env:type_name -> loco.resource.v1.GetResourceEnvResponse.EnvEntry
+	40, // 46: loco.resource.v1.ResourceOutputs.outputs:type_name -> loco.resource.v1.ResourceOutput
+	41, // 47: loco.resource.v1.ListResourceOutputsResponse.resources:type_name -> loco.resource.v1.ResourceOutputs
+	5,  // 48: loco.resource.v1.ServiceSpec.RegionsEntry.value:type_name -> loco.resource.v1.RegionTarget
+	5,  // 49: loco.resource.v1.RegionTargets.TargetsEntry.value:type_name -> loco.resource.v1.RegionTarget
+	12, // 50: loco.resource.v1.ResourceService.CreateResource:input_type -> loco.resource.v1.CreateResourceRequest
+	15, // 51: loco.resource.v1.ResourceService.GetResource:input_type -> loco.resource.v1.GetResourceRequest
+	23, // 52: loco.resource.v1.ResourceService.UpdateResource:input_type -> loco.resource.v1.UpdateResourceRequest
+	26, // 53: loco.resource.v1.ResourceService.DeleteResource:input_type -> loco.resource.v1.DeleteResourceRequest
+	17, // 54: loco.resource.v1.ResourceService.ListWorkspaceResources:input_type -> loco.resource.v1.ListWorkspaceResourcesRequest
+	29, // 55: loco.resource.v1.ResourceService.ListOrgResources:input_type -> loco.resource.v1.ListOrgResourcesRequest
+	32, // 56: loco.resource.v1.ResourceService.GetEnvironmentAllocation:input_type -> loco.resource.v1.GetEnvironmentAllocationRequest
+	35, // 57: loco.resource.v1.ResourceService.ListRegions:input_type -> loco.resource.v1.ListRegionsRequest
+	37, // 58: loco.resource.v1.ResourceService.GetResourceEnv:input_type -> loco.resource.v1.GetResourceEnvRequest
+	39, // 59: loco.resource.v1.ResourceService.ListResourceOutputs:input_type -> loco.resource.v1.ListResourceOutputsRequest
+	43, // 60: loco.resource.v1.ResourceService.ScaleResource:input_type -> loco.resource.v1.ScaleResourceRequest
+	47, // 61: loco.resource.v1.ResourceService.RestartResource:input_type -> loco.resource.v1.RestartResourceRequest
+	45, // 62: loco.resource.v1.ResourceService.TransferPartial:input_type -> loco.resource.v1.TransferPartialRequest
+	13, // 63: loco.resource.v1.ResourceService.CreateResource:output_type -> loco.resource.v1.CreateResourceResponse
+	16, // 64: loco.resource.v1.ResourceService.GetResource:output_type -> loco.resource.v1.GetResourceResponse
+	25, // 65: loco.resource.v1.ResourceService.UpdateResource:output_type -> loco.resource.v1.UpdateResourceResponse
+	27, // 66: loco.resource.v1.ResourceService.DeleteResource:output_type -> loco.resource.v1.DeleteResourceResponse
+	18, // 67: loco.resource.v1.ResourceService.ListWorkspaceResources:output_type -> loco.resource.v1.ListWorkspaceResourcesResponse
+	30, // 68: loco.resource.v1.ResourceService.ListOrgResources:output_type -> loco.resource.v1.ListOrgResourcesResponse
+	33, // 69: loco.resource.v1.ResourceService.GetEnvironmentAllocation:output_type -> loco.resource.v1.GetEnvironmentAllocationResponse
+	36, // 70: loco.resource.v1.ResourceService.ListRegions:output_type -> loco.resource.v1.ListRegionsResponse
+	38, // 71: loco.resource.v1.ResourceService.GetResourceEnv:output_type -> loco.resource.v1.GetResourceEnvResponse
+	42, // 72: loco.resource.v1.ResourceService.ListResourceOutputs:output_type -> loco.resource.v1.ListResourceOutputsResponse
+	44, // 73: loco.resource.v1.ResourceService.ScaleResource:output_type -> loco.resource.v1.ScaleResourceResponse
+	48, // 74: loco.resource.v1.ResourceService.RestartResource:output_type -> loco.resource.v1.RestartResourceResponse
+	46, // 75: loco.resource.v1.ResourceService.TransferPartial:output_type -> loco.resource.v1.TransferPartialResponse
+	63, // [63:76] is the sub-list for method output_type
+	50, // [50:63] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_loco_resource_v1_resource_proto_init() }
@@ -3757,23 +3825,23 @@ func file_loco_resource_v1_resource_proto_init() {
 		(*ResourceSpec_Service)(nil),
 	}
 	file_loco_resource_v1_resource_proto_msgTypes[4].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[5].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[6].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[7].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[10].OneofWrappers = []any{
+	file_loco_resource_v1_resource_proto_msgTypes[8].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[11].OneofWrappers = []any{
 		(*GetResourceRequest_ResourceId)(nil),
 		(*GetResourceRequest_SlugKey)(nil),
 	}
-	file_loco_resource_v1_resource_proto_msgTypes[18].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[38].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[42].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[19].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[39].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[43].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_resource_v1_resource_proto_rawDesc), len(file_loco_resource_v1_resource_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   47,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

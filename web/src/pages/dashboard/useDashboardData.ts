@@ -23,6 +23,7 @@ export interface RegionReplicas {
 
 export interface EnvResource {
 	resource: Resource;
+	environmentId: string;
 	environment: EnvironmentStatus | undefined;
 	status: ResourceStatus;
 	/** The resource's loaded deployments in the environment, newest first. */
@@ -33,8 +34,12 @@ export interface EnvResource {
 	neverDeployed: boolean;
 }
 
-function regionReplicas(resource: Resource, environment: EnvironmentStatus | undefined): RegionReplicas[] {
-	const names = new Set(configuredRegions(resource));
+function regionReplicas(
+	resource: Resource,
+	environment: EnvironmentStatus | undefined,
+	environmentId: string,
+): RegionReplicas[] {
+	const names = new Set(configuredRegions(resource, environmentId));
 	for (const r of environment?.regions ?? []) names.add(r.region);
 	return [...names].map((region) => {
 		const status = environment?.regions.find((r) => r.region === region);
@@ -52,9 +57,10 @@ export function envResource(
 		.filter((d) => d.resourceId === resource.id)
 		.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 	const environment = environmentStatus(resource, environmentId);
-	const regions = regionReplicas(resource, environment);
+	const regions = regionReplicas(resource, environment, environmentId);
 	return {
 		resource,
+		environmentId,
 		environment,
 		status: environment?.status ?? ResourceStatus.UNSPECIFIED,
 		deployments: mine,

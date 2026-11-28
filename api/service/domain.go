@@ -34,10 +34,6 @@ var (
 		connect.CodeFailedPrecondition,
 		"make another domain primary before removing the primary domain",
 	)
-	errNoWorkspaceEnvironment = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		"the workspace has no environments to hold the domain",
-	)
 	errPlacementNotService = errors.New("domain placement has no service spec")
 	errDomainWithoutPort   = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
@@ -112,20 +108,23 @@ func (s *DomainServer) CreateResourceDomain(
 	if err = authorize(ctx, s.authz, actions.AddDomain, resourceID); err != nil {
 		return nil, err
 	}
-	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetAppDomain()
-	appDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
+	environmentID, err := parseID("environment_id", req.GetEnvironmentId())
 	if err != nil {
-		return nil, fmt.Errorf("check the resource domain: %w", err)
+		return nil, err
 	}
+	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetAppDomain()
 
 	var resourceDomain uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
-		if envErr != nil {
+		if _, envErr := resourceEnvironment(ctx, qtx, resourceID, environmentID); envErr != nil {
 			return envErr
 		}
 		if lockErr := lockResourceDomains(ctx, qtx, resourceID, environmentID); lockErr != nil {
 			return lockErr
+		}
+		appDomain, subdomain, checkErr := s.checkResourceDomain(ctx, qtx, resourceID, environmentID, fullDomain)
+		if checkErr != nil {
+			return fmt.Errorf("check the resource domain: %w", checkErr)
 		}
 		existing, countErr := qtx.GetResourceDomainCount(ctx, genDb.GetResourceDomainCountParams{
 			ResourceID:    resourceID,
@@ -208,23 +207,30 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	changed := req.GetDomain() != "" && req.GetDomain() != domainRow.Domain
-	var subdomainLabel *string
-	var appDomain *string
-	if changed {
-		if domainRow.DomainSource == genDb.DomainSourceApp {
-			domain, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
-			if checkErr != nil {
-				return nil, fmt.Errorf("check the resource domain: %w", checkErr)
-			}
-			subdomainLabel = &label
-			appDomain = &domain
-		}
-	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID, domainRow.EnvironmentID); lockErr != nil {
 			return lockErr
 		}
+		var subdomainLabel *string
+		var appDomain *string
+		if changed {
+			if domainRow.DomainSource == genDb.DomainSourceApp {
+				domain, label, checkErr := s.checkResourceDomain(
+					ctx,
+					qtx,
+					domainRow.ResourceID,
+					domainRow.EnvironmentID,
+					req.GetDomain(),
+				)
+				if checkErr != nil {
+					return fmt.Errorf("check the resource domain: %w", checkErr)
+				}
+				subdomainLabel = &label
+				appDomain = &domain
+			}
+		}
+
 		if changed {
 			_, updateErr := qtx.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
 				ID:             domainID,
@@ -433,28 +439,26 @@ func (s *DomainServer) CheckDomainAvailability(
 
 func (s *DomainServer) checkResourceDomain(
 	ctx context.Context,
-	resourceID uuid.UUID,
+	queries genDb.Querier,
+	resourceID, environmentID uuid.UUID,
 	hostname string,
 ) (string, string, error) {
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
+	resource, err := queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", "", ErrResourceNotFound
 	}
 	if err != nil {
 		return "", "", fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
-	env, err := s.queries.GetWorkspaceDefaultEnvironment(ctx, resource.WorkspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", errNoWorkspaceEnvironment
-	}
+	config, err := resourceEnvironment(ctx, queries, resourceID, environmentID)
 	if err != nil {
-		return "", "", fmt.Errorf("get production environment: %w", err)
+		return "", "", err
 	}
-	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	spec, err := converter.DeserializeResourceSpec(config.Spec, resource.Type)
 	if err != nil {
-		return "", "", fmt.Errorf("decode resource %s spec: %w", resourceID, err)
+		return "", "", fmt.Errorf("decode resource environment spec: %w", err)
 	}
-	deployments, err := listLiveDeploymentsForEnvironment(ctx, s.queries, resourceID, env.ID)
+	deployments, err := listLiveDeploymentsForEnvironment(ctx, queries, resourceID, environmentID)
 	if err != nil {
 		return "", "", err
 	}
@@ -470,9 +474,9 @@ func (s *DomainServer) checkResourceDomain(
 	if (!hasDeployment && spec.GetService().GetRouting().GetPort() == 0) || (hasDeployment && !hasPort) {
 		return "", "", errDomainWithoutPort
 	}
-	placements, err := s.queries.ListResourceEnvironmentPlacements(
+	placements, err := queries.ListResourceEnvironmentPlacements(
 		ctx,
-		genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resourceID, EnvironmentID: env.ID},
+		genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resourceID, EnvironmentID: environmentID},
 	)
 	if err != nil {
 		return "", "", fmt.Errorf("list resource %s placements: %w", resourceID, err)
@@ -484,7 +488,7 @@ func (s *DomainServer) checkResourceDomain(
 	regions := enabledRegions(spec.GetService().GetRegions())
 	check, err := resourceDomainCheck(
 		ctx,
-		s.queries,
+		queries,
 		regions,
 		placed,
 		s.silentAfter,
@@ -494,38 +498,6 @@ func (s *DomainServer) checkResourceDomain(
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
 	return appdomain.Check(hostname, check.clusters, check.targets)
-}
-
-// imperativeDomainEnvironment resolves the production environment for domain RPCs
-// that operate on a resource without an environment ID.
-func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceID uuid.UUID) (uuid.UUID, error) {
-	workspaceID, err := q.GetResourceWorkspaceID(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, ErrResourceNotFound
-	}
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("get resource workspace: %w", err)
-	}
-	env, err := workspaceDefaultEnvironment(ctx, q, workspaceID)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-	return env.ID, nil
-}
-
-func workspaceDefaultEnvironment(
-	ctx context.Context,
-	q genDb.Querier,
-	workspaceID uuid.UUID,
-) (genDb.Environment, error) {
-	env, err := q.GetWorkspaceDefaultEnvironment(ctx, workspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Environment{}, errNoWorkspaceEnvironment
-	}
-	if err != nil {
-		return genDb.Environment{}, fmt.Errorf("get production environment: %w", err)
-	}
-	return env, nil
 }
 
 // lockResourceDomains locks the environment that holds the domains and their resource.
@@ -554,14 +526,6 @@ func (s *DomainServer) refreshDomainRouting(
 	hostname, err := primaryHostname(ctx, qtx, resourceID, environmentID)
 	if err != nil {
 		return err
-	}
-	resource, err := qtx.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		return fmt.Errorf("get domain resource: %w", err)
-	}
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if err != nil {
-		return fmt.Errorf("decode domain resource spec: %w", err)
 	}
 	for _, placement := range placements {
 		payload, err := decodePlacement(placement)
@@ -592,7 +556,7 @@ func (s *DomainServer) refreshDomainRouting(
 			if err := protojson.Unmarshal(deployment.Spec, deploymentService); err != nil {
 				return fmt.Errorf("decode deployment routing: %w", err)
 			}
-			routing := deploymentRouting(resourceSpec.GetService(), deploymentService)
+			routing := deploymentRouting(deploymentService)
 			service.Routing = converter.ProtoToRoutingSpec(routing, hostname, s.defaults)
 		}
 		if err := rewritePlacement(ctx, qtx, placement, payload); err != nil {

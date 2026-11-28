@@ -59,8 +59,8 @@ const (
 
 func (f *deployFixture) setRoutedSpec(t *testing.T) {
 	t.Helper()
-	update := `UPDATE resources SET spec = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(context.Background(), update, f.resourceID, planRoutedSpec); err != nil {
+	update := `UPDATE resource_environments SET spec = $2 WHERE resource_id = $1 AND environment_id = $3`
+	if _, err := f.pool.Exec(context.Background(), update, f.resourceID, planRoutedSpec, f.envID); err != nil {
 		t.Fatalf("set spec: %v", err)
 	}
 }

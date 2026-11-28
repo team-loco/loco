@@ -92,6 +92,13 @@ func mergedTestSpec(
 	if err != nil {
 		t.Fatalf("MergeDeploymentSpec: %v", err)
 	}
+	if err := freezeDeploymentDefaults(
+		merged.GetService(),
+		genDb.ResourceEnvironment{},
+		testServiceDefaults(),
+	); err != nil {
+		t.Fatalf("freeze deployment defaults: %v", err)
+	}
 	return merged
 }
 
@@ -112,17 +119,16 @@ func testDesiredSpecAt(
 ) desiredSpecFunc {
 	t.Helper()
 	merged := mergedTestSpec(t, resourceSpec, requestSpec)
-	return testRenderer(resourceSpec, hostname).specFor(merged, testRegion)
+	return testRenderer(hostname).specFor(merged, testRegion)
 }
 
 // desiredSpecFunc renders one region's placement payload for a deployment ID.
 type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
 
-func testRenderer(resourceSpec *resourcev1.ResourceSpec, hostname string) placementRenderer {
+func testRenderer(hostname string) placementRenderer {
 	return placementRenderer{
 		resource:        testServiceResource(),
 		organizationID:  uuid.New(),
-		resourceSpec:    resourceSpec,
 		hostname:        hostname,
 		environmentID:   uuid.New(),
 		environmentName: "prod",
@@ -177,7 +183,7 @@ func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	t.Parallel()
 	resourceSpec := testResourceSpec()
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
-	buildSpec := testRenderer(resourceSpec, testHostname).specFor(deploymentSpec, "us-va-1")
+	buildSpec := testRenderer(testHostname).specFor(deploymentSpec, "us-va-1")
 	_, specErr := buildSpec(uuid.New())
 	joined := errors.Join(errDesiredSpec, specErr)
 	wantCode(t, joined, connect.CodeInvalidArgument)

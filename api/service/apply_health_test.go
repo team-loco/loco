@@ -76,7 +76,10 @@ func TestApplyRemovesHealthFromResourceDeploymentAndPlacement(t *testing.T) {
 			if !found {
 				t.Fatal("resource absent")
 			}
-			spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+			spec, err := converter.DeserializeResourceSpec(
+				testResourceConfiguration(t, f.queries, resource.ID, f.envID).Spec,
+				resource.Type,
+			)
 			if err != nil {
 				t.Fatal(err)
 			}

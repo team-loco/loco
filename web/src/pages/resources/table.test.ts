@@ -67,24 +67,31 @@ function resource(
 		slug: name,
 		name: name,
 		description: patch.description ?? "",
-		domains: patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }],
+		domains:
+			patch.domain === undefined
+				? []
+				: envs.map((env) => ({ domain: patch.domain ?? "", isPrimary: true, environmentId: env.id })),
 		createdAt: timestampFromMs(patch.createdMs ?? 0),
-		spec: {
+		environments: envs.map((env) => ({
+			environmentId: env.id,
 			spec: {
-				case: "service",
-				value: {
-					regions: {
-						"us-va-1": {
-							enabled: true,
-							cpu: patch.cpu ?? "500m",
-							memory: patch.memory ?? "1Gi",
-							minReplicas: 1,
-							maxReplicas: 3,
+				spec: {
+					case: "service" as const,
+					value: {
+						regions: {
+							"us-va-1": {
+								enabled: true,
+								cpu: patch.cpu ?? "500m",
+								memory: patch.memory ?? "1Gi",
+								minReplicas: 1,
+								maxReplicas: 3,
+							},
 						},
 					},
 				},
 			},
-		},
+		})),
+
 		environmentStatuses: envStatuses.map((e) => ({
 			environmentId: e.env,
 			status: e.status,
@@ -106,7 +113,7 @@ function deployment(id: string, env: string, image: string, createdMs: number): 
 		environmentId: env,
 		createdAt: timestampFromMs(createdMs),
 		startedAt: timestampFromMs(createdMs + 500),
-		spec: { spec: { case: "service", value: { build: { image } } } },
+		spec: { spec: { case: "service" as const, value: { build: { image } } } },
 	});
 }
 
@@ -158,8 +165,8 @@ describe("buildRows", () => {
 			environmentId: "e-prod",
 			spec: {
 				spec: {
-					case: "service",
-					value: { regions: { "us-va-1": { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
+					case: "service" as const,
+					value: { regions: { "us-va-1": { cpu: "500m", memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
 				},
 			},
 		});
@@ -170,6 +177,22 @@ describe("buildRows", () => {
 		const [inStaging] = buildRows([api], [[scaled]], envs, "e-stg");
 		expect(inStaging?.memMi).toBe(1024);
 		expect(inStaging === undefined ? null : replicasLabel(inStaging)).toBe("1–3");
+	});
+
+	test("an all-environment size uses the largest environment without changing selected-environment values", () => {
+		const api = resource("api");
+		const production = api.environments.find((configuration) => configuration.environmentId === "e-prod")!;
+		const stagingConfiguration = api.environments.find((configuration) => configuration.environmentId === "e-stg")!;
+		if (production.spec?.spec.case !== "service" || stagingConfiguration.spec?.spec.case !== "service")
+			throw new Error("missing fixture configuration");
+		production.spec.spec.value.regions["us-va-1"]!.cpu = "1";
+		production.spec.spec.value.regions["us-va-1"]!.memory = "2Gi";
+		stagingConfiguration.spec.spec.value.regions["us-va-1"]!.cpu = "250m";
+		stagingConfiguration.spec.spec.value.regions["us-va-1"]!.memory = "256Mi";
+		const [all] = buildRows([api], [[]], envs, undefined);
+		expect([all?.cpuMilli, all?.memMi]).toEqual([1000, 2048]);
+		const [selected] = buildRows([api], [[]], envs, "e-stg");
+		expect([selected?.cpuMilli, selected?.memMi]).toEqual([250, 256]);
 	});
 
 	test("an environment with no reported regions says no region", () => {

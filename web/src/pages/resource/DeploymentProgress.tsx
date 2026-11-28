@@ -87,11 +87,9 @@ function ProgressPanel({
 	buildLogsHref,
 	canWrite,
 	onCompare,
-	deployTimeoutSeconds,
 }: {
 	members: readonly [RolloutMember, ...RolloutMember[]];
 	workspaceId: string;
-	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
 	/** The logs of one region's replicas. */
 	regionLogsHref: (region: string) => string | undefined;
@@ -318,7 +316,7 @@ function ProgressPanel({
 				workspaceId={workspaceId}
 				logsHref={logsHref}
 				serving={servingNow}
-				deployTimeoutSeconds={deployTimeoutSeconds}
+				deployTimeoutSeconds={spec?.failurePolicy?.deployTimeoutSeconds}
 			/>
 			<div className="flex min-w-0 flex-col gap-3">
 				<RolloutFlow
@@ -441,14 +439,11 @@ export function DeploymentProgress({
 	buildLogsHref,
 	canWrite,
 	onCompare,
-	deployTimeoutSeconds,
 }: {
 	regions: RegionView[];
 	workspaceId: string;
 	/** Shown while no deployment has a card. */
 	fallback?: ReactElement | undefined;
-	/** The resource's rollout deadline. */
-	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
 	/** The logs of one region's replicas. */
 	regionLogsHref: (region: string) => string | undefined;
@@ -481,7 +476,6 @@ export function DeploymentProgress({
 				buildLogsHref={buildLogsHref}
 				canWrite={canWrite}
 				onCompare={onCompare}
-				deployTimeoutSeconds={deployTimeoutSeconds}
 			/>
 		);
 	});

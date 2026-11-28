@@ -567,7 +567,19 @@ def test_deployment_build_is_seeded_and_named_by_the_spec(monkeypatch):
         return ""
 
     monkeypatch.setattr(evidence, "psql", psql)
-    state = {"users": {"owner": {"id": "u"}}, "orgs": {}}
+    policy = {
+        "restartPolicy": "RESTART_POLICY_ON_FAILURE",
+        "maxRestarts": 2,
+        "deployTimeoutSeconds": 600,
+    }
+    monkeypatch.setattr(
+        evidence, "rpc", lambda *args: {"serviceDefaults": {"failurePolicy": policy}}
+    )
+    state = {
+        "api_url": "http://api.invalid",
+        "users": {"owner": {"id": "u"}},
+        "orgs": {},
+    }
     spec = {
         "build": {"type": "dockerfile", "image": "example.invalid/web:1"},
         "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 1}},
@@ -586,6 +598,7 @@ def test_deployment_build_is_seeded_and_named_by_the_spec(monkeypatch):
     assert f'"buildId": "{build_id}"' in inserted
     assert "'succeeded'" in build and re.search(r"'\d{4}-\d\d-\d\dT[\d:]+Z'", build)
     assert "buildId" not in spec["build"]
+    assert f'"failurePolicy": {json.dumps(policy)}' in inserted
 
 
 def test_ui_serves_the_issuer_sign_in_page(tmp_path):

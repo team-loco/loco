@@ -151,7 +151,7 @@ export function ObsProvider({
 		id: r.id,
 		slug: r.slug,
 		color: seriesColor(i),
-		regions: configuredRegions(r),
+		regions: configuredRegions(r, environment?.id ?? ""),
 		raw: r,
 	}));
 	const resourceByName = new Map(resources.map((r) => [r.slug, r]));

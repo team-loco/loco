@@ -832,8 +832,6 @@ type PlacementStatus struct {
 	HealthyAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=healthy_at,json=healthyAt,proto3" json:"healthy_at,omitempty"`
 	// Set when the controller stopped the observed revision.
 	Stopped *StoppedRevision `protobuf:"bytes,17,opt,name=stopped,proto3" json:"stopped,omitempty"`
-	// The observed revision's failure policy.
-	FailurePolicy *v11.FailurePolicy `protobuf:"bytes,18,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
 	// Set once the observed revision became healthy with every replica available.
 	Deployed      bool `protobuf:"varint,20,opt,name=deployed,proto3" json:"deployed,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -943,13 +941,6 @@ func (x *PlacementStatus) GetHealthyAt() *timestamppb.Timestamp {
 func (x *PlacementStatus) GetStopped() *StoppedRevision {
 	if x != nil {
 		return x.Stopped
-	}
-	return nil
-}
-
-func (x *PlacementStatus) GetFailurePolicy() *v11.FailurePolicy {
-	if x != nil {
-		return x.FailurePolicy
 	}
 	return nil
 }
@@ -1970,7 +1961,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xe8\x04\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xb4\x04\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
@@ -1984,9 +1975,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\ahealthy\x18\x0f \x01(\bR\ahealthy\x129\n" +
 	"\n" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
-	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12H\n" +
-	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicy\x12\x1a\n" +
-	"\bdeployed\x18\x14 \x01(\bR\bdeployedJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xc5\x02\n" +
+	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12\x1a\n" +
+	"\bdeployed\x18\x14 \x01(\bR\bdeployedJ\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14R\x0efailure_policy\"\xc5\x02\n" +
 	"\x0fStoppedRevision\x12-\n" +
 	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x121\n" +
 	"\x06reason\x18\a \x01(\x0e2\x19.loco.agent.v1.StopReasonR\x06reason\x12!\n" +
@@ -2132,8 +2122,7 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*durationpb.Duration)(nil),   // 26: google.protobuf.Duration
 	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
 	(*v11.Replica)(nil),           // 28: loco.deployment.v1.Replica
-	(*v11.FailurePolicy)(nil),     // 29: loco.deployment.v1.FailurePolicy
-	(*v11.ReplicaRestart)(nil),    // 30: loco.deployment.v1.ReplicaRestart
+	(*v11.ReplicaRestart)(nil),    // 29: loco.deployment.v1.ReplicaRestart
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	22, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
@@ -2154,30 +2143,29 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	13, // 15: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
 	27, // 16: loco.agent.v1.PlacementStatus.healthy_at:type_name -> google.protobuf.Timestamp
 	12, // 17: loco.agent.v1.PlacementStatus.stopped:type_name -> loco.agent.v1.StoppedRevision
-	29, // 18: loco.agent.v1.PlacementStatus.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
-	1,  // 19: loco.agent.v1.StoppedRevision.reason:type_name -> loco.agent.v1.StopReason
-	30, // 20: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
-	27, // 21: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
-	27, // 22: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
-	16, // 23: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	18, // 24: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	19, // 25: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	20, // 26: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	15, // 27: loco.agent.v1.SyncResponse.keep_workspaces:type_name -> loco.agent.v1.KeepWorkspaces
-	17, // 28: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	24, // 29: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	22, // 30: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	23, // 31: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	25, // 32: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	2,  // 33: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	5,  // 34: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	4,  // 35: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	14, // 36: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	35, // [35:37] is the sub-list for method output_type
-	33, // [33:35] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	1,  // 18: loco.agent.v1.StoppedRevision.reason:type_name -> loco.agent.v1.StopReason
+	29, // 19: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
+	27, // 20: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
+	27, // 21: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
+	16, // 22: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	18, // 23: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	19, // 24: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	20, // 25: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	15, // 26: loco.agent.v1.SyncResponse.keep_workspaces:type_name -> loco.agent.v1.KeepWorkspaces
+	17, // 27: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	24, // 28: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	22, // 29: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	23, // 30: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	25, // 31: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	2,  // 32: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	5,  // 33: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	4,  // 34: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	14, // 35: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	34, // [34:36] is the sub-list for method output_type
+	32, // [32:34] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }

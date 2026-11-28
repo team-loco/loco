@@ -98,7 +98,7 @@ message RegionTarget {
   optional deployment.v1.Scalers scalers = 6; // autoscaling config
 }
 
-// ServiceSpec is the resource specification for SERVICE type resources.
+// ServiceSpec is the desired runtime configuration of a service in one environment.
 message ServiceSpec {
   option (buf.validate.message).cel = {
     id: "service.health_check_requires_port"
@@ -114,7 +114,7 @@ message ServiceSpec {
   reserved 5;
 }
 
-// ResourceSpec defines the global infrastructure intent for a resource.
+// ResourceSpec defines the desired runtime configuration in one environment.
 // Uses oneof to support different resource types.
 message ResourceSpec {
   oneof spec {
@@ -130,20 +130,29 @@ message Resource {
   string slug = 3;
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
-  optional ResourceSpec spec = 6;
-  int32 spec_version = 7;
+  reserved 6, 7, 15, 17;
+  reserved "spec", "spec_version", "revision", "failure_policy";
   optional string description = 8;
   string created_by = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
   optional string partial = 12;
   repeated EnvironmentStatus environment_statuses = 13;
-  // revision increases with every change to the resource spec or its scaling.
-  int64 revision = 15;
   // name is the label the dashboard shows.
   string name = 16;
-  // The failure policy the service's next deployment runs under, with the defaults filled in.
-  deployment.v1.FailurePolicy failure_policy = 17;
+  repeated ResourceEnvironment environments = 18;
+}
+
+// ResourceEnvironment is the desired runtime configuration of one resource in one environment.
+// An absent entry means this resource has no configuration in that environment.
+message ResourceEnvironment {
+  string environment_id = 1;
+  ResourceSpec spec = 2;
+  int32 spec_version = 3;
+  // revision increases whenever this environment's desired configuration changes.
+  int64 revision = 4;
+  // The policy the next deployment snapshots, with installation defaults filled in.
+  deployment.v1.FailurePolicy failure_policy = 5;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -206,8 +215,8 @@ message CreateResourceRequest {
   optional domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5 [(buf.validate.field).required = true];
   optional string description = 6 [(buf.validate.field).string.max_len = 256];
-  // The environment for domain. If omitted, the workspace's production environment is used.
-  optional string environment_id = 7 [(buf.validate.field).string.uuid = true];
+  // The environment receiving the initial runtime configuration and optional domain.
+  string environment_id = 7 [(buf.validate.field).string.uuid = true];
   // A DNS label other than localhost and resource-<UUID>, unique in the workspace. If omitted,
   // it is derived from name.
   optional string slug = 8;
@@ -248,7 +257,8 @@ enum ResourceOrder {
   RESOURCE_ORDER_STATUS = 2;
   // Creation time.
   RESOURCE_ORDER_CREATED = 3;
-  // CPU, then memory, of the live deployment in the sort environment, else of the resource's spec.
+  // CPU, then memory, of the first region in the sort environment, using its live deployment
+  // or desired configuration. Across environments, use the largest of those sizes.
   RESOURCE_ORDER_SIZE = 4;
   // The first of the resource's regions, alphabetically.
   RESOURCE_ORDER_REGION = 5;
@@ -260,7 +270,7 @@ enum ResourceOrder {
 }
 
 // ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
-// regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+// regions its live deployments run in and the enabled regions of its desired configurations. environment_id scopes
 // the status, live regions, image and size that query, the filters, the facets and the order read;
 // without it they read every environment, and a resource matches a status or region any
 // environment has.
@@ -299,7 +309,7 @@ message ListWorkspaceResourcesRequest {
   string region = 8 [(buf.validate.field).string.max_len = 63];
   // Only resources of this type.
   ResourceType type = 9 [(buf.validate.field).enum.defined_only = true];
-  // Only resources with a deployment in environment_id, or with no deployment anywhere.
+  // Resources configured in environment_id, plus shared identities with no configuration anywhere.
   bool environment_scoped = 10;
   ResourceOrder order_by = 11 [(buf.validate.field).enum.defined_only = true];
   bool descending = 12;
@@ -365,24 +375,34 @@ message ResourceTypeCount {
   int32 count = 2;
 }
 
-// UpdateResourceRequest is the request to update a resource.
+// UpdateResourceRequest updates shared identity or one environment's runtime configuration.
 message UpdateResourceRequest {
+  option (buf.validate.message).cel = {
+    id: "update_resource.configuration_requires_environment"
+    message: "regions and failure_policy require environment_id"
+    expression: "(!has(this.regions) && !has(this.failure_policy)) || this.environment_id != ''"
+  };
+
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   // The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace.
   optional string name = 2;
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
-  // regions replaces the resource's whole region map when set; omitted regions are torn down.
+  // regions replaces this environment's whole region map; omitted regions are torn down.
   optional RegionTargets regions = 4;
-  // revision is the Resource.revision the caller loaded; a regions update fails when it moved.
+  // revision is the ResourceEnvironment.revision loaded; a region update fails when it moved.
   int64 revision = 5;
-  // failure_policy replaces the service's failure policy; it applies from the next deployment.
+  // failure_policy changes only this environment's next deployment.
   optional deployment.v1.FailurePolicy failure_policy = 6;
   // A new slug: a DNS label other than localhost and resource-<UUID>, unique in the workspace.
   // Resources that loco.yaml manages keep the slug the file names them by.
   optional string slug = 7;
+  string environment_id = 8 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
-// RegionTargets is a resource's desired region map, keyed by region name.
+// RegionTargets is one environment's desired region map, keyed by region name.
 message RegionTargets {
   map<string, RegionTarget> targets = 1;
 }

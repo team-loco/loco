@@ -8,7 +8,7 @@ import { deploymentImage, getServiceSpec, regionTarget } from "@/lib/deployment-
 import { draftRegions, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
-import { configuredRegions } from "@/lib/resource-regions";
+import { configuredRegions, resourceConfiguration } from "@/lib/resource-regions";
 import { environmentStatus, primaryDomain, rolloutState, type Rollout } from "@/lib/resource-status";
 import { pageTokensParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
@@ -103,6 +103,30 @@ function envCell(resource: Resource, environment: Environment, deployments: Depl
 	};
 }
 
+function resourceSizing(resource: Resource, cells: Map<string, EnvCell>, environmentId: string | undefined) {
+	const ids =
+		environmentId === undefined
+			? [...new Set([...resource.environments.map((configuration) => configuration.environmentId), ...cells.keys()])]
+			: [environmentId];
+	const sizes = ids.map((id) => {
+		const spec = resourceConfiguration(resource, id)?.spec?.spec;
+		const region = configuredRegions(resource, id)[0];
+		const target = spec?.case === "service" && region !== undefined ? spec.value.regions[region] : undefined;
+		const runningSpec = cells.get(id)?.spec;
+		const firstRunning = Object.keys(runningSpec?.regions ?? {}).toSorted()[0];
+		const running =
+			(region === undefined ? undefined : regionTarget(runningSpec, region)) ?? regionTarget(runningSpec, firstRunning);
+		return running ?? target;
+	});
+	return sizes
+		.filter((size) => size !== undefined)
+		.toSorted(
+			(a, b) =>
+				parseCpuMilli(b.cpu ?? "") - parseCpuMilli(a.cpu ?? "") ||
+				parseMemMi(b.memory ?? "") - parseMemMi(a.memory ?? ""),
+		)[0];
+}
+
 export function buildRows(
 	resources: Resource[],
 	deployments: Deployment[][],
@@ -116,21 +140,17 @@ export function buildRows(
 			const cell = envCell(resource, env, mine);
 			if (cell !== undefined) cells.set(env.id, cell);
 		}
-		const spec = resource.spec?.spec;
-		const region = configuredRegions(resource)[0];
-		const target = spec?.case === "service" && region !== undefined ? spec.value.regions[region] : undefined;
-		const runningSpec = activeEnvironmentId === undefined ? undefined : cells.get(activeEnvironmentId)?.spec;
-		const running = (region === undefined ? undefined : runningSpec?.regions[region]) ?? regionTarget(runningSpec);
-		const minReplicas = running?.minReplicas ?? target?.minReplicas;
-		const maxReplicas = running?.maxReplicas ?? target?.maxReplicas;
+		const size = resourceSizing(resource, cells, activeEnvironmentId);
+		const minReplicas = size?.minReplicas;
+		const maxReplicas = size?.maxReplicas;
 		const latest = mine[0];
 		return {
 			resource,
 			cells,
-			cpuMilli: parseCpuMilli(running?.cpu ?? target?.cpu ?? ""),
-			memMi: parseMemMi(running?.memory ?? target?.memory ?? ""),
+			cpuMilli: parseCpuMilli(size?.cpu ?? ""),
+			memMi: parseMemMi(size?.memory ?? ""),
 			replicas: minReplicas === undefined || maxReplicas === undefined ? null : { min: minReplicas, max: maxReplicas },
-			address: primaryDomain(resource),
+			address: primaryDomain(resource, activeEnvironmentId),
 			image: latest === undefined ? "" : imageName(deploymentImage(latest)),
 			createdMs: tsMs(resource.createdAt),
 		};

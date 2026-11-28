@@ -153,6 +153,7 @@ func (r *ApplicationReconciler) observeReplicas(
 			replica.Detail = health
 		}
 		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
+			replica.RestartPolicy = new(policy)
 			current = append(current, observedReplica{pod: pod, status: replica, healthCheck: health})
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)

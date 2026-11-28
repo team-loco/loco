@@ -158,8 +158,6 @@ func (s *ResourceServer) CreateResource(
 		Slug:        slug,
 		Name:        name,
 		Type:        genDb.ResourceTypeService,
-		Spec:        specJSON,
-		SpecVersion: specVersion,
 		Description: req.GetDescription(),
 	}
 	var resourceID uuid.UUID
@@ -179,6 +177,16 @@ func (s *ResourceServer) CreateResource(
 		}
 		if createErr != nil {
 			return fmt.Errorf("insert resource: %w", createErr)
+		}
+		env, envErr := resourceConfigurationEnvironment(ctx, qtx, workspaceID, req.GetEnvironmentId())
+		if envErr != nil {
+			return envErr
+		}
+		if _, configErr := qtx.UpsertResourceEnvironment(ctx, genDb.UpsertResourceEnvironmentParams{
+			ResourceID: resourceID, EnvironmentID: env.ID, WorkspaceID: workspaceID,
+			Spec: specJSON, SpecVersion: specVersion,
+		}); configErr != nil {
+			return fmt.Errorf("create resource environment: %w", configErr)
 		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
@@ -210,7 +218,7 @@ func (s *ResourceServer) createAppDomain(
 	workspaceID uuid.UUID,
 	req *resourcev1.CreateResourceRequest,
 ) error {
-	env, err := resourceDomainEnvironment(ctx, qtx, workspaceID, req.EnvironmentId)
+	env, err := resourceConfigurationEnvironment(ctx, qtx, workspaceID, req.GetEnvironmentId())
 	if err != nil {
 		return err
 	}
@@ -250,16 +258,13 @@ func (s *ResourceServer) createAppDomain(
 	return nil
 }
 
-func resourceDomainEnvironment(
+func resourceConfigurationEnvironment(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	workspaceID uuid.UUID,
-	requestedID *string,
+	requestedID string,
 ) (genDb.Environment, error) {
-	if requestedID == nil {
-		return workspaceDefaultEnvironment(ctx, qtx, workspaceID)
-	}
-	id, err := parseID("environment_id", *requestedID)
+	id, err := parseID("environment_id", requestedID)
 	if err != nil {
 		return genDb.Environment{}, err
 	}
@@ -321,7 +326,11 @@ func (s *ResourceServer) GetResource(
 		return nil, fmt.Errorf("derive resource status: %w", err)
 	}
 
-	resource, err := s.dbResourceToProto(res, statuses[res.ID], resourceDomains)
+	configs, err := s.queries.ListResourceEnvironments(ctx, []uuid.UUID{res.ID})
+	if err != nil {
+		return nil, fmt.Errorf("list resource environments: %w", err)
+	}
+	resource, err := s.dbResourceToProto(res, configs, statuses[res.ID], resourceDomains)
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +376,7 @@ func (s *ResourceServer) UpdateResource(
 		return nil, err
 	}
 
-	updateParams := genDb.UpdateResourceParams{ID: resourceID, Description: req.Description}
+	updateParams := genDb.UpdateResourceParams{ID: resourceID, Description: req.Description, Slug: req.Slug}
 	if req.Name != nil {
 		name, ok := label(req.GetName())
 		if !ok {
@@ -379,21 +388,20 @@ func (s *ResourceServer) UpdateResource(
 		return nil, errInvalidResourceSlug
 	}
 
+	metadataChanged := req.Name != nil || req.Description != nil || req.Slug != nil
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if req.GetRegions() != nil {
-			if lockErr := ensureOrganizationActive(ctx, qtx, resourceID); lockErr != nil {
-				return lockErr
-			}
-		}
-		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
-			return lockErr
-		}
-		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+		environmentID, lockErr := lockResourceUpdate(ctx, qtx, resourceID, req, metadataChanged)
+		if lockErr != nil {
 			return lockErr
 		}
 		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
 			return fmt.Errorf("get resource: %w", getErr)
+		}
+		if environmentID != uuid.Nil {
+			if _, envErr := resourceEnvironment(ctx, qtx, resourceID, environmentID); envErr != nil {
+				return envErr
+			}
 		}
 		if req.GetRegions() != nil {
 			if updateErr := s.updateRegions(ctx, qtx, resource, req); updateErr != nil {
@@ -404,42 +412,33 @@ func (s *ResourceServer) UpdateResource(
 			if resource.Type != genDb.ResourceTypeService {
 				return errOnlyServiceResources
 			}
-			params, policyErr := failurePolicyParams(resourceID, policy)
+			params, policyErr := failurePolicyParams(resourceID, environmentID, policy)
 			if policyErr != nil {
 				return policyErr
 			}
-			if updateErr := qtx.SetResourceDeployPolicy(ctx, params); updateErr != nil {
+			if _, updateErr := qtx.SetResourceEnvironmentDeployPolicy(ctx, params); updateErr != nil {
 				return fmt.Errorf("set resource failure policy: %w", updateErr)
 			}
 		}
-		reslug := req.Slug != nil && req.GetSlug() != resource.Slug
-		if reslug {
-			if resource.Partial != nil {
-				return errManagedResourceSlug.Detail("partial %s", *resource.Partial)
+		if metadataChanged {
+			if metadataErr := updateResourceMetadata(ctx, qtx, resource, updateParams); metadataErr != nil {
+				return metadataErr
 			}
-			updateParams.Slug = req.Slug
-		}
-		_, updateErr := qtx.UpdateResource(ctx, updateParams)
-		if keyErr := resourceKeyConflict(updateErr, derefString(updateParams.Name), req.GetSlug()); keyErr != nil {
-			return keyErr
-		}
-		if updateErr != nil {
-			return fmt.Errorf("update resource: %w", updateErr)
-		}
-		if reslug {
-			resource.Slug = req.GetSlug()
-			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
-				return renameErr
+		} else if environmentID != uuid.Nil {
+			if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+				return bumpErr
 			}
 		}
-		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
-			return bumpErr
+		var eventEnvironment *uuid.UUID
+		if !metadataChanged && environmentID != uuid.Nil {
+			eventEnvironment = &environmentID
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.ResourceUpdated,
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectResource,
-			SubjectID:   new(resourceID),
+			EnvironmentID: eventEnvironment,
+			Type:          events.ResourceUpdated,
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectResource,
+			SubjectID:     new(resourceID),
 		})
 	})
 	if err != nil {
@@ -449,21 +448,86 @@ func (s *ResourceServer) UpdateResource(
 	return &resourcev1.UpdateResourceResponse{ResourceId: req.GetResourceId()}, nil
 }
 
+// lockResourceUpdate separates shared metadata changes from one environment's runtime settings.
+func lockResourceUpdate(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID uuid.UUID,
+	req *resourcev1.UpdateResourceRequest,
+	metadataChanged bool,
+) (uuid.UUID, error) {
+	if req.GetRegions() != nil {
+		if err := ensureOrganizationActive(ctx, qtx, resourceID); err != nil {
+			return uuid.Nil, err
+		}
+	}
+	var environmentID uuid.UUID
+	if req.GetRegions() != nil || req.GetFailurePolicy() != nil {
+		var err error
+		environmentID, err = parseID("environment_id", req.GetEnvironmentId())
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if _, err = resourceEnvironment(ctx, qtx, resourceID, environmentID); err != nil {
+			return uuid.Nil, err
+		}
+	}
+	if metadataChanged {
+		if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
+			return uuid.Nil, err
+		}
+		if err := lockResource(ctx, qtx, resourceID); err != nil {
+			return uuid.Nil, err
+		}
+	} else if environmentID != uuid.Nil {
+		if _, err := lockEnvironment(ctx, qtx, environmentID); err != nil {
+			return uuid.Nil, err
+		}
+	}
+	return environmentID, nil
+}
+
+func updateResourceMetadata(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resource genDb.Resource,
+	params genDb.UpdateResourceParams,
+) error {
+	reslug := params.Slug != nil && *params.Slug != resource.Slug
+	if reslug && resource.Partial != nil {
+		return errManagedResourceSlug.Detail("partial %s", *resource.Partial)
+	}
+	_, err := qtx.UpdateResource(ctx, params)
+	if keyErr := resourceKeyConflict(err, derefString(params.Name), derefString(params.Slug)); keyErr != nil {
+		return keyErr
+	}
+	if err != nil {
+		return fmt.Errorf("update resource: %w", err)
+	}
+	if reslug {
+		resource.Slug = *params.Slug
+		if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
+			return renameErr
+		}
+	}
+	return bumpResourceEnvironmentRevisions(ctx, qtx, resource.ID)
+}
+
 // failurePolicyParams stores a failure policy a request sets in full, once the controller would accept it.
 func failurePolicyParams(
-	resourceID uuid.UUID,
+	resourceID, environmentID uuid.UUID,
 	policy *deploymentv1.FailurePolicy,
-) (genDb.SetResourceDeployPolicyParams, error) {
+) (genDb.SetResourceEnvironmentDeployPolicyParams, error) {
 	mode := servicedefaults.RestartMode(policy.GetRestartPolicy())
 	filled := servicedefaults.FailurePolicy{
 		Restart:              locoControllerV1.RestartPolicySpec{Mode: mode, MaxRestarts: policy.GetMaxRestarts()},
 		DeployTimeoutSeconds: policy.GetDeployTimeoutSeconds(),
 	}
 	if err := filled.Validate(); err != nil {
-		return genDb.SetResourceDeployPolicyParams{}, rpcerr.New(connect.CodeInvalidArgument, err)
+		return genDb.SetResourceEnvironmentDeployPolicyParams{}, rpcerr.New(connect.CodeInvalidArgument, err)
 	}
-	params := genDb.SetResourceDeployPolicyParams{
-		ID:                   resourceID,
+	params := genDb.SetResourceEnvironmentDeployPolicyParams{
+		ResourceID: resourceID, EnvironmentID: environmentID,
 		RestartPolicy:        new(string(mode)),
 		DeployTimeoutSeconds: new(filled.DeployTimeoutSeconds),
 	}
@@ -657,6 +721,16 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		return errScaleUnchanged
 	}
 
+	config, err := resourceEnvironment(ctx, qtx, resourceID, environmentID)
+	if err != nil {
+		return err
+	}
+	for _, plan := range plans {
+		if policyErr := freezeDeploymentDefaults(plan.service, config, s.defaults); policyErr != nil {
+			return policyErr
+		}
+	}
+
 	scaled := map[string]any{events.FieldEnvironmentID: environmentID.String()}
 	if req.Replicas != nil {
 		scaled[events.FieldReplicas] = req.GetReplicas()
@@ -678,11 +752,28 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		SubjectID:     new(resourceID),
 		Data:          scaled,
 	}
-	if err := s.redeployRegions(ctx, qtx, res, environmentID, plans, scaledEvent); err != nil {
-		return err
+	if deployErr := s.redeployRegions(ctx, qtx, res, environmentID, plans, scaledEvent); deployErr != nil {
+		return deployErr
 	}
-	if err := qtx.BumpResourceRevision(ctx, resourceID); err != nil {
-		return fmt.Errorf("bump resource revision: %w", err)
+	spec, err := converter.DeserializeResourceSpec(config.Spec, res.Type)
+	if err != nil {
+		return fmt.Errorf("decode scaled environment spec: %w", err)
+	}
+	for _, plan := range plans {
+		for region, target := range plan.service.GetRegions() {
+			spec.GetService().Regions[region] = &resourcev1.RegionTarget{Enabled: true,
+				Cpu: target.GetCpu(), Memory: target.GetMemory(), MinReplicas: target.GetMinReplicas(),
+				MaxReplicas: target.GetMaxReplicas(), Scalers: target.GetScalers()}
+		}
+	}
+	data, err := protojson.Marshal(spec.GetService())
+	if err != nil {
+		return fmt.Errorf("marshal scaled environment spec: %w", err)
+	}
+	if _, err := qtx.UpdateResourceEnvironmentSpec(ctx, genDb.UpdateResourceEnvironmentSpecParams{
+		ResourceID: resourceID, EnvironmentID: environmentID, Spec: data,
+	}); err != nil {
+		return fmt.Errorf("save scaled environment settings: %w", err)
 	}
 	return nil
 }
@@ -885,13 +976,14 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 		}
 
 		domain := &domainv1.ResourceDomain{
-			Id:           d.ID.String(),
-			ResourceId:   d.ResourceID.String(),
-			Domain:       d.Domain,
-			DomainSource: domainSource,
-			IsPrimary:    d.IsPrimary,
-			CreatedAt:    timestamppb.New(d.CreatedAt),
-			UpdatedAt:    timestamppb.New(d.UpdatedAt),
+			Id:            d.ID.String(),
+			ResourceId:    d.ResourceID.String(),
+			EnvironmentId: d.EnvironmentID.String(),
+			Domain:        d.Domain,
+			DomainSource:  domainSource,
+			IsPrimary:     d.IsPrimary,
+			CreatedAt:     timestamppb.New(d.CreatedAt),
+			UpdatedAt:     timestamppb.New(d.UpdatedAt),
 		}
 
 		domain.SubdomainLabel = d.SubdomainLabel
@@ -906,10 +998,11 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 // to be returned to client. Note: caller is responsible for fetching domains separately.
 func (s *ResourceServer) dbResourceToProto(
 	res genDb.Resource,
+	configs []genDb.ResourceEnvironment,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
 ) (*resourcev1.Resource, error) {
-	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	environments, err := resourceEnvironmentsToProto(configs, res.Type, s.defaults)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of resource %s: %w", res.ID, err)
 	}
@@ -920,17 +1013,14 @@ func (s *ResourceServer) dbResourceToProto(
 		Slug:                res.Slug,
 		Name:                res.Name,
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec:                spec,
+		Environments:        environments,
 		Domains:             resourceDomainToListProto(domains),
 		CreatedBy:           res.CreatedBy.String(),
 		CreatedAt:           timestamppb.New(res.CreatedAt),
 		UpdatedAt:           timestamppb.New(res.UpdatedAt),
 		Description:         &res.Description,
 		Partial:             res.Partial,
-		Revision:            res.Revision,
 		EnvironmentStatuses: statuses,
-		FailurePolicy: s.defaults.FailurePolicy(res.RestartPolicy, res.MaxRestarts, res.DeployTimeoutSeconds).
-			Proto(),
 	}, nil
 }
 

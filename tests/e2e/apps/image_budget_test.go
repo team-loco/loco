@@ -55,7 +55,8 @@ func TestPublicImageSizeBudget(t *testing.T) {
 		t.Fatal(putErr)
 	}
 	created, err := p.User.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
-		WorkspaceId: w.ID, Name: "budget", Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		EnvironmentId: w.EnvironmentID,
+		WorkspaceId:   w.ID, Name: "budget", Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
 			Regions: map[string]*resourcev1.RegionTarget{p.Region: {Enabled: true, MinReplicas: 1, MaxReplicas: 1}},
 		}}},

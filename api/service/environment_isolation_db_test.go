@@ -81,6 +81,22 @@ func TestPlanSeesOnlyTheDomainsOfItsEnvironment(t *testing.T) {
 	f.setRoutedSpec(t)
 	f.addRunningOwned(t)
 	stagingID := f.addStagingEnvironment(t)
+	res, found := f.resourceByName(t, planOwned)
+	if !found {
+		t.Fatal("owned resource missing")
+	}
+	if _, err := f.queries.UpsertResourceEnvironment(
+		t.Context(),
+		genDb.UpsertResourceEnvironmentParams{
+			ResourceID:    res.ID,
+			EnvironmentID: stagingID,
+			WorkspaceID:   res.WorkspaceID,
+			Spec:          []byte(planRoutedSpec),
+			SpecVersion:   specVersion,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
 	insert := `
 INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
 SELECT id, $2, $3, 'custom', true FROM resources WHERE slug = $1`

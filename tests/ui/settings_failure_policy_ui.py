@@ -20,13 +20,15 @@ state = load_state(
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 _, resource, base = seed_settings_resource(state, "policy")
+workspace = state["workspaces"]["acme/shared"]
 
 
 def stored():
     return sql(
         state,
         "SELECT concat_ws(',', restart_policy, max_restarts, deploy_timeout_seconds) "
-        f"FROM resources WHERE id='{resource}';",
+        f"FROM resource_environments WHERE resource_id='{resource}' "
+        f"AND environment_id=(SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production');",
     )
 
 

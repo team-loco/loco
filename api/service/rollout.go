@@ -66,7 +66,7 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 		if replica.GetPlacementRevision() < report.GetObservedRevision() && !terminalReplica(replica) {
 			livePrevious = true
 		}
-		entries = append(entries, restartActivity(old[uid], replica, report)...)
+		entries = append(entries, restartActivity(old[uid], replica)...)
 		if before := old[uid]; before != nil && before.GetState() == replica.GetState() {
 			continue
 		}
@@ -155,7 +155,7 @@ func startedReplicas(previous map[string]int32, report *agentv1.PlacementStatus)
 }
 
 // restartActivity is one entry per restart the replica reports that its previous report did not.
-func restartActivity(before, replica *deploymentv1.Replica, report *agentv1.PlacementStatus) []activityEntry {
+func restartActivity(before, replica *deploymentv1.Replica) []activityEntry {
 	var seen time.Time
 	if restarts := before.GetRestartsAt(); len(restarts) > 0 {
 		seen = restarts[len(restarts)-1].AsTime()
@@ -168,7 +168,7 @@ func restartActivity(before, replica *deploymentv1.Replica, report *agentv1.Plac
 			continue
 		}
 		message := fmt.Sprintf("Restarted after %s · %d", restart.After(), i+1)
-		if budget := report.GetFailurePolicy().GetMaxRestarts(); budget > 0 {
+		if budget := replica.GetFailurePolicy().GetMaxRestarts(); budget > 0 {
 			message += fmt.Sprintf(" of %d", budget)
 		}
 		entries = append(entries, activityEntry{

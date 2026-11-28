@@ -120,7 +120,8 @@ message PlacementStatus {
   int32 desired_replicas = 9;
   // Every desired replica of the observed revision counted: ready for a service, available for a worker.
   bool available = 10;
-  reserved 11, 19;
+  reserved 11, 18, 19;
+  reserved "failure_policy";
   repeated loco.deployment.v1.Replica replicas = 12;
   ProblemReport problem = 13;
   string deployment_id = 14;
@@ -130,8 +131,6 @@ message PlacementStatus {
   google.protobuf.Timestamp healthy_at = 16;
   // Set when the controller stopped the observed revision.
   StoppedRevision stopped = 17;
-  // The observed revision's failure policy.
-  loco.deployment.v1.FailurePolicy failure_policy = 18;
   // Set once the observed revision became healthy with every replica available.
   bool deployed = 20;
 }

@@ -47,7 +47,9 @@ function RollbackItem({
 	const lastGood = useQueries({
 		queries: ids.map((deploymentId) => createQueryOptions(getDeployment, { deploymentId }, { transport })),
 	}).flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment]));
-	const focus = focusRegion(buildRegions(item.resource, [], item.environment, [...item.deployments, ...lastGood]));
+	const focus = focusRegion(
+		buildRegions(item.resource, [], item.environmentId, item.environment, [...item.deployments, ...lastGood]),
+	);
 	const target = focus?.lastGood;
 	if (target === undefined) return null;
 	return (
@@ -96,9 +98,7 @@ export function DashboardRowMenu({
 			await deploy.mutateAsync({
 				resourceId: resource.id,
 				regions: deploymentRegions(to),
-				spec: to.spec,
 				environmentId: to.environmentId,
-				commit: to.commit,
 				trigger: DeploymentTrigger.ROLLBACK,
 				sourceDeploymentId: to.id,
 			});
@@ -139,7 +139,9 @@ export function DashboardRowMenu({
 					disabled={!canWrite || last === undefined || rollingOut || deploy.isPending}
 					title={canWrite ? undefined : NEEDS_WRITE}
 					onClick={() => {
-						setRestarting(currentSources(buildRegions(resource, [], item.environment, item.deployments)));
+						setRestarting(
+							currentSources(buildRegions(resource, [], item.environmentId, item.environment, item.deployments)),
+						);
 					}}
 				>
 					<RotateCwIcon className="text-fg3" />

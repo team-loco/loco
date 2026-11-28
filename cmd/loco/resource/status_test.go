@@ -10,9 +10,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const statusTestRegion = "us-ca-1"
+const (
+	statusTestRegion    = "us-ca-1"
+	failingReplicaState = "Failing"
+)
 
 func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
+	restarts := []*timestamppb.Timestamp{timestamppb.Now()}
 	crash := "A replica keeps restarting. Check its logs."
 	pull := `Back-off pulling image "registry.test/web:v2": ImagePullBackOff`
 	resource := &resourcev1.Resource{
@@ -29,6 +33,17 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 						DesiredReplicas: 2,
 						PlacementStatus: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 						Message:         &crash,
+						Replicas: []*deploymentv1.Replica{
+							{
+								Name:       "web-prod-1",
+								State:      failingReplicaState,
+								RestartsAt: restarts,
+								FailurePolicy: &deploymentv1.FailurePolicy{
+									RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE,
+									MaxRestarts:   3,
+								},
+							},
+						},
 					},
 					{
 						Region:          statusTestRegion,
@@ -50,6 +65,17 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 						DesiredReplicas: 1,
 						PlacementStatus: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 						Message:         &pull,
+						Replicas: []*deploymentv1.Replica{
+							{
+								Name:       "web-stage-1",
+								State:      failingReplicaState,
+								RestartsAt: restarts,
+								FailurePolicy: &deploymentv1.FailurePolicy{
+									RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE,
+									MaxRestarts:   7,
+								},
+							},
+						},
 					},
 				},
 			},
@@ -70,6 +96,16 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 			t.Errorf("view is missing %q:\n%s", want, view)
 		}
 	}
+	production, staging, found := strings.Cut(view, "staging")
+	if !found {
+		t.Fatalf("view has no staging section:\n%s", view)
+	}
+	if !strings.Contains(production, "Restarting (1/3)") {
+		t.Errorf("production does not show its restart budget:\n%s", production)
+	}
+	if !strings.Contains(staging, "Restarting (1/7)") {
+		t.Errorf("staging does not show its restart budget:\n%s", staging)
+	}
 	if strings.Index(view, "production") > strings.Index(view, "staging") {
 		t.Errorf("environments are out of order:\n%s", view)
 	}
@@ -87,7 +123,10 @@ func TestStatusViewSaysWhenNothingIsDeployed(t *testing.T) {
 }
 
 func TestReplicaStateLabelCountsRestartsAgainstTheOnFailureBudget(t *testing.T) {
-	restarting := &deploymentv1.Replica{State: "Failing", RestartsAt: []*timestamppb.Timestamp{timestamppb.Now()}}
+	restarting := &deploymentv1.Replica{
+		State:      failingReplicaState,
+		RestartsAt: []*timestamppb.Timestamp{timestamppb.Now()},
+	}
 	for _, tt := range []struct {
 		policy *deploymentv1.FailurePolicy
 		want   string
@@ -96,8 +135,10 @@ func TestReplicaStateLabelCountsRestartsAgainstTheOnFailureBudget(t *testing.T) 
 			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3,
 		}, "Restarting (1/3)"},
 		{&deploymentv1.FailurePolicy{RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS}, "Restarting (1)"},
+		{nil, "Restarting (1)"},
 	} {
-		if got := replicaStateLabel(restarting, tt.policy); got != tt.want {
+		restarting.FailurePolicy = tt.policy
+		if got := replicaStateLabel(restarting); got != tt.want {
 			t.Errorf("%s label = %q, want %q", tt.policy.GetRestartPolicy(), got, tt.want)
 		}
 	}

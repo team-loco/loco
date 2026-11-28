@@ -215,6 +215,7 @@ function DomainRow({
 
 function AddDomainForm({
 	resourceId,
+	environmentId,
 	resourceName,
 	slug,
 	own,
@@ -227,6 +228,7 @@ function AddDomainForm({
 	onAdded,
 }: {
 	resourceId: string;
+	environmentId: string;
 	resourceName: string;
 	slug: string;
 	own: readonly string[];
@@ -257,6 +259,7 @@ function AddDomainForm({
 				create.mutate(
 					{
 						resourceId,
+						environmentId,
 						domain: { domainSource: DomainType.APP, subdomain, appDomain },
 					},
 					{
@@ -311,6 +314,7 @@ export function NetworkingSection({
 	describedBy,
 	onChange,
 	resourceId,
+	environmentId,
 	domains,
 	appDomains,
 	regions,
@@ -319,6 +323,7 @@ export function NetworkingSection({
 	onDomainsChanged,
 }: SectionProps & {
 	resourceId: string;
+	environmentId: string;
 	worker: boolean;
 	domains: ResourceDomain[];
 	appDomains: AppDomain[];
@@ -427,6 +432,7 @@ export function NetworkingSection({
 							<div className="border-b border-line px-4 py-3.5 text-[13px] text-fg3">No domains yet.</div>
 						)}
 						<AddDomainForm
+							environmentId={environmentId}
 							resourceId={resourceId}
 							resourceName={base.name}
 							slug={base.slug}

@@ -13,9 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestEnvironmentsShareAClusterWithIndependentWorkloads(t *testing.T) {
@@ -37,7 +39,10 @@ func TestEnvironmentsShareAClusterWithIndependentWorkloads(t *testing.T) {
 	previewNamespace := p.EnvironmentNamespace(previewID)
 	service := platform.ImageService(p.PublicImage)
 	service.Env = map[string]string{markerKey: platform.Production}
-	service.Environments = map[string]locofile.Override{preview: {Env: map[string]string{markerKey: preview}}}
+	service.Environments = map[string]locofile.Override{preview: {
+		Env:     map[string]string{markerKey: preview},
+		Regions: map[string]locofile.Region{p.Region: {CPU: "250m", Memory: "256Mi"}},
+	}}
 	file := locofile.File{Partial: app, Services: map[string]locofile.Service{app: service}}
 	dir := t.TempDir()
 	platform.WriteLocoFile(t, dir, file)
@@ -102,12 +107,23 @@ WHERE resource_id=$1 AND cluster_id=$2 AND NOT desired_deleted`, id, p.ClusterID
 		return probeErr
 	})
 	w.MustLoco(t, dir, "resource", "scale", app, "--env", platform.Production, "--replicas", "2")
+	productionConfig := proto.CloneOf(environmentConfiguration(t, id, w.EnvironmentID))
+	previewConfig := environmentConfiguration(t, id, previewID)
+	if got := previewConfig.GetSpec().GetService().GetRegions()[p.Region].GetCpu(); got != "250m" {
+		t.Fatalf("preview desired CPU = %s, want 250m", got)
+	}
+	if got := productionConfig.GetSpec().GetService().GetRegions()[p.Region].GetMinReplicas(); got != 2 {
+		t.Fatalf("scaled production desired replicas = %d, want 2", got)
+	}
 	override := service.Environments[preview]
 	override.Env = map[string]string{markerKey: "preview-v2"}
 	service.Environments[preview] = override
 	file.Services[app] = service
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--env", preview, "--yes", "--wait")
+	if current := environmentConfiguration(t, id, w.EnvironmentID); !proto.Equal(current, productionConfig) {
+		t.Fatalf("preview deploy changed production configuration: before=%v after=%v", productionConfig, current)
+	}
 	waitEnvironmentReplicas(t, productionDeployment, 2)
 	checkRuntime := func(namespace, marker, environment, secret string) {
 		t.Helper()
@@ -185,6 +201,23 @@ WHERE resource_id=$1 AND cluster_id=$2 AND NOT desired_deleted`, id, p.ClusterID
 		current.Status.ReadyReplicas != 2 {
 		t.Fatalf("preview deletion changed production: %+v", current.Status)
 	}
+}
+
+func environmentConfiguration(t *testing.T, id, environmentID string) *resourcev1.ResourceEnvironment {
+	t.Helper()
+	response, readErr := p.User.Resource.GetResource(t.Context(), &resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: id},
+	})
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, config := range response.GetResource().GetEnvironments() {
+		if config.GetEnvironmentId() == environmentID {
+			return config
+		}
+	}
+	t.Fatalf("resource has no configuration for environment %s", environmentID)
+	return nil
 }
 
 func requireEnvironmentLineage(t *testing.T, namespace, workload string, deployment appsv1.Deployment) {

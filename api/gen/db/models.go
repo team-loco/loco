@@ -1008,22 +1008,16 @@ type RegistryCredential struct {
 }
 
 type Resource struct {
-	ID                   uuid.UUID    `json:"id"`
-	WorkspaceID          uuid.UUID    `json:"workspaceId"`
-	Slug                 string       `json:"slug"`
-	Name                 string       `json:"name"`
-	Type                 ResourceType `json:"type"`
-	Description          string       `json:"description"`
-	Spec                 []byte       `json:"spec"`
-	SpecVersion          int32        `json:"specVersion"`
-	Revision             int64        `json:"revision"`
-	Partial              *string      `json:"partial"`
-	RestartPolicy        *string      `json:"restartPolicy"`
-	MaxRestarts          *int32       `json:"maxRestarts"`
-	DeployTimeoutSeconds *int32       `json:"deployTimeoutSeconds"`
-	CreatedBy            uuid.UUID    `json:"createdBy"`
-	CreatedAt            time.Time    `json:"createdAt"`
-	UpdatedAt            time.Time    `json:"updatedAt"`
+	ID          uuid.UUID    `json:"id"`
+	WorkspaceID uuid.UUID    `json:"workspaceId"`
+	Slug        string       `json:"slug"`
+	Name        string       `json:"name"`
+	Type        ResourceType `json:"type"`
+	Description string       `json:"description"`
+	Partial     *string      `json:"partial"`
+	CreatedBy   uuid.UUID    `json:"createdBy"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	UpdatedAt   time.Time    `json:"updatedAt"`
 }
 
 type ResourceDomain struct {
@@ -1037,6 +1031,20 @@ type ResourceDomain struct {
 	IsPrimary      bool         `json:"isPrimary"`
 	CreatedAt      time.Time    `json:"createdAt"`
 	UpdatedAt      time.Time    `json:"updatedAt"`
+}
+
+type ResourceEnvironment struct {
+	ResourceID           uuid.UUID `json:"resourceId"`
+	EnvironmentID        uuid.UUID `json:"environmentId"`
+	WorkspaceID          uuid.UUID `json:"workspaceId"`
+	Spec                 []byte    `json:"spec"`
+	SpecVersion          int32     `json:"specVersion"`
+	Revision             int64     `json:"revision"`
+	RestartPolicy        *string   `json:"restartPolicy"`
+	MaxRestarts          *int32    `json:"maxRestarts"`
+	DeployTimeoutSeconds *int32    `json:"deployTimeoutSeconds"`
+	CreatedAt            time.Time `json:"createdAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
 }
 
 type ResourceRegionInput struct {

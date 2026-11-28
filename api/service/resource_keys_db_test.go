@@ -34,11 +34,11 @@ func createKeyedResource(t *testing.T, f *deployFixture, name string, slug *stri
 	}
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{UserID: f.userID, Scopes: scopes})
 	created, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
-		WorkspaceId: workspaceID.String(),
-		Name:        name,
-		Slug:        slug,
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec:        testResourceSpec(),
+		WorkspaceId: workspaceID.String(), EnvironmentId: f.envID.String(),
+		Name: name,
+		Slug: slug,
+		Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		Spec: testResourceSpec(),
 	})
 	if err != nil {
 		return genDb.Resource{}, err
@@ -129,10 +129,10 @@ func TestCreateResourceChecksTheRegionSizeItWillDeployWith(t *testing.T) {
 		region := spec.GetService().GetRegions()[testRegion]
 		region.Cpu, region.Memory = cpu, memory
 		_, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
-			WorkspaceId: f.workspaceID(t).String(),
-			Name:        name,
-			Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-			Spec:        spec,
+			WorkspaceId: f.workspaceID(t).String(), EnvironmentId: f.envID.String(),
+			Name: name,
+			Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+			Spec: spec,
 		})
 		return err
 	}

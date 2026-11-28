@@ -306,7 +306,7 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
 			)
 			_, err := server.UpdateResource(f.rolloutContext(t), &resourcev1.UpdateResourceRequest{
-				ResourceId: f.resourceID.String(), Name: new("Renamed"),
+				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Name: new("Renamed"),
 				FailurePolicy: &deploymentv1.FailurePolicy{
 					RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS, DeployTimeoutSeconds: 120,
 				},

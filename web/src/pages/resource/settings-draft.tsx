@@ -37,8 +37,8 @@ import { nameError } from "@/lib/slug";
 import { isDeployed, type RegionView } from "./model";
 import { currentSources } from "./redeploy";
 
-// These fields make up the resource's region map, which UpdateResource replaces in one request
-// for every environment; the other spec fields redeploy this environment's regions.
+// These fields make up the environment's region map, which UpdateResource replaces in one request.
+// The other spec fields redeploy its regions.
 export const REGION_MAP_KEYS = ["regions", "scaling", "cpu", "memory"] as const;
 
 const IMAGE_BUILD = "image";

@@ -173,7 +173,7 @@ export function ScalingSection({
 			id="set-scaling"
 			sectionRef={sectionRef}
 			title="Scaling"
-			hint="Applies to every region this resource runs in."
+			hint="Applies to every region in this environment."
 			actions={
 				value !== undefined && (
 					<AutoscalingSwitch value={value} replicaRange={sizes.replicas} disabled={locked} onChange={setAll} />
@@ -209,7 +209,7 @@ export function SizeSection({
 	const high = Math.max(...scalings.map((s) => s.maxReplicas));
 	const replicas = low === high ? low.toString() : `${low.toString()}–${high.toString()}`;
 	return (
-		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
+		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica in this environment.">
 			<div className="flex max-w-[520px] flex-col gap-3.5">
 				<Field label="CPU" aside={<SliderValue text={stepLabel(cpuOptions, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
@@ -332,8 +332,7 @@ export function HealthSection({
 		>
 			{draft.health?.form.enabled === false && base.healthStored && (
 				<span className="text-[12.5px] text-fg3">
-					This also removes the check new deployments in every environment start with; deployments already running
-					elsewhere keep theirs.
+					This removes the saved check for future deployments in this environment.
 				</span>
 			)}
 			{errors.health !== undefined && (
@@ -518,7 +517,7 @@ export function RegionsSection({
 			title="Regions"
 			hint={
 				hasDeployment
-					? "Regions apply in every environment this resource runs in. Turning a region off stops the resource there."
+					? "Changes apply to this environment. Turning a region off stops the service there."
 					: "Deploy this resource before adding regions."
 			}
 		>

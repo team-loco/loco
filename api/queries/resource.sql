@@ -1,22 +1,22 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, slug, name, type, description, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO resources (workspace_id, slug, name, type, description, created_by)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceBySlugAndWorkspace :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.slug = $2;
 
 -- name: ListResourcesByIDs :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = ANY(sqlc.arg(ids)::uuid[]);
 
@@ -28,19 +28,6 @@ SET name = COALESCE(sqlc.narg('name'), name),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id;
-
--- name: UpdateResourceSpec :exec
-UPDATE resources
-SET spec = $2, revision = revision + 1, updated_at = NOW()
-WHERE id = $1;
-
--- name: SetResourceDeployPolicy :exec
-UPDATE resources
-SET restart_policy = sqlc.narg('restart_policy'),
-    max_restarts = sqlc.narg('max_restarts'),
-    deploy_timeout_seconds = sqlc.narg('deploy_timeout_seconds'),
-    updated_at = NOW()
-WHERE id = $1;
 
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;
@@ -147,7 +134,7 @@ LIMIT 6;
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.partial, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.slug ASC;
@@ -157,9 +144,6 @@ SELECT EXISTS (
   SELECT 1 FROM resources
   WHERE workspace_id = $1 AND id = ANY(sqlc.arg('resource_ids')::uuid[])
 );
-
--- name: BumpResourceRevision :exec
-UPDATE resources SET revision = revision + 1 WHERE id = $1;
 
 -- name: ListLatestResourceDeployments :many
 SELECT DISTINCT ON (environment_id) * FROM deployments

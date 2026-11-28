@@ -186,9 +186,11 @@ export function SettingsView({
 	const configQuery = useQuery(getConfig, {});
 	const sizes = sizeOptions(configQuery.data?.sizeLimits);
 	const managed = resource.partial !== undefined;
+	const domains = resource.domains.filter((domain) => domain.environmentId === environmentId);
 	const worker = isWorker(
 		resource,
 		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
+		environmentId,
 	);
 	// A pending health edit keeps its section, and its error, even once only workers run.
 	const showHealth = !worker || draft.health !== undefined;
@@ -301,7 +303,8 @@ export function SettingsView({
 					<NetworkingSection
 						{...props}
 						resourceId={resource.id}
-						domains={resource.domains}
+						domains={domains}
+						environmentId={environmentId}
 						appDomains={domainsQuery.data?.appDomains ?? []}
 						regions={regionsQuery.data?.regions ?? []}
 						served={served}
@@ -378,7 +381,7 @@ export function SettingsView({
 						}}
 					>
 						<ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-[13px]">
-							{resource.domains.map((d) => (
+							{domains.map((d) => (
 								<li key={d.domain}>{d.domain}</li>
 							))}
 						</ul>

@@ -48,6 +48,9 @@ type ReplicaStatus struct {
 	RestartsAt []metav1.Time `json:"restartsAt,omitempty"`
 	// LastRestart is the exit the kubelet most recently restarted the replica after.
 	LastRestart *ReplicaRestart `json:"lastRestart,omitempty"`
+	// RestartPolicy is the policy the controller evaluated for this replica's revision.
+	// Unset for replicas outside the current placement revision.
+	RestartPolicy *RestartPolicySpec `json:"restartPolicy,omitempty"`
 	// +kubebuilder:validation:MaxLength=512
 	Detail string `json:"detail,omitempty"`
 }

@@ -278,7 +278,10 @@ func TestApplyCreatesASourceServiceWithoutADeployment(t *testing.T) {
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments, want 0", n)
 	}
-	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	spec, err := converter.DeserializeResourceSpec(
+		testResourceConfiguration(t, f.queries, res.ID, f.envID).Spec,
+		res.Type,
+	)
 	if err != nil {
 		t.Fatalf("resource spec: %v", err)
 	}
