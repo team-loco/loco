@@ -131,7 +131,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const resourcesQuery = useTanstackQuery({
 		...workspaceResourcesOptions(transport, activeWorkspaceId ?? "", "workspace"),
 		enabled: canListResources,
-		// The shell's activity drawer already observes this list from mount and keeps it current.
 		refetchOnMount: false,
 	});
 

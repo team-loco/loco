@@ -31,6 +31,7 @@ import { formatPercent } from "@/lib/compute-chart";
 import { TRAFFIC_METRICS, trafficValue } from "@/lib/traffic";
 import { isWorker } from "@/lib/resource-regions";
 import { getErrorMessage } from "@/lib/error-handler";
+import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 import { useObs } from "./context";
 import { ViewHeader } from "./ViewHeader";
@@ -140,8 +141,6 @@ export function MetricsView() {
 	const supported = tokens.every(isMetricToken) && text === "";
 	const selectionReady = !resolving && selectedError === null;
 	const scopeReady = ready && supported;
-	const enabled = scopeReady && selectionReady;
-	const pageLoading = !ready || resolving;
 	const resourceIds = selected.map((r) => r.id);
 	const single = selected.length === 1;
 	const statusRegions = selected[0]?.environmentStatuses
@@ -157,6 +156,18 @@ export function MetricsView() {
 	const perPod = single && prefs.replicas === "Per replica";
 	const combineResources = slugs.length === 0 || prefs.comparison === "Combine";
 	const percent = prefs.units === "% of limit";
+	const regionQuery = useQuery({
+		...createQueryOptions(
+			listWorkspaceResources,
+			{ workspaceId, environmentId, resourceIds, pageSize: 1, includeFacets: true },
+			{ transport },
+		),
+		enabled: ready && selectionReady,
+	});
+	const hasResources = (regionQuery.data?.resources.length ?? 0) > 0;
+	const selectionEnabled = scopeReady && selectionReady;
+	const enabled = selectionEnabled && hasResources;
+	const pageLoading = !ready || resolving || regionQuery.isPending;
 	const common = {
 		workspaceId,
 		environmentId,
@@ -206,14 +217,7 @@ export function MetricsView() {
 			}),
 		),
 	});
-	const regionQuery = useQuery({
-		...createQueryOptions(
-			listWorkspaceResources,
-			{ workspaceId, environmentId, resourceIds, pageSize: 1, includeFacets: true },
-			{ transport },
-		),
-		enabled: ready && selectionReady,
-	});
+
 	const pathQuery = useQuery({
 		...createQueryOptions(
 			queryRequestMetrics,
@@ -371,6 +375,28 @@ export function MetricsView() {
 				</Button>
 			</p>
 		);
+	if (regionQuery.error !== null) {
+		return (
+			<>
+				<ViewHeader />
+				<ErrorState
+					error={regionQuery.error}
+					what="resources"
+					rpc={listWorkspaceResources}
+					onRetry={regionQuery.refetch}
+				/>
+			</>
+		);
+	}
+	if (regionQuery.data?.resources.length === 0) {
+		return (
+			<>
+				<ViewHeader />
+				<EmptyWorkspace wholeWorkspace />
+			</>
+		);
+	}
+
 	return (
 		<>
 			<ViewHeader />

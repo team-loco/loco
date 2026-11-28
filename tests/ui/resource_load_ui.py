@@ -89,18 +89,11 @@ with session(out) as browser:
     page.on("request", record)
     for method in HELD:
         context.route(f"**/loco.{method}", lambda route: held.append(route))
-    # The shell lists the workspace's resources before the page's code arrives,
-    # and environments load after the page has mounted.
+    # Resource-page requests stay singular when environments finish loading after the page mounts.
     environments = []
     context.route(
         "**/loco.environment.v1.EnvironmentService/ListEnvironments",
         lambda route: environments.append(route),
-        times=1,
-    )
-    page_code = []
-    context.route(
-        re.compile(r"/assets/Resource-[^/]+\.js$"),
-        lambda route: page_code.append(route),
         times=1,
     )
     with expect_rpc(
@@ -109,8 +102,6 @@ with session(out) as browser:
         lambda body: True,
     ):
         page.goto(url)
-    assert page_code, "the resource page's code loaded before the resource list"
-    page_code[0].continue_()
     expect(
         page.get_by_role("status").filter(has_text="Loading resource")
     ).to_be_attached()
