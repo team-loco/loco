@@ -46,9 +46,8 @@ tests:
       - equal:
           path: spec.configuration.profiles["loco_ingest/log_queries"]
           value: "0"
-      - equal:
+      - notExists:
           path: spec.configuration.profiles["loco_ingest/profile"]
-          value: default
 
   - it: wires the API and the proxy to the user each grant needs
     asserts:

@@ -74,6 +74,8 @@ ingest_user=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRA
 database=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .grants[0] | sub("^.* ON ([^.]+)\..*$", "${1}")' "$control_plane_chart/values.yaml")
 go run ./tools/pullimage "$clickhouse_image" "$collector_image"
 yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
+yq 'select(.kind == "ConfigMap" and .data."02-clickhouse-default-profile.xml" != null) | .data."02-clickhouse-default-profile.xml"' \
+	<<<"$control_plane_manifest" >"$workdir/operator_default_profile.xml"
 
 users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u | grep -vx default)
 profiles=$(yq '.spec.configuration.profiles // {} | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u)
@@ -104,6 +106,7 @@ testres_add container "$clickhouse"
 docker run -d --name "$clickhouse" -p 127.0.0.1::9000 \
 	-e CLICKHOUSE_SKIP_USER_SETUP=1 \
 	-v "$workdir/extra_config.xml:/etc/clickhouse-server/config.d/extra_config.xml:ro" \
+	-v "$workdir/operator_default_profile.xml:/etc/clickhouse-server/users.d/operator_default_profile.xml:ro" \
 	-v "$workdir/loco_users.xml:/etc/clickhouse-server/users.d/loco_users.xml:ro" \
 	"$clickhouse_image" >/dev/null
 
