@@ -29,6 +29,13 @@ tests:
       - equal: {path: 'spec.template.spec.containers[0].securityContext.runAsUser', value: 10001}
       - equal: {path: 'spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem', value: true}
       - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_K8S_NODE_IP
+            valueFrom:
+              fieldRef: {fieldPath: status.hostIP}
+          count: 1
+      - contains:
           path: spec.template.spec.containers[0].args
           content: --feature-gates=stanza.synchronousLogEmitter,processor.k8sattributes.ShareProcessorBetweenPipelines
       - contains:

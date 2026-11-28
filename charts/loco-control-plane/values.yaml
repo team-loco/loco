@@ -696,10 +696,6 @@ nodeCollector:
       volumeMounts:
         - {name: checkpoints, mountPath: /var/lib/otelcol}
         - {name: exporter-queue, mountPath: /var/lib/otelcol-exporter}
-  extraEnvs:
-    - name: OTEL_K8S_NODE_IP
-      valueFrom:
-        fieldRef: {fieldPath: status.hostIP}
   extraVolumes:
     - name: checkpoints
       hostPath:
