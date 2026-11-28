@@ -65,6 +65,25 @@ def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
         ]
         assert len(secrets) == 2
         assert secrets[0]["data"]["token"] == secrets[1]["data"]["token"]
+        daemon = next(
+            document for document in documents if document["kind"] == "DaemonSet"
+        )
+        labels = daemon["spec"]["template"]["metadata"]["labels"]
+        policy = next(
+            document
+            for document in documents
+            if document["kind"] == "NetworkPolicy"
+            and document["metadata"]["name"].endswith("-obs-proxy-ingest")
+        )
+        assert any(
+            peer.get("namespaceSelector", {})
+            .get("matchLabels", {})
+            .get("kubernetes.io/metadata.name")
+            == daemon["metadata"]["namespace"]
+            and peer["podSelector"]["matchLabels"].items() <= labels.items()
+            for rule in policy["spec"]["ingress"]
+            for peer in rule.get("from", [])
+        )
     path = tmp_path / "collector.yaml"
     path.write_text(relay)
     image = chart_values("loco-control-plane/telemetry")["logs"]["image"]

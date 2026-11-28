@@ -73,5 +73,5 @@ tests:
                 podSelector:
                   matchLabels:
                     app.kubernetes.io/instance: regional
-                    app.kubernetes.io/component: agent-collector
+                    component: agent-collector
             ports: [{protocol: TCP, port: 5518}]

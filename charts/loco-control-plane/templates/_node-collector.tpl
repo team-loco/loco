@@ -10,7 +10,7 @@ true
 
 {{- define "loco-control-plane.nodeCollectorLabels" -}}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: agent-collector
+component: agent-collector
 {{- end -}}
 
 {{- define "loco-control-plane.nodeCollectorConfig" -}}
