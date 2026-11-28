@@ -39,6 +39,26 @@ describe("paused log history", () => {
 		const duplicates = toRows([entry, entry], new Map());
 		expect(visibleLogRows(duplicates, duplicates)).toHaveLength(2);
 	});
+	test("merges distinct instrumentation scopes without repeating a history overlap", () => {
+		const entry = create(LogEntrySchema, {
+			timestamp: { seconds: 1n },
+			resourceId: "recommendation",
+			body: "request completed",
+			scopeName: "application-sdk",
+			scopeVersion: "1.0",
+		});
+		for (const source of [
+			{ scopeName: "stdout-collector", scopeVersion: "1.0" },
+			{ scopeName: "application-sdk", scopeVersion: "2.0" },
+		]) {
+			const other = create(LogEntrySchema, { ...entry, ...source });
+			const merged = visibleLogRows(toRows([entry], new Map()), toRows([other, entry], new Map()));
+			expect(merged.map((row) => [row.entry.scopeName, row.entry.scopeVersion])).toEqual([
+				[source.scopeName, source.scopeVersion],
+				["application-sdk", "1.0"],
+			]);
+		}
+	});
 });
 
 describe("log JSON", () => {
