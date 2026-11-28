@@ -24,8 +24,8 @@ func TestCertificates(t *testing.T) {
 	})
 	render := func(release, template string, sets ...string) string {
 		sets = append([]string{"gateway-helm.enabled=false", "agent.image.tag=e2e",
-			"controller.image.tag=e2e", "cluster.role=apps", "otel-col-daemon.enabled=false",
-			"otel-col-deploy.enabled=false", "otel-col-cluster.enabled=false", "certManager.issuer.type=selfSigned",
+			"controller.image.tag=e2e", "cluster.role=apps", "nodeCollector.enabled=false",
+			"workloadCollector.enabled=false", "clusterCollector.enabled=false", "certManager.issuer.type=selfSigned",
 			"global.region=local-1"}, sets...)
 		args := make([]string, 0, 9+len(sets))
 		args = append(args, "template", release, c.Path("charts", "loco-worker"), "-n", certificatesNamespace,

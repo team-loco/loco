@@ -42,7 +42,7 @@ func testApplicationConfig() operatorConfig {
 func testTelemetry() controller.TelemetryConfig {
 	return controller.TelemetryConfig{
 		Namespace:        "loco-obs",
-		CollectorService: "otel-col-deploy",
+		CollectorService: "workload-collector",
 		GRPCPort:         4317,
 		HTTPPort:         4318,
 	}

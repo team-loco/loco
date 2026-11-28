@@ -68,10 +68,10 @@ type workerValues struct {
 				ServicePort int `json:"servicePort"`
 			} `json:"otlp-http"`
 		} `json:"ports"`
-	} `json:"otel-col-deploy"`
+	} `json:"workloadCollector"`
 	CollectorDaemon struct {
 		NamespaceOverride string `json:"namespaceOverride"`
-	} `json:"otel-col-daemon"`
+	} `json:"nodeCollector"`
 }
 
 type controlPlaneValues struct {

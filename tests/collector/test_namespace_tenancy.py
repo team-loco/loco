@@ -202,7 +202,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
             "current-context": "test",
         }
         (tmp_path / "kubeconfig").write_text(json.dumps(kubeconfig))
-        config = copy.deepcopy(worker_relays["otel-col-deploy"])
+        config = copy.deepcopy(worker_relays["workload-collector"])
         for processor, settings in config["processors"].items():
             if processor.startswith("k8s_attributes/"):
                 settings.update(auth_type="kubeConfig", wait_for_metadata=True)
@@ -227,7 +227,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
         with run_collector(
             tmp_path,
             config,
-            "otel-col-deploy",
+            "workload-collector",
             "--network",
             name,
             "--memory",

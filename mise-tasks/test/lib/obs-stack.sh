@@ -69,7 +69,7 @@ control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_
 	--set openbao.external.address=https://openbao.obs-stack.test:8200 --set openbao.external.caSecret.name=obs-stack-openbao-ca)
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$control_plane_manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
-collector_image=$(yq 'select(.kind == "StatefulSet" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
+collector_image=$(yq 'select(.kind == "StatefulSet" and .metadata.name == "workload-collector") | .spec.template.spec.containers[0].image' <<<"$manifest")
 ingest_user=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .name' "$control_plane_chart/values.yaml")
 database=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .grants[0] | sub("^.* ON ([^.]+)\..*$", "${1}")' "$control_plane_chart/values.yaml")
 go run ./tools/pullimage "$clickhouse_image" "$collector_image"

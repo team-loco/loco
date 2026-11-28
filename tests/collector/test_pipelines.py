@@ -60,7 +60,7 @@ def variant_relays(request):
                     "platformOnly": request.param,
                 }
             },
-            "otel-col-deploy": {"enabled": not request.param},
+            "workloadCollector": {"enabled": not request.param},
         }
     return collector_relays(render_chart("loco-worker", overrides))
 
@@ -171,7 +171,7 @@ def _k8s_attributes(pipeline):
 
 
 def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
-    config = worker_relays["otel-col-daemon-agent"]
+    config = worker_relays["node-collector-agent"]
     assert config["receivers"]["file_log"]["storage"] == "file_storage"
     assert "file_storage" in config["service"]["extensions"]
 
@@ -179,14 +179,14 @@ def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
 def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(
     worker_documents, worker_relays
 ):
-    directory = worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"][
+    directory = worker_relays["node-collector-agent"]["extensions"]["file_storage"][
         "directory"
     ]
     daemonset = next(
         document
         for document in worker_documents
         if document["kind"] == "DaemonSet"
-        and document["metadata"]["name"] == "otel-col-daemon-agent"
+        and document["metadata"]["name"] == "node-collector-agent"
     )
     host_paths = [
         volume["hostPath"]["path"]
@@ -199,13 +199,9 @@ def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(
 def test_disabling_log_checkpoints_drops_the_file_log_storage():
     documents = render_chart(
         "loco-worker",
-        {
-            "otel-col-daemon": {
-                "presets": {"logsCollection": {"storeCheckpoints": False}}
-            }
-        },
+        {"nodeCollector": {"presets": {"logsCollection": {"storeCheckpoints": False}}}},
     )
-    config = collector_relays(documents)["otel-col-daemon-agent"]
+    config = collector_relays(documents)["node-collector-agent"]
     assert "storage" not in config["receivers"]["file_log"]
 
 
@@ -278,7 +274,7 @@ def test_push_pipelines_associate_pods_by_connection_only(worker_relays):
 
 
 def test_file_logs_associate_pods_by_uid(worker_relays):
-    config = worker_relays["otel-col-daemon-agent"]
+    config = worker_relays["node-collector-agent"]
     pipelines = [
         pipeline
         for pipeline in config["service"]["pipelines"].values()
@@ -293,7 +289,7 @@ def test_file_logs_associate_pods_by_uid(worker_relays):
 
 
 def test_build_logs_keep_their_build_id(worker_relays):
-    config = worker_relays["otel-col-daemon-agent"]
+    config = worker_relays["node-collector-agent"]
     pipeline = next(
         pipeline
         for pipeline in config["service"]["pipelines"].values()
@@ -325,7 +321,7 @@ def test_tenancy_comes_from_pod_resource_labels(worker_relays):
             if rule["from"] == "pod"
         }
         expected = TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS
-        if label == "otel-col-daemon-agent k8s_attributes/pod_uid":
+        if label == "node-collector-agent k8s_attributes/pod_uid":
             expected |= {"loco.io/platform-log-owner": "loco.platform.log.owner"}
         assert labels == expected, label
 
@@ -373,11 +369,11 @@ def test_only_the_singleton_collects_cluster_metrics_and_events(worker_relays):
             for name, config in worker_relays.items()
             if receiver in config["receivers"]
         }
-        assert collectors == {"otel-col-cluster"}, receiver
+        assert collectors == {"cluster-collector"}, receiver
 
 
 def test_ingest_keeps_only_push_pipelines(worker_relays):
-    config = worker_relays["otel-col-deploy"]
+    config = worker_relays["workload-collector"]
     for pipeline in config["service"]["pipelines"].values():
         assert set(pipeline["receivers"]) <= PUSH_RECEIVERS
 
@@ -387,7 +383,7 @@ def _ingest_collector(worker_documents):
         document
         for document in worker_documents
         if document["kind"] == "StatefulSet"
-        and document["metadata"]["name"] == "otel-col-deploy"
+        and document["metadata"]["name"] == "workload-collector"
     )
 
 
@@ -403,7 +399,7 @@ def test_ingest_requests_resources_within_its_limits(worker_documents):
 
 
 def test_route_tenancy_runs_after_kubernetes_attributes(worker_relays):
-    collector = worker_relays["otel-col-deploy"]
+    collector = worker_relays["workload-collector"]
     for name, pipeline in collector["service"]["pipelines"].items():
         if "otlp" not in pipeline["receivers"]:
             continue
@@ -423,7 +419,7 @@ def test_route_tenancy_runs_after_kubernetes_attributes(worker_relays):
 
 
 def test_collector_service_ports_reach_the_receivers():
-    deploy = chart_values("loco-worker")["otel-col-deploy"]
+    deploy = chart_values("loco-worker")["workloadCollector"]
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
     assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(
         deploy["ports"]["otlp"]["servicePort"]
@@ -453,7 +449,7 @@ def test_the_collector_parses_routes_in_the_controllers_environment_namespaces()
     documents = render_chart(
         "loco-worker", {"global": {"workspaceNamespacePrefix": prefix}}
     )
-    groups = collector_relays(documents)["otel-col-deploy"]["processors"][
+    groups = collector_relays(documents)["workload-collector"]["processors"][
         "transform/envoy_tenancy"
     ]["trace_statements"]
     (parse,) = [
@@ -488,7 +484,7 @@ def test_pipelines_batch_only_after_persistent_enqueue(variant_relays):
 
 
 def test_the_collector_accepts_the_rendered_config(variant_relays, tmp_path):
-    image = chart_values("loco-worker")["otel-col-daemon"]["image"]
+    image = chart_values("loco-worker")["nodeCollector"]["image"]
     service_account = tmp_path / "serviceaccount"
     service_account.mkdir()
     (service_account / "token").write_text("test-token")
@@ -537,7 +533,7 @@ def test_the_collector_accepts_the_rendered_config(variant_relays, tmp_path):
 
 
 def test_gateway_tenancy_comes_from_the_route_namespace(worker_relays):
-    config = worker_relays["otel-col-deploy"]
+    config = worker_relays["workload-collector"]
     processor = config["processors"]["k8s_attributes/route_namespace"]
     assert {
         rule["key"]: rule["tag_name"]

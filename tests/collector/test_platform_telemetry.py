@@ -37,7 +37,7 @@ def test_platform_collection_is_opt_in(worker_relays):
 
 
 def test_platform_metrics_share_the_cluster_exporter(configured_relays):
-    for name in ("otel-col-daemon-agent", "otel-col-cluster"):
+    for name in ("node-collector-agent", "cluster-collector"):
         config = configured_relays[name]
         pipeline = config["service"]["pipelines"]["metrics/platform"]
         assert pipeline["exporters"] == ["otlp_http"]
@@ -46,13 +46,13 @@ def test_platform_metrics_share_the_cluster_exporter(configured_relays):
         assert "resource/platform" in pipeline["processors"]
     assert (
         "metrics/platform"
-        not in configured_relays["otel-col-deploy"]["service"]["pipelines"]
+        not in configured_relays["workload-collector"]["service"]["pipelines"]
     )
 
 
 def test_platform_only_keeps_only_platform_pipelines():
     values = configured(platformOnly=True)
-    values.update({"otel-col-deploy": {"enabled": False}})
+    values.update({"workloadCollector": {"enabled": False}})
     configs = collector_relays(render_chart("loco-worker", values))
     for config in configs.values():
         assert set(config["service"]["pipelines"]) <= {
@@ -69,7 +69,7 @@ def test_application_pipelines_keep_their_configuration(
     for name, config in worker_relays.items():
         for pipeline, settings in config["service"]["pipelines"].items():
             expected = dict(settings)
-            if name == "otel-col-daemon-agent" and pipeline == "logs":
+            if name == "node-collector-agent" and pipeline == "logs":
                 expected["processors"] = [
                     *settings["processors"],
                     "filter/workload_logs",
@@ -77,8 +77,22 @@ def test_application_pipelines_keep_their_configuration(
             assert configured_relays[name]["service"]["pipelines"][pipeline] == expected
 
 
+def test_platform_log_opt_out_retains_workloads_metrics_events_and_traces():
+    configs = collector_relays(
+        render_chart("loco-worker", configured(logs={"enabled": False}))
+    )
+    node = configs["node-collector-agent"]["service"]["pipelines"]
+    cluster = configs["cluster-collector"]["service"]["pipelines"]
+    assert "logs/platform" not in node
+    assert {"logs", "metrics", "metrics/platform"} <= node.keys()
+    assert {"metrics/platform", "logs/platform", "traces/platform"} <= cluster.keys()
+    assert {"logs", "metrics", "traces"} <= configs["workload-collector"]["service"][
+        "pipelines"
+    ].keys()
+
+
 def test_platform_identity_is_exported(configured_relays):
-    for name in ("otel-col-daemon-agent", "otel-col-cluster"):
+    for name in ("node-collector-agent", "cluster-collector"):
         attributes = {
             item["key"]: item["value"]
             for item in configured_relays[name]["processors"]["resource/platform"][
@@ -101,7 +115,7 @@ def test_platform_identity_is_exported(configured_relays):
 
 def test_platform_capacity_follows_the_configured_reports(configured_relays):
     settings = chart_values("loco-worker")["global"]["platformTelemetry"]
-    receiver = configured_relays["otel-col-cluster"]["receivers"]["k8s_cluster"]
+    receiver = configured_relays["cluster-collector"]["receivers"]["k8s_cluster"]
     assert receiver["node_conditions_to_report"] == settings["nodeConditions"]
     assert receiver["allocatable_types_to_report"] == settings["allocatableTypes"]
 
@@ -116,7 +130,7 @@ def test_changing_platform_settings_restarts_the_collectors():
             )
             if document["kind"] in ("DaemonSet", "StatefulSet")
             and document["metadata"]["name"]
-            in ("otel-col-daemon-agent", "otel-col-cluster")
+            in ("node-collector-agent", "cluster-collector")
         ]
         checksums.append(
             {
@@ -129,24 +143,24 @@ def test_changing_platform_settings_restarts_the_collectors():
         assert {
             (document["kind"], document["metadata"]["name"]) for document in workloads
         } == {
-            ("DaemonSet", "otel-col-daemon-agent"),
-            ("StatefulSet", "otel-col-cluster"),
+            ("DaemonSet", "node-collector-agent"),
+            ("StatefulSet", "cluster-collector"),
         }
     assert all(checksums[0][name] != checksums[1][name] for name in checksums[0])
 
 
 def test_disabling_an_individual_collector_still_renders():
     overrides = configured()
-    overrides["otel-col-daemon"] = {"enabled": False}
+    overrides["nodeCollector"] = {"enabled": False}
     configs = collector_relays(render_chart("loco-worker", overrides))
-    assert "otel-col-daemon-agent" not in configs
-    assert "metrics/platform" in configs["otel-col-cluster"]["service"]["pipelines"]
+    assert "node-collector-agent" not in configs
+    assert "metrics/platform" in configs["cluster-collector"]["service"]["pipelines"]
 
 
 def test_platform_allowlist_covers_the_release_and_collector_namespaces(
     configured_relays,
 ):
-    (condition, *_) = configured_relays["otel-col-cluster"]["processors"][
+    (condition, *_) = configured_relays["cluster-collector"]["processors"][
         "filter/platform"
     ]["metric_conditions"]
     pattern = json.loads(condition.rsplit(", ", 1)[1].removesuffix(")"))
@@ -175,7 +189,7 @@ def test_platform_pipelines_use_the_operators_endpoint_when_set():
             platform = pipeline.endswith("/platform")
             want = "otlp_http/platform" if platform else "otlp_http"
             assert settings["exporters"] == [want], (name, pipeline)
-    for name in ("otel-col-daemon-agent", "otel-col-cluster"):
+    for name in ("node-collector-agent", "cluster-collector"):
         own = configs[name]["exporters"]["otlp_http/platform"]
         assert own["endpoint"] == endpoint
         assert own["headers"] == {"x-key": "abc"}
@@ -225,7 +239,7 @@ def test_worker_skips_only_logs_owned_by_the_control_plane(
     tmp_path, enabled, namespace, pipeline
 ):
     relays = collector_relays(render_chart("loco-worker", configured(enabled=enabled)))
-    daemon = relays["otel-col-daemon-agent"]
+    daemon = relays["node-collector-agent"]
     for route in daemon["service"]["pipelines"].values():
         if "file_log" in route["receivers"]:
             assert "filter/control_plane_logs" in route["processors"]
@@ -259,7 +273,7 @@ def test_worker_skips_only_logs_owned_by_the_control_plane(
                 ],
             }
         )
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         post_otlp(collector, "logs", {"resourceLogs": resources})
         records = read_output(
             collector,
@@ -277,7 +291,7 @@ def test_worker_skips_only_logs_owned_by_the_control_plane(
 def test_controller_runtime_metrics_pass_the_platform_metrics_pipeline(
     configured_relays, tmp_path
 ):
-    cluster = configured_relays["otel-col-cluster"]
+    cluster = configured_relays["cluster-collector"]
     config = platform_pipeline_config(cluster, "metrics/platform")
     point = {"timeUnixNano": "1", "asDouble": 1}
     controller = {"key": "controller", "value": {"stringValue": "application"}}
@@ -316,7 +330,7 @@ def test_controller_runtime_metrics_pass_the_platform_metrics_pipeline(
             }
         ]
     }
-    with run_collector(tmp_path, config, "otel-col-cluster") as collector:
+    with run_collector(tmp_path, config, "cluster-collector") as collector:
         post_otlp(collector, "metrics", payload)
         received = read_output(
             collector,
@@ -345,7 +359,7 @@ def test_controller_runtime_metrics_pass_the_platform_metrics_pipeline(
 def test_controller_telemetry_enters_the_cluster_platform_pipelines(
     configured_relays, tmp_path
 ):
-    cluster = configured_relays["otel-col-cluster"]
+    cluster = configured_relays["cluster-collector"]
     assert (
         "otlp/platform"
         in cluster["service"]["pipelines"]["metrics/platform"]["receivers"]
@@ -373,7 +387,7 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
             }
         ]
     }
-    with run_collector(tmp_path, config, "otel-col-cluster") as collector:
+    with run_collector(tmp_path, config, "cluster-collector") as collector:
         post_otlp(collector, "traces", payload)
         (resource,) = read_output(
             collector,
@@ -392,7 +406,7 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
 
 def platform_file_logs(relays, directory):
     (directory / "checkpoints").mkdir(exist_ok=True)
-    daemon = relays["otel-col-daemon-agent"]
+    daemon = relays["node-collector-agent"]
     config = file_log_pipeline(relays)
     pipeline = daemon["service"]["pipelines"]["logs/platform"]
     processors = [
@@ -467,14 +481,14 @@ def test_node_logs_keep_correlation_types_and_separate_workloads(
     )
     write_pod_log(tmp_path, "loco-ws-tenant", [workload])
     for collector, namespace in [
-        ("otel-col-daemon-agent", "loco-obs-node"),
-        ("otel-col-cluster", "loco-obs"),
-        ("otel-col-deploy", "loco-obs"),
+        ("node-collector-agent", "loco-obs-node"),
+        ("cluster-collector", "loco-obs"),
+        ("workload-collector", "loco-obs"),
     ]:
         write_pod_log(
             tmp_path, namespace, ["collector logs must not loop"], pod=collector + "-0"
         )
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         received = read_output(
             collector,
             lambda document: [
@@ -521,7 +535,7 @@ def test_platform_log_backlog_resumes_without_replay(configured_relays, tmp_path
         RELEASE_NAMESPACE,
         ['{"msg":"before collector startup","level":"INFO"}'],
     )
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         first = read_output(
             collector,
             lambda document: [
@@ -539,7 +553,7 @@ def test_platform_log_backlog_resumes_without_replay(configured_relays, tmp_path
         file.write(
             '2026-10-19T12:00:01.000000000Z stdout F {"msg":"during collector restart","level":"INFO"}\n'
         )
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         resumed = read_output(
             collector,
             lambda document: [

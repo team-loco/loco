@@ -663,7 +663,7 @@ func (o *observed) defaultTelemetry(t *testing.T) {
 }
 
 func clusterEventsOnce(t *testing.T) {
-	for _, set := range []string{"otel-col-deploy", "otel-col-cluster"} {
+	for _, set := range []string{"workload-collector", "cluster-collector"} {
 		p.MustKubectl(
 			t,
 			"-n",
@@ -676,7 +676,7 @@ func clusterEventsOnce(t *testing.T) {
 		)
 	}
 	var gateway appsv1.StatefulSet
-	p.MustGet(t, &gateway, "-n", p.CollectorNamespace(), "statefulset", "otel-col-deploy")
+	p.MustGet(t, &gateway, "-n", p.CollectorNamespace(), "statefulset", "workload-collector")
 	if gateway.Status.ReadyReplicas != ingestReplicas {
 		t.Fatalf("OTLP ingestion has %d ready replicas, want %d", gateway.Status.ReadyReplicas, ingestReplicas)
 	}
@@ -686,7 +686,7 @@ func clusterEventsOnce(t *testing.T) {
   "metadata": {"name": %q, "namespace": %q}, "eventTime": %q,
   "reportingController": "loco.io/e2e", "reportingInstance": "observability", "action": "CheckCollector",
   "reason": "CollectorIsolation", "note": %q, "type": "Normal",
-  "regarding": {"apiVersion": "apps/v1", "kind": "StatefulSet", "name": "otel-col-cluster", "namespace": %q}}`,
+  "regarding": {"apiVersion": "apps/v1", "kind": "StatefulSet", "name": "cluster-collector", "namespace": %q}}`,
 		marker,
 		p.CollectorNamespace(),
 		time.Now().UTC().Format("2006-01-02T15:04:05.000000Z"),

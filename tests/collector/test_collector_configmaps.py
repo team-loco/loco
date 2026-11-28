@@ -5,9 +5,9 @@ from helpers import collector_relays, render_chart
 @pytest.mark.parametrize(
     "name,kind,namespace",
     [
-        ("otel-col-daemon", "DaemonSet", "loco-obs-node"),
-        ("otel-col-deploy", "StatefulSet", "loco-obs"),
-        ("otel-col-cluster", "StatefulSet", "loco-obs"),
+        ("node-collector", "DaemonSet", "loco-obs-node"),
+        ("workload-collector", "StatefulSet", "loco-obs"),
+        ("cluster-collector", "StatefulSet", "loco-obs"),
     ],
 )
 def test_collector_config_changes_roll_pods_and_match_mounted_config(

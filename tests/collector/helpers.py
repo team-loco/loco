@@ -12,7 +12,11 @@ from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE_NAMESPACE = "platform-test"
-COLLECTOR_CONFIGMAPS = ("otel-col-daemon-agent", "otel-col-deploy", "otel-col-cluster")
+COLLECTOR_CONFIGMAPS = {
+    "node-collector-agent": "nodeCollector",
+    "workload-collector": "workloadCollector",
+    "cluster-collector": "clusterCollector",
+}
 CI_VALUES = "ci/default-values.yaml"
 QUANTITY_SUFFIXES = {"m": 0.001, "Mi": 2**20, "Gi": 2**30}
 OTLP_HTTP_PORT = "4318"
@@ -102,7 +106,7 @@ def docker(*args):
 @contextmanager
 def run_collector(directory, config, collector, *options, chart="loco-worker"):
     """Run the chart's image and arguments for collector on config, mounting directory at /data."""
-    values = chart_values(chart)[collector]
+    values = chart_values(chart)[COLLECTOR_CONFIGMAPS[collector]]
     image = values["image"]
     (directory / "config.json").write_text(json.dumps(config))
     name = f"loco-{collector}-{uuid.uuid4().hex}"

@@ -97,7 +97,7 @@ helm template loco-worker "$root/charts/loco-worker" --set global.region=counter
     --set global.exporter.ingestToken.enabled=true \
     --set agent.image.tag=counter-test --set controller.image.tag=counter-test --set cluster.role=apps \
     --set certManager.existingTLSSecret=unused |
-    yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-daemon-agent") | .data.relay' |
+    yq 'select(.kind == "ConfigMap" and .metadata.name == "node-collector-agent") | .data.relay' |
     yq '
         [.exporters[] | (.sending_queue.storage, .auth.authenticator) | select(. != null)] as $used |
         {"receivers": {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}},
@@ -110,7 +110,7 @@ mounts=()
 for directory in $(yq '.extensions | with_entries(select(.key | test("^file_storage"))) | .[].directory' "$work_dir/collector.yaml"); do
     mounts+=("--tmpfs" "$directory")
 done
-collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-worker/values.yaml")
+collector_image=$(yq '.workloadCollector.image.repository + ":" + .workloadCollector.image.tag' "$root/charts/loco-worker/values.yaml")
 go -C "$root" run ./tools/pullimage "$collector_image"
 testres_add container "$collector"
 docker create --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \

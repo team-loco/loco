@@ -38,7 +38,7 @@ An unavailable metrics APIService can block API discovery and namespace deletion
 
 ## Replicas and disruption budgets
 
-The Application and build controllers run `controller.replicas` and `builds.controller.replicas` replicas, 2 by default. The chart passes `--leader-elect` to both, whatever `controller.args` and `builds.controller.args` hold, so one replica reconciles while the others wait for its lease. Envoy Gateway and metrics-server run 2 replicas. The Gateway's Envoy proxies scale on CPU between `envoyProxy.autoscaling.minReplicas` and `maxReplicas`, 2 to 6 by default, or run `envoyProxy.replicas` with `envoyProxy.autoscaling.enabled: false`. The gateway collector, `otel-col-deploy`, runs a fixed `otel-col-deploy.replicaCount` of 2 with no autoscaler, because each replica queues exports on its own volume and a removed replica strands its queue; raise `otel-col-deploy.resources` to give it more capacity, and `global.exporter.queue.num_consumers` to drain a backlog behind a slow endpoint. The agent runs one replica, the schema's maximum: every agent replica uses the cluster's one identity. The two controllers, Envoy Gateway, metrics-server, the Gateway's Envoy proxies and `otel-col-deploy` each have a PodDisruptionBudget that lets one pod go at a time, whatever their replica count, and spread their pods across nodes by hostname with `whenUnsatisfiable: ScheduleAnyway`, so a one-node cluster still schedules them. The agent and the cluster collector, `otel-col-cluster`, have neither.
+The Application and build controllers run `controller.replicas` and `builds.controller.replicas` replicas, 2 by default. The chart passes `--leader-elect` to both, whatever `controller.args` and `builds.controller.args` hold, so one replica reconciles while the others wait for its lease. Envoy Gateway and metrics-server run 2 replicas. The Gateway's Envoy proxies scale on CPU between `envoyProxy.autoscaling.minReplicas` and `maxReplicas`, 2 to 6 by default, or run `envoyProxy.replicas` with `envoyProxy.autoscaling.enabled: false`. The gateway collector, `workload-collector`, runs a fixed `workloadCollector.replicaCount` of 2 with no autoscaler, because each replica queues exports on its own volume and a removed replica strands its queue; raise `workloadCollector.resources` to give it more capacity, and `global.exporter.queue.num_consumers` to drain a backlog behind a slow endpoint. The agent runs one replica, the schema's maximum: every agent replica uses the cluster's one identity. The two controllers, Envoy Gateway, metrics-server, the Gateway's Envoy proxies and `workload-collector` each have a PodDisruptionBudget that lets one pod go at a time, whatever their replica count, and spread their pods across nodes by hostname with `whenUnsatisfiable: ScheduleAnyway`, so a one-node cluster still schedules them. The agent and the cluster collector, `cluster-collector`, have neither.
 
 ## Gateway certificates
 
@@ -138,13 +138,15 @@ registry:
 
 ## OpenTelemetry collectors
 
-The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTTP to `global.exporter.endpoint`.
+The OpenTelemetry collectors export over OTLP/HTTP to `global.exporter.endpoint`, with persistent local queues while the endpoint is unavailable.
 
-| Collector | Collects |
-| --- | --- |
-| `otel-col-deploy` (StatefulSet) | OTLP from applications and Envoy |
-| `otel-col-daemon` (DaemonSet) | Container logs, except from `kube-system`, `flux-system` and `cert-manager`, and kubelet metrics |
-| `otel-col-cluster` (StatefulSet) | Kubernetes cluster metrics and events |
+| Chart value | Workload | Collects |
+| --- | --- | --- |
+| `workloadCollector` | `workload-collector` StatefulSet | OTLP from applications and Envoy |
+| `nodeCollector` | `node-collector-agent` DaemonSet | Container logs, except from `kube-system`, `flux-system` and `cert-manager`, and kubelet metrics |
+| `clusterCollector` | `cluster-collector` StatefulSet | Kubernetes cluster metrics and events |
+
+The role values replace `otel-col-daemon`, `otel-col-cluster` and `otel-col-deploy`; their workload and Service names change with them. Update operator values and any explicit OTLP Service addresses before upgrading. Drain the old collectors' queues while ingestion is healthy, and retain their queue claims and host directories until queued exports are delivered. Preserve file checkpoint directories during the rename to avoid replaying logs. The chart does not translate the old value names or move queued data between renamed workloads.
 
 ```yaml
 global:
@@ -174,7 +176,7 @@ global:
     environment: development
 ```
 
-The controllers export their traces and metrics, including the controller-runtime metrics their Prometheus endpoint serves, to the cluster collector's platform pipelines at `otel-col-cluster-platform` on port 4318. A NetworkPolicy admits only the `loco-controller` and `loco-build-controller` pods of the release namespace to that port. Each controller pod sets `service.instance.id` to its pod UID and `k8s.namespace.name` to the release namespace through `OTEL_RESOURCE_ATTRIBUTES`, so two replicas export separate series. Application rollout changes include availability, health and reported failure details, with trace and span IDs in their JSON logs. Routine reconcile messages remain at DEBUG; set `controller.args: ["--log-level=debug"]` or `builds.controller.args: ["--log-level=debug"]` to include them. Both controllers use JSON logs at INFO by default. `controller.env` and `builds.controller.env` cannot set an OTLP endpoint or headers variable, such as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, or `OTEL_RESOURCE_ATTRIBUTES`, while platform telemetry is on.
+The controllers export their traces and metrics, including the controller-runtime metrics their Prometheus endpoint serves, to the cluster collector's platform pipelines at `cluster-collector-platform` on port 4318. A NetworkPolicy admits only the `loco-controller` and `loco-build-controller` pods of the release namespace to that port. Each controller pod sets `service.instance.id` to its pod UID and `k8s.namespace.name` to the release namespace through `OTEL_RESOURCE_ATTRIBUTES`, so two replicas export separate series. Application rollout changes include availability, health and reported failure details, with trace and span IDs in their JSON logs. Routine reconcile messages remain at DEBUG; set `controller.args: ["--log-level=debug"]` or `builds.controller.args: ["--log-level=debug"]` to include them. Both controllers use JSON logs at INFO by default. `controller.env` and `builds.controller.env` cannot set an OTLP endpoint or headers variable, such as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, or `OTEL_RESOURCE_ATTRIBUTES`, while platform telemetry is on.
 
 The existing DaemonSet runs one collector per node and tails the container log files. Its platform pipeline collects API, controller, agent and observability-proxy stdout from allowed platform namespaces, enriches Kubernetes and service identity, and restores the JSON log's timestamp, severity, trace/span IDs and typed attributes. Workload namespaces go through the workload log pipeline and retain their original bodies. The pipelines use disjoint namespace filters, so a file log is exported once. All collector pods' own logs and the proxy's marked ingestion failure diagnostics stay excluded from forwarding to prevent collection loops; those diagnostics remain available through pod logs. New log files are read from the beginning, including startup output written before collection starts. File checkpoints resume previously read files without replay, and the persistent exporter queue survives collector pod replacement; node loss or log rotation before collection can still lose records. API and controller processes have no OTLP log exporter.
 
@@ -189,7 +191,9 @@ global:
         Authorization: Bearer EXAMPLE_TOKEN
 ```
 
-`platformOnly: true` with `otel-col-deploy.enabled: false` keeps only the platform pipelines. Names, units and availability follow the pinned [kubelet statistics](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/kubeletstatsreceiver) and [cluster](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/k8sclusterreceiver) receivers.
+`global.platformTelemetry.logs.enabled: false` disables platform stdout forwarding while retaining platform metrics, events and controller SDK telemetry. It does not disable application logs or authenticated OTLP log ingestion.
+
+`platformOnly: true` with `workloadCollector.enabled: false` keeps only the platform pipelines. Names, units and availability follow the pinned [kubelet statistics](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/kubeletstatsreceiver) and [cluster](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/k8sclusterreceiver) receivers.
 
 ```sh
 mise run test:collectors

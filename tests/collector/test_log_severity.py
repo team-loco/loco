@@ -22,7 +22,7 @@ STDERR_CASES = [
 
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
 def test_collected_log_severity(tmp_path, source):
-    transform = chart_values("loco-worker")["otel-col-daemon"]["config"]["processors"][
+    transform = chart_values("loco-worker")["nodeCollector"]["config"]["processors"][
         "transform/log_severity"
     ]
     cases = [
@@ -93,7 +93,7 @@ def test_collected_log_severity(tmp_path, source):
             }
         }
         config["service"]["pipelines"]["logs"]["receivers"] = ["file_log"]
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         records = [
             {
                 "body": {"stringValue": body},

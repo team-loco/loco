@@ -177,11 +177,11 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 		args = append(
 			args,
 			"--set",
-			"otel-col-daemon.enabled=false",
+			"nodeCollector.enabled=false",
 			"--set",
-			"otel-col-deploy.enabled=false",
+			"workloadCollector.enabled=false",
 			"--set",
-			"otel-col-cluster.enabled=false",
+			"clusterCollector.enabled=false",
 		)
 	}
 	if p.Observability {
