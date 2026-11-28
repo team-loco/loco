@@ -305,3 +305,25 @@ func ownedAtRevision(app *locov1alpha1.Application, pod *corev1.Pod, revision st
 	}
 	return set
 }
+
+func TestMissingApplicationDropsOnlyItsReplicaState(t *testing.T) {
+	r := &ApplicationReconciler{APIReader: fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).Build()}
+	key := types.NamespacedName{Namespace: "control", Name: "removed"}
+	other := types.NamespacedName{Namespace: key.Namespace, Name: "remaining"}
+	now := time.Now()
+	for _, owner := range []types.NamespacedName{key, other} {
+		r.recordDeletedPod(owner, &corev1.Pod{UID: "deleted-owner-pod"}, now)
+	}
+	r.podEvents = map[types.NamespacedName][]podEvent{
+		key: {{uid: "removed-pod"}}, other: {{uid: "remaining-pod"}},
+	}
+	if _, err := r.reconcile(t.Context(), reconcile.Request{NamespacedName: key}); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.podEvents[key]) != 0 || len(r.deletedPods[key]) != 0 {
+		t.Fatal("removed application's state retained")
+	}
+	if len(r.podEvents[other]) != 1 || len(r.deletedReplicas(other, now)) != 1 {
+		t.Fatal("other application's state removed")
+	}
+}
