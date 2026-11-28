@@ -106,7 +106,8 @@ def docker(*args):
 @contextmanager
 def run_collector(directory, config, collector, *options, chart="loco-worker"):
     """Run the chart's image and arguments for collector on config, mounting directory at /data."""
-    values = chart_values(chart)[COLLECTOR_CONFIGMAPS[collector]]
+    role = COLLECTOR_CONFIGMAPS.get(collector, collector)
+    values = chart_values(chart)[role]
     image = values["image"]
     (directory / "config.json").write_text(json.dumps(config))
     name = f"loco-{collector}-{uuid.uuid4().hex}"
