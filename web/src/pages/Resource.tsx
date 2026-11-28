@@ -2,7 +2,7 @@ import { aroundWindow, windowValues } from "@/lib/obs-time";
 import type { Build } from "@gen/loco/build/v1/build_pb";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { BellIcon, FileCodeIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -27,7 +27,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { workspaceResourcesKey, workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
@@ -98,6 +98,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
+	const queryClient = useQueryClient();
 	const [{ tab: view, env, range }, setParams] = useQueryStates(RESOURCE_PARAMS, {
 		history: "replace",
 	});
@@ -330,22 +331,20 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		);
 	};
 
-	const handleDelete = () => {
-		del.mutate(
-			{ resourceId },
-			{
-				onSuccess: () => {
-					toast.success(withCode`Deleted ${resource.name}`);
-					setModal(null);
-					if (hasWs) {
-						void navigate(withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env));
-					}
-				},
-				onError: (err) => {
-					toastConnectError(err, "Failed to delete resource");
-				},
-			},
-		);
+	const handleDelete = async () => {
+		try {
+			await del.mutateAsync({ resourceId });
+			await queryClient.invalidateQueries({
+				queryKey: workspaceResourcesKey(transport, resource.workspaceId),
+			});
+			toast.success(withCode`Deleted ${resource.name}`);
+			setModal(null);
+			if (hasWs) {
+				void navigate(withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env));
+			}
+		} catch (err) {
+			toastConnectError(err, "Failed to delete resource");
+		}
 	};
 
 	const openRollback = (target: Deployment, current: Deployment | undefined) => {
@@ -634,7 +633,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				confirmLabel={`Delete ${resource.name}`}
 				asQuestion={false}
 				pending={del.isPending}
-				onConfirm={handleDelete}
+				onConfirm={() => {
+					void handleDelete();
+				}}
 			/>
 		</Page>
 	);

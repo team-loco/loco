@@ -13,7 +13,6 @@ import { Splash } from "@/pages/Splash";
 import { createConnectQueryKey, TransportProvider, useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
-import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
@@ -49,6 +48,7 @@ import {
 // eslint-disable-next-line no-restricted-imports -- the query cache persister reads outside render
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
+import { SHARED_STALE_MS } from "@/lib/query-policy";
 import { pageImporters } from "@/lib/lazy-pages";
 
 const Dashboard = lazy(async () => ({ default: (await pageImporters.Dashboard()).Dashboard }));
@@ -76,8 +76,6 @@ const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.Dash
 
 import { onSessionExpired, transport } from "./auth/connect-transport";
 
-// Every page mounts these; observers that mount while a page loads reuse the data fetched a moment earlier.
-const SHARED_STALE_MS = 10_000;
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
@@ -97,11 +95,11 @@ onSessionExpired(() => {
 	);
 });
 
+// Every page mounts these; observers that mount while a page loads reuse recently fetched data.
 const sharedQueryKeys = [
 	createConnectQueryKey({ schema: getConfig, cardinality: undefined }),
 	createConnectQueryKey({ schema: getScopes, cardinality: undefined }),
 	createConnectQueryKey({ schema: listEnvironments, cardinality: undefined }),
-	createConnectQueryKey({ schema: listWorkspaceResources, cardinality: undefined }),
 ];
 for (const queryKey of sharedQueryKeys) queryClient.setQueryDefaults(queryKey, { staleTime: SHARED_STALE_MS });
 
