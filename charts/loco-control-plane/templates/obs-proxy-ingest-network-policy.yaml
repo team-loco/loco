@@ -36,16 +36,20 @@ spec:
           port: {{ .Values.gateway.tracing.collector.port }}
         {{- end }}
     {{- end }}
-    {{- if and (include "loco-control-plane.systemIngest" .) (include "loco-control-plane.nodeLogs" .) }}
+    {{- if include "loco-control-plane.systemIngest" . }}
+    {{- range $name := list "nodeCollector" "clusterCollector" }}
+    {{- if hasKey $.Subcharts $name }}
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ include "loco-control-plane.nodeCollectorName" . }}
+              kubernetes.io/metadata.name: {{ index $.Values $name "namespaceOverride" }}
           podSelector:
             matchLabels:
-              {{- include "loco-control-plane.nodeCollectorLabels" . | nindent 14 }}
+              {{- include "loco-control-plane.collectorLabels" (dict "root" $ "name" $name) | nindent 14 }}
       ports:
         - protocol: TCP
-          port: {{ .Values.obsProxy.ingest.httpPort }}
+          port: {{ $.Values.obsProxy.ingest.httpPort }}
+    {{- end }}
+    {{- end }}
     {{- end }}
 {{- end }}

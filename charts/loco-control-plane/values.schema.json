@@ -447,6 +447,9 @@
     "clickhouse": {
       "type": "object"
     },
+    "clusterCollector": {
+      "type": "object"
+    },
     "controlPlaneHostname": {
       "type": "string"
     },
@@ -586,6 +589,9 @@
         "object",
         "null"
       ]
+    },
+    "nodeCollector": {
+      "type": "object"
     },
     "obsProxy": {
       "allOf": [
@@ -1003,6 +1009,15 @@
     "platformTelemetry": {
       "type": "object",
       "properties": {
+        "allocatableTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collectionInterval": {
+          "type": "string"
+        },
         "enabled": {
           "type": "boolean"
         },
@@ -1021,11 +1036,26 @@
           },
           "additionalProperties": false
         },
-        "global": {
-          "type": "object"
-        },
         "logs": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nodeConditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "region": {
           "type": "string"

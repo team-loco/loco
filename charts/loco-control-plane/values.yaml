@@ -162,19 +162,20 @@ api:
     failureThreshold: 60
     periodSeconds: 5
 
-# Loco's own telemetry: API traces/metrics and proxy workload-ingestion traces over OTLP/HTTP.
+# Loco's SDK telemetry, container logs, node usage, cluster state and Kubernetes events.
 # @schema additionalProperties: false
 platformTelemetry:
   enabled: false
-  # @schema skipProperties
-  global: {}
   # Physical region of this control plane; required when enabled. Exported as loco.region.
   region: ""
+  collectionInterval: 60s
+  namespaces: [kube-system, cert-manager, flux-system]
+  nodeConditions: [Ready, MemoryPressure, DiskPressure, PIDPressure]
+  allocatableTypes: [cpu, memory, ephemeral-storage, pods]
   # Collect control-plane stdout on each node. Disable when an external collector owns these logs.
-  # @schema skipProperties
+  # @schema additionalProperties: false
   logs:
     enabled: true
-    namespaceOverride: loco-obs-control-plane
   # without an endpoint, the API sends to the observability proxy, which stores everything under
   # the system tenant; obsProxy.enabled is then required.
   # @schema additionalProperties: false
@@ -631,3 +632,271 @@ openbao:
     tokenSecret:
       name: ""
       key: token
+
+# Each collector follows platformTelemetry.enabled unless explicitly disabled.
+# @schema skipProperties
+nodeCollector:
+  nameOverride: node-collector
+  fullnameOverride: node-collector
+  namespaceOverride: loco-obs-control-plane
+  mode: daemonset
+  enableConfigChecksumAnnotation: false
+  # Parent-owned exporter settings can change on each Helm upgrade.
+  podAnnotations:
+    loco.io/release-revision: '{{ .Release.Revision }}'
+  configMap:
+    create: false
+    existingName: '{{ .Release.Name }}-node-collector'
+  image: &platformCollectorImage
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
+  command:
+    # Both signal pipelines use one Kubernetes metadata cache and watch.
+    extraArgs:
+      - --feature-gates=stanza.synchronousLogEmitter,processor.k8sattributes.ShareProcessorBetweenPipelines
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile: {type: RuntimeDefault}
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 0
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities: {drop: [ALL]}
+  resources:
+    requests: {cpu: 200m, memory: 256Mi}
+    limits: {cpu: "2", memory: 512Mi}
+  tolerations: [{operator: Exists}]
+  presets:
+    kubeletMetrics:
+      enabled: true
+    logsCollection:
+      enabled: true
+      storeCheckpoints: false
+      maxRecombineLogSize: 102400
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: [pods, namespaces, nodes]
+        verbs: [get, list, watch]
+      - apiGroups: [apps]
+        resources: [replicasets]
+        verbs: [get, list, watch]
+  initContainers:
+    - name: state-permissions
+      image: busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
+      command: [chown, -R, "10001:0", /var/lib/otelcol, /var/lib/otelcol-exporter]
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: {drop: [ALL], add: [CHOWN]}
+      volumeMounts:
+        - {name: checkpoints, mountPath: /var/lib/otelcol}
+        - {name: exporter-queue, mountPath: /var/lib/otelcol-exporter}
+  extraEnvs:
+    - name: OTEL_K8S_NODE_IP
+      valueFrom:
+        fieldRef: {fieldPath: status.hostIP}
+  extraVolumes:
+    - name: checkpoints
+      hostPath:
+        path: '/var/lib/otelcol/{{ include "opentelemetry-collector.namespace" . }}/{{ include "opentelemetry-collector.fullname" . }}'
+        type: DirectoryOrCreate
+    - name: exporter-queue
+      hostPath:
+        path: '/var/lib/otelcol-exporter/{{ include "opentelemetry-collector.namespace" . }}/{{ include "opentelemetry-collector.fullname" . }}'
+        type: DirectoryOrCreate
+    - name: exporter-token
+      secret:
+        secretName: '{{ .Release.Name }}-system-ingest-token'
+        optional: true
+  extraVolumeMounts:
+    - {name: checkpoints, mountPath: /var/lib/otelcol}
+    - {name: exporter-queue, mountPath: /var/lib/otelcol-exporter}
+    - {name: exporter-token, mountPath: /etc/otelcol-exporter, readOnly: true}
+  ports:
+    otlp: {enabled: false}
+    otlp-http: {enabled: false}
+    jaeger-compact: {enabled: false}
+    jaeger-thrift: {enabled: false}
+    jaeger-grpc: {enabled: false}
+    zipkin: {enabled: false}
+  config:
+    extensions:
+      file_storage: {directory: /var/lib/otelcol}
+      file_storage/exporter: {directory: /var/lib/otelcol-exporter}
+    exporters:
+      otlp_http: &platformCollectorExporter
+        endpoint: ""
+        sending_queue:
+          enabled: true
+          storage: file_storage/exporter
+          num_consumers: 2
+          queue_size: 5000
+          block_on_overflow: true
+          batch: {sizer: items, min_size: 100, flush_timeout: 1s}
+        retry_on_failure:
+          enabled: true
+          initial_interval: 1s
+          max_interval: 30s
+          max_elapsed_time: 0s
+    receivers:
+      kubeletstats:
+        auth_type: serviceAccount
+        endpoint: https://${env:OTEL_K8S_NODE_IP}:10250
+        insecure_skip_verify: true
+        node: ${env:OTEL_K8S_NODE_NAME}
+        metric_groups: [node, pod, container]
+        k8s_api_config: {auth_type: serviceAccount}
+        collect_all_network_interfaces: {pod: true}
+        metrics:
+          k8s.node.uptime: {enabled: true}
+          k8s.node.network.io: {enabled: true}
+          k8s.pod.network.io: {enabled: true}
+          k8s.pod.uptime: {enabled: true}
+          container.uptime: {enabled: true}
+      file_log:
+        storage: file_storage
+        start_at: beginning
+        exclude:
+          - '/var/log/pods/{{ include "opentelemetry-collector.namespace" . }}_*/*/*.log'
+        operators:
+          - id: container-parser
+            type: container
+            max_log_size: '{{ .Values.presets.logsCollection.maxRecombineLogSize }}'
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 384
+        spike_limit_mib: 96
+      k8s_attributes/pod_uid:
+        auth_type: serviceAccount
+        passthrough: false
+        wait_for_metadata: true
+        filter: {node_from_env_var: OTEL_K8S_NODE_NAME}
+        pod_association:
+          - sources: [{from: resource_attribute, name: k8s.pod.uid}]
+        extract:
+          metadata: [k8s.namespace.name, k8s.pod.name, k8s.pod.uid, k8s.node.name, k8s.container.name]
+          labels:
+            - {from: pod, key: app.kubernetes.io/name, tag_name: service.name}
+      transform/platform_log:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(resource.attributes["service.instance.id"], resource.attributes["k8s.pod.uid"])
+              - set(resource.attributes["service.name"], resource.attributes["k8s.container.name"]) where resource.attributes["service.name"] == nil
+              - set(cache["record"], ParseJSON(body)) where IsString(body) and IsMatch(body, "^\\s*\\{")
+              - set(body, cache["record"]["msg"]) where IsString(cache["record"]["msg"])
+              - set(trace_id, TraceID(cache["record"]["trace_id"])) where IsString(cache["record"]["trace_id"])
+              - set(span_id, SpanID(cache["record"]["span_id"])) where IsString(cache["record"]["span_id"])
+              - set(time, Time(cache["record"]["time"], "%Y-%m-%dT%H:%M:%S.%f%z")) where IsString(cache["record"]["time"])
+              - set(severity_text, cache["record"]["level"]) where IsString(cache["record"]["level"])
+              - set(severity_number, 5) where severity_text == "DEBUG"
+              - set(severity_number, 9) where severity_text == "INFO"
+              - set(severity_number, 13) where severity_text == "WARN"
+              - set(severity_number, 17) where severity_text == "ERROR"
+              - merge_maps(attributes, cache["record"], "upsert") where IsMap(cache["record"]) and IsString(cache["record"]["msg"])
+              - delete_matching_keys(attributes, "^(msg|level|time|trace_id|span_id)$")
+      filter/platform_feedback:
+        error_mode: propagate
+        log_conditions: ['log.attributes["loco.telemetry.internal"] == true']
+    service:
+      pipelines:
+        metrics:
+          receivers: [kubeletstats]
+          processors: [memory_limiter, k8s_attributes/pod_uid, filter/platform_namespace, resource/platform]
+          exporters: [otlp_http]
+        logs:
+          receivers: [file_log]
+          processors: [memory_limiter, k8s_attributes/pod_uid, filter/platform_namespace, transform/platform_log, filter/platform_feedback, resource/platform]
+          exporters: [otlp_http]
+
+# @schema skipProperties
+clusterCollector:
+  nameOverride: cluster-collector
+  fullnameOverride: cluster-collector
+  namespaceOverride: loco-obs-control-plane-cluster
+  mode: statefulset
+  replicaCount: 1
+  enableConfigChecksumAnnotation: false
+  podAnnotations:
+    loco.io/release-revision: '{{ .Release.Revision }}'
+  configMap:
+    create: false
+    existingName: '{{ .Release.Name }}-cluster-collector'
+  image: *platformCollectorImage
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    fsGroup: 10001
+    seccompProfile: {type: RuntimeDefault}
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities: {drop: [ALL]}
+  resources:
+    requests: {cpu: 150m, memory: 256Mi}
+    limits: {cpu: "2", memory: 512Mi}
+  statefulset:
+    volumeClaimTemplates:
+      - metadata: {name: exporter-queue}
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 2Gi}
+  presets:
+    kubernetesEvents: {enabled: true}
+    clusterMetrics: {enabled: true}
+  clusterRole:
+    create: true
+  extraVolumes:
+    - name: exporter-token
+      secret:
+        secretName: '{{ .Release.Name }}-system-ingest-token'
+        optional: true
+  extraVolumeMounts:
+    - {name: exporter-queue, mountPath: /var/lib/otelcol-exporter}
+    - {name: exporter-token, mountPath: /etc/otelcol-exporter, readOnly: true}
+  service: {enabled: false}
+  ports:
+    otlp: {enabled: false}
+    otlp-http: {enabled: false}
+    jaeger-compact: {enabled: false}
+    jaeger-thrift: {enabled: false}
+    jaeger-grpc: {enabled: false}
+    zipkin: {enabled: false}
+  alternateConfig:
+    receivers:
+      k8s_cluster: {}
+    extensions:
+      health_check: {endpoint: "${env:MY_POD_IP}:13133"}
+      file_storage/exporter: {directory: /var/lib/otelcol-exporter}
+    exporters:
+      otlp_http: *platformCollectorExporter
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 384
+        spike_limit_mib: 96
+      transform/event_namespace:
+        error_mode: propagate
+        log_statements:
+          - context: log
+            statements:
+              - delete_key(resource.attributes, "k8s.namespace.name")
+              - set(resource.attributes["k8s.namespace.name"], body["object"]["regarding"]["namespace"]) where IsMap(body) and IsMap(body["object"]) and IsMap(body["object"]["regarding"])
+    service:
+      pipelines:
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [memory_limiter, filter/platform_namespace, resource/platform]
+          exporters: [otlp_http]
+        logs:
+          receivers: [k8sobjects]
+          processors: [memory_limiter, transform/event_namespace, filter/platform_namespace, resource/platform]
+          exporters: [otlp_http]

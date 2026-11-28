@@ -4,8 +4,10 @@
 {{- $token := randBytes 32 | sha256sum | b64enc }}
 {{- if $existing }}{{- $token = index $existing.data "token" }}{{- end }}
 {{- $namespaces := list .Release.Namespace }}
-{{- if include "loco-control-plane.nodeLogs" . }}
-{{- $namespaces = append $namespaces (include "loco-control-plane.nodeCollectorName" .) }}
+{{- range $collector := list "nodeCollector" "clusterCollector" }}
+{{- if hasKey $.Subcharts $collector }}
+{{- $namespaces = append $namespaces (index $.Values $collector "namespaceOverride") }}
+{{- end }}
 {{- end }}
 {{- range $namespace := $namespaces | uniq }}
 ---
