@@ -4,12 +4,11 @@ import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentSe
 import { DeploymentListView, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Section } from "@/components/design/Page";
-import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
-import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
+import { BYTES_PER_MI, MILLI_PER_CORE, formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { msToTimestamp } from "@/lib/time";
 
-import { RANGE_MS, sharedLimit, type MetricRange } from "./metric";
+import { RANGE_MS, type MetricRange } from "./metric";
 import { RangeToggle } from "./RangeToggle";
 import { RegionAverages, type AxisScale } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
@@ -17,14 +16,17 @@ import { ReplicaCells } from "./ReplicaCells";
 import { useDeploymentMarkers } from "./useDeploymentMarkers";
 import { InlineCode } from "@/components/design/InlineCode";
 
-const CPU_METRIC = "k8s.pod.cpu_request_utilization";
-const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
+const CPU_METRIC = "k8s.pod.cpu.usage";
+const MEMORY_METRIC = "k8s.pod.memory.working_set";
 const WINDOW_DEPLOYMENTS = 200;
 
 const MI_PER_GI = 1024;
-const MILLI_PER_VCPU = 1000;
 
-const cpuScale = (): AxisScale => ({ divisor: MILLI_PER_VCPU, unit: "vCPU", decimals: 3 });
+const cpuScale = (): AxisScale => ({
+	divisor: MILLI_PER_CORE,
+	unit: "vCPU",
+	decimals: 3,
+});
 const memoryScale = (limit: number): AxisScale =>
 	limit >= MI_PER_GI ? { divisor: MI_PER_GI, unit: "Gi", decimals: 2 } : { divisor: 1, unit: "Mi", decimals: 0 };
 
@@ -33,21 +35,11 @@ type Size = (target: Sizing) => number;
 const cpuSize: Size = (target) => parseCpuMilli(target.cpu ?? "");
 const memorySize: Size = (target) => parseMemMi(target.memory ?? "");
 
-function currentTarget(region: RegionView): Sizing | undefined {
-	return regionTarget(region.current === undefined ? undefined : getServiceSpec(region.current), region.name);
-}
-
-function regionLimits(
-	regions: RegionView[],
-	charted: readonly Deployment[],
-	size: Size,
-): Map<string, LimitStep[]> | undefined {
-	const targets = regions.map(currentTarget);
-	if (sharedLimit(targets.map((t) => (t === undefined ? 0 : size(t)))) === undefined) return undefined;
+function regionLimits(regions: RegionView[], charted: readonly Deployment[], size: Size): Map<string, LimitStep[]> {
 	return new Map(
-		regions.map((r, i) => {
-			const deployments = r.current === undefined ? charted : [...charted, r.current];
-			return [r.name, limitSteps(deployments, r.name, size, targets[i])];
+		regions.map((region) => {
+			const deployments = region.current === undefined ? charted : [...charted, region.current];
+			return [region.name, limitSteps(deployments, region.name, size, undefined)];
 		}),
 	);
 }
@@ -81,11 +73,30 @@ export function MetricsPanel({
 	const windowed =
 		useQuery(
 			listDeployments,
-			{ resourceId, environmentId, startTime, pageSize: WINDOW_DEPLOYMENTS, view: DeploymentListView.FULL },
+			{
+				resourceId,
+				environmentId,
+				startTime,
+				pageSize: WINDOW_DEPLOYMENTS,
+				view: DeploymentListView.FULL,
+			},
 			{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
 		).data?.deployments ?? [];
-	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
-	const chart = { regions: deployed.map((r) => r.name), workspaceId, environmentId, resourceId, range, markers };
+	const markers = useDeploymentMarkers({
+		workspaceId,
+		environmentId,
+		resourceId,
+		range,
+		nowMs,
+	});
+	const chart = {
+		regions: deployed.map((r) => r.name),
+		workspaceId,
+		environmentId,
+		resourceId,
+		range,
+		markers,
+	};
 
 	return (
 		<Section
@@ -103,6 +114,7 @@ export function MetricsPanel({
 						{...chart}
 						title="CPU"
 						metricName={CPU_METRIC}
+						unitsPerValue={MILLI_PER_CORE}
 						limits={regionLimits(deployed, windowed, cpuSize)}
 						format={formatCpu}
 						scale={cpuScale}
@@ -111,6 +123,7 @@ export function MetricsPanel({
 						{...chart}
 						title="Memory"
 						metricName={MEMORY_METRIC}
+						unitsPerValue={1 / BYTES_PER_MI}
 						limits={regionLimits(deployed, windowed, memorySize)}
 						format={formatMemory}
 						scale={memoryScale}

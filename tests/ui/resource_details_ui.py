@@ -128,7 +128,7 @@ evidence.seed_domains(
     [{"environment": "production", "domain": "details.apps.example.test"}],
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
-USAGE = 0.9
+USAGE = 0.45
 NOW = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
 STAMP = NOW.isoformat()
 
@@ -138,7 +138,10 @@ def metrics(route):
     if body.get("byPod"):
         route.fulfill(json={"series": []})
         return
-    value = USAGE if "cpu" in body["metricName"] else 0.25
+    assert body["metricName"] in ("k8s.pod.cpu.usage", "k8s.pod.memory.working_set"), (
+        body
+    )
+    value = USAGE if body["metricName"] == "k8s.pod.cpu.usage" else 128 * 1024 * 1024
     route.fulfill(
         json={
             "series": [
