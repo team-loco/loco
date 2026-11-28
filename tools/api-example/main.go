@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -97,6 +98,7 @@ func run(api, tokenFile, workspace, slug, environment string, timeout time.Durat
 		return fmt.Errorf("read full deployment: %w", err)
 	}
 	created, err := clients.Deployment.CreateDeployment(ctx, &deploymentv1.CreateDeploymentRequest{
+		RequestId:  uuid.NewString(),
 		ResourceId: resource.GetResource().GetId(), EnvironmentId: environmentID,
 		Spec:               previous.GetDeployment().GetSpec(),
 		Trigger:            deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
