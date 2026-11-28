@@ -92,6 +92,7 @@ try:
             ("light", "port"),
             ("light", "targets"),
             ("light", "public"),
+            ("light", "worker"),
             ("light", "domain"),
         ):
             env_slug = "retry-staging" if changed == "public" else "production"
@@ -114,7 +115,8 @@ try:
             ask.get_by_role("textbox", name="Name", exact=True).fill(name)
             ask.get_by_role("button", name="Continue", exact=True).click()
             drawer = page.get_by_role("dialog", name=name, exact=True)
-            drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
+            if changed != "public":
+                drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
             if changed == "public":
                 drawer.get_by_role("button", name="Internal", exact=True).click()
             if changed != "public":
@@ -125,6 +127,7 @@ try:
                 0
             )
             requests, replies = [], []
+            domain_requests, domain_replies, domain_attempts = [], [], []
 
             def lost_reply(route, _request, requests=requests, replies=replies):
                 requests.append(route.request.post_data_json)
@@ -213,9 +216,67 @@ try:
                 drawer.get_by_role("switch", name="Autoscaling", exact=True).click()
             elif changed == "public":
                 drawer.get_by_role("button", name="Public", exact=True).click()
+                drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
+
+                def domain_reply_lost(
+                    route, _request, sent=domain_requests, replies=domain_replies
+                ):
+                    sent.append(route.request.post_data_json)
+                    response = route.fetch()
+                    assert response.status == 200, response.text()
+                    replies.append(response.json())
+                    route.abort("connectionfailed")
+
+                page.route(
+                    "**/loco.domain.v1.DomainService/CreateResourceDomain",
+                    domain_reply_lost,
+                )
                 expect(
                     drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
                 ).to_be_visible()
+            elif changed == "worker":
+                call(
+                    state,
+                    "loco.domain.v1.DomainService/CreateResourceDomain",
+                    {
+                        "resourceId": requests[0]["resourceId"],
+                        "environmentId": staging,
+                        "domain": {
+                            "domainSource": "DOMAIN_TYPE_APP",
+                            "subdomain": name + "-staging",
+                            "appDomain": "apps.e2e.test",
+                        },
+                    },
+                )
+                drawer.get_by_role("button", name="Internal", exact=True).click()
+                drawer.get_by_role("textbox", name="Port", exact=True).fill("")
+                key = f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{requests[0]['environmentId']}"
+
+                def removal_reply_lost(
+                    route,
+                    _request,
+                    sent=domain_requests,
+                    replies=domain_replies,
+                    attempts=domain_attempts,
+                    client=page,
+                    key=key,
+                ):
+                    attempts.append(
+                        client.evaluate(
+                            "key => JSON.parse(localStorage.getItem(key))[0].deployment.request",
+                            key,
+                        )
+                    )
+                    sent.append(route.request.post_data_json)
+                    response = route.fetch()
+                    assert response.status == 200, response.text()
+                    replies.append(response.json())
+                    route.abort("connectionfailed")
+
+                page.route(
+                    "**/loco.domain.v1.DomainService/DeleteResourceDomain",
+                    removal_reply_lost,
+                )
             elif changed == "domain":
                 drawer.get_by_role("textbox", name="Subdomain", exact=True).fill(
                     name + "-new"
@@ -225,6 +286,34 @@ try:
                         f"{name}-new.apps.e2e.test is available", exact=True
                     )
                 ).to_be_visible()
+            if changed == "worker":
+                with expect_rpc(
+                    page,
+                    "ListWorkspaceResources",
+                    lambda body: body.get("workspaceId") == workspace,
+                ):
+                    deploy.click()
+                expect(drawer.get_by_role("alert")).to_be_visible()
+                expect(deploy).to_be_enabled()
+                assert len(requests) == 1, requests
+                assert len(domain_replies) == 1, domain_replies
+                assert (
+                    sql(
+                        state,
+                        f"SELECT count(*) FROM deployments WHERE resource_id='{requests[0]['resourceId']}';",
+                    )
+                    == "1"
+                )
+                assert (
+                    sql(
+                        state,
+                        f"SELECT count(*) FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}' AND environment_id='{requests[0]['environmentId']}';",
+                    )
+                    == "0"
+                )
+                page.screenshot(path=out / "light-worker-domain-reply-lost.png")
+                page.reload()
+                expect(deploy).to_be_enabled()
             with expect_rpc(
                 page,
                 "CreateDeployment",
@@ -233,10 +322,48 @@ try:
                 ),
             ):
                 deploy.click()
+            if changed == "worker":
+                assert requests[1] == domain_attempts[0], requests
+                assert requests[0]["requestId"] != requests[1]["requestId"]
+            if changed == "public":
+                expect(drawer.get_by_role("alert")).to_be_visible()
+                expect(deploy).to_be_enabled()
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
+                assert len(requests) == 2, requests
+                assert len(domain_replies) == 1, domain_replies
+                assert (
+                    sql(
+                        state,
+                        f"SELECT count(*) FROM deployments WHERE resource_id='{requests[0]['resourceId']}';",
+                    )
+                    == "2"
+                )
+                page.screenshot(path=out / "light-public-domain-reply-lost.png")
+                page.reload()
+                expect(deploy).to_be_enabled()
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
+                with expect_rpc(
+                    page,
+                    "CreateDeployment",
+                    lambda body, resource_id=requests[0]["resourceId"]: (
+                        body.get("resourceId") == resource_id
+                    ),
+                ):
+                    deploy.click()
+                assert requests[1] == requests[2], requests
+                assert replies[1] == replies[2], replies
+                assert "port" not in requests[0]["spec"]["service"], requests
+                assert requests[1]["spec"]["service"]["port"] == 8080, requests
+                assert len(domain_requests) == 1, domain_requests
             expect(page).to_have_url(
                 re.compile(r"/resource/[0-9a-f-]+\?env=" + env_slug + "$")
             )
-            assert len(requests) == 2, requests
+            expected_calls = 3 if changed == "public" else 2
+            assert len(requests) == expected_calls, requests
             expected_rows = 2 if changed else 1
             if changed:
                 assert requests[0]["resourceId"] == requests[1]["resourceId"], requests
@@ -270,6 +397,22 @@ try:
                         )
                         == staging
                     )
+                if changed == "worker":
+                    assert "port" not in requests[1]["spec"]["service"], requests
+                    assert (
+                        sql(
+                            state,
+                            f"SELECT domain FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}' AND environment_id='{staging}';",
+                        )
+                        == name + "-staging.apps.e2e.test"
+                    )
+                    assert (
+                        sql(
+                            state,
+                            f"SELECT count(*) FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}' AND environment_id='{requests[0]['environmentId']}';",
+                        )
+                        == "0"
+                    )
                 if changed == "domain":
                     assert (
                         sql(
@@ -300,6 +443,15 @@ try:
                     {
                         "requests": requests,
                         "replies": replies,
+                        "domain_requests": domain_requests,
+                        "domain_replies": domain_replies,
+                        "domain_attempts": domain_attempts,
+                        "domains": json.loads(
+                            sql(
+                                state,
+                                f"SELECT COALESCE(json_agg(json_build_object('environment_id',environment_id,'domain',domain)),'[]'::json)::text FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}';",
+                            )
+                        ),
                         "deployment_rows": expected_rows,
                     },
                     indent=2,

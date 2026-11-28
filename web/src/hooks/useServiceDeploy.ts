@@ -1,5 +1,5 @@
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { useQuery } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Draft, DraftDeployment } from "@/lib/drafts";
 import { useCreateDeployment } from "@/hooks/useCreateDeployment";
@@ -80,6 +80,7 @@ export function useServiceDeploy(
 		};
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
+		let resourceId = pendingResource?.request.resourceId;
 		try {
 			const deployments = createClient(DeploymentService, transport);
 			const formKey = JSON.stringify(form);
@@ -97,9 +98,8 @@ export function useServiceDeploy(
 								image: form.image.trim(),
 							})
 						).image;
-			const { resourceId } =
-				(priorRequest === undefined ? undefined : { resourceId: priorRequest.resourceId }) ??
-				(await createClient(ResourceService, transport).createResource({
+			if (resourceId === undefined) {
+				const created = await createClient(ResourceService, transport).createResource({
 					workspaceId,
 					name: form.name,
 					type: ResourceType.SERVICE,
@@ -124,45 +124,13 @@ export function useServiceDeploy(
 							},
 						},
 					},
-				}));
+				});
+				resourceId = created.resourceId;
+			}
 			const resources = createClient(ResourceService, transport);
 			const { resource } = await resources.getResource({ key: { case: "resourceId", value: resourceId } });
 			if (resource === undefined) throw new Error("The created resource was not returned");
-			if (previous !== undefined && previous.form !== formKey) {
-				await resources.updateResource({
-					resourceId,
-					name: form.name,
-					description: form.description.trim(),
-					revision: resource.revision,
-				});
-				const wantedDomain = form.isPublic ? `${form.subdomain}.${form.appDomain}` : undefined;
-				const domains = createClient(DomainService, transport);
-				const currentDomains = resource.domains.filter((d) => d.environmentId === env.id);
-				if (form.isPublic) {
-					const primary = currentDomains.find((domain) => domain.isPrimary);
-					if (primary !== undefined && primary.domain !== wantedDomain) {
-						await domains.updateResourceDomain({
-							domainId: primary.id,
-							domain: wantedDomain,
-							updateMask: { paths: ["domain"] },
-						});
-					} else if (primary === undefined) {
-						await domains.createResourceDomain({
-							resourceId,
-							environmentId: env.id,
-							domain: {
-								domainSource: DomainType.APP,
-								subdomain: form.subdomain,
-								appDomain: form.appDomain,
-							},
-						});
-					}
-				} else {
-					for (const domain of currentDomains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary))) {
-						await domains.deleteResourceDomain({ domainId: domain.id });
-					}
-				}
-			}
+
 			const envMap = Object.fromEntries(envVars(form.vars));
 			const request =
 				previous?.form === formKey && priorRequest !== undefined
@@ -206,6 +174,22 @@ export function useServiceDeploy(
 					},
 					resourceId,
 				};
+			const metadataChanged = resource.name !== form.name || resource.description !== form.description.trim();
+			if (metadataChanged) {
+				await resources.updateResource({
+					resourceId,
+					name: form.name,
+					description: form.description.trim(),
+					revision: resource.revision,
+				});
+			}
+			const domains = createClient(DomainService, transport);
+			const currentDomains = resource.domains.filter((domain) => domain.environmentId === env.id);
+			if (!form.isPublic) {
+				for (const domain of currentDomains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary))) {
+					await domains.deleteResourceDomain({ domainId: domain.id });
+				}
+			}
 			try {
 				await deployment.mutateAsync(request);
 			} catch (cause) {
@@ -224,13 +208,34 @@ export function useServiceDeploy(
 				}
 				return { error: { message, field }, resourceId };
 			}
+			if (form.isPublic) {
+				const wantedDomain = `${form.subdomain}.${form.appDomain}`;
+				const primary = currentDomains.find((domain) => domain.isPrimary);
+				if (primary !== undefined && primary.domain !== wantedDomain) {
+					await domains.updateResourceDomain({
+						domainId: primary.id,
+						domain: wantedDomain,
+						updateMask: { paths: ["domain"] },
+					});
+				} else if (primary === undefined) {
+					await domains.createResourceDomain({
+						resourceId,
+						environmentId: env.id,
+						domain: {
+							domainSource: DomainType.APP,
+							subdomain: form.subdomain,
+							appDomain: form.appDomain,
+						},
+					});
+				}
+			}
 			return { error: null, resourceId };
 		} catch (err) {
 			const error = {
-				message: getErrorMessage(err, "Couldn't create the resource"),
+				message: getErrorMessage(err, "Couldn't finish the deployment"),
 				field: apiFieldError(err),
 			};
-			return { error, resourceId: undefined };
+			return { error, resourceId };
 		}
 	};
 
@@ -240,6 +245,16 @@ export function useServiceDeploy(
 		const result = await attempt(form, defaults);
 		setIsPending(false);
 		setDeployError(result.error);
+		if (result.resourceId !== undefined) {
+			void queryClient.invalidateQueries({
+				queryKey: createConnectQueryKey({
+					schema: getResource,
+					input: { key: { case: "resourceId", value: result.resourceId } },
+					transport,
+					cardinality: "finite",
+				}),
+			});
+		}
 		void invalidateDeploys(queryClient, transport, workspaceId, result.resourceId);
 		void queryClient.invalidateQueries({ queryKey: [DOMAIN_AVAILABILITY_KEY] });
 		return result;
