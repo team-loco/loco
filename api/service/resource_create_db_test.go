@@ -91,6 +91,9 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 	if resource.GetId() != created.GetResourceId() {
 		t.Fatalf("resource = %s, want %s", resource.GetId(), created.GetResourceId())
 	}
+	if created.GetRevision() != resource.GetRevision() {
+		t.Fatalf("created revision = %d, committed revision = %d", created.GetRevision(), resource.GetRevision())
+	}
 	domains := resource.GetDomains()
 	if !platform {
 		if len(domains) != 0 {

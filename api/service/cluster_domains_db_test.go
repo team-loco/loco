@@ -346,7 +346,11 @@ func (c *domainClient) addUnder(label, appDomain string) error {
 		AppDomain:    &appDomain,
 	}
 	resourceID := c.f.resourceID.String()
-	req := &domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input}
+	req := &domainv1.CreateResourceDomainRequest{
+		ResourceId:    resourceID,
+		EnvironmentId: c.environmentID.String(),
+		Domain:        input,
+	}
 	_, err := c.server.CreateResourceDomain(c.ctx, req)
 	return err
 }

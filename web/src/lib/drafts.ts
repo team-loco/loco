@@ -1,3 +1,4 @@
+import type { CreateDeploymentRequestJson } from "@gen/loco/deployment/v1/deployment_pb";
 import { RegionAvailability, ResourceStatus, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import type { NewResourceForm } from "@/lib/new-resource";
@@ -6,6 +7,11 @@ import { slug } from "@/lib/slug";
 
 export type DraftEdits = Partial<Omit<NewResourceForm, "image" | "name" | "slug">>;
 
+export interface DraftDeployment {
+	form: string;
+	request: CreateDeploymentRequestJson & { requestId: string; resourceId: string };
+}
+
 export interface Draft {
 	id: string;
 	image: string;
@@ -13,16 +19,17 @@ export interface Draft {
 	slug: string;
 	createdMs: number;
 	edits: DraftEdits;
+	deployment?: DraftDeployment;
 }
 
-const KEY_PREFIX = "loco:drafts:v1";
+const KEY_PREFIX = "loco:drafts:v2";
 
 export const DRAFT_NOTE = "Not deployed yet";
 
 export const DRAFT_RANK = (statusRank(ResourceStatus.DEPLOYING) + statusRank(ResourceStatus.UNSPECIFIED)) / 2;
 
-export function draftsKey(orgId: string, workspaceId: string, environmentId: string): string {
-	return `${KEY_PREFIX}:${orgId}:${workspaceId}:${environmentId}`;
+export function draftsKey(accountId: string, orgId: string, workspaceId: string, environmentId: string): string {
+	return `${KEY_PREFIX}:${accountId}:${orgId}:${workspaceId}:${environmentId}`;
 }
 
 function isDraft(value: unknown): value is Draft {

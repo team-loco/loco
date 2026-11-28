@@ -73,6 +73,7 @@ func createDeploymentReadingSecrets(
 	t.Helper()
 	seedDeployment(t, f, resourceSpec)
 	return deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    f.resourceID.String(),
 		Regions:       []string{testRegion},
 		EnvironmentId: f.envID.String(),
@@ -100,6 +101,7 @@ func (f *deployFixture) deployVariables(
 	service := imageService()
 	service.Env = env
 	return deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    f.resourceID.String(),
 		Regions:       []string{testRegion},
 		EnvironmentId: f.envID.String(),

@@ -71,7 +71,11 @@ with session(out) as browser:
     context, page, errors = open_page(
         browser,
         state=state,
-        storage={f"loco:drafts:v1:{org}:{workspace}:{production}": json.dumps([DRAFT])},
+        storage={
+            f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{production}": json.dumps(
+                [DRAFT]
+            )
+        },
     )
     page.route(RESOURCES, resources)
     page.route(DEPLOYMENTS, deployments)

@@ -3,7 +3,6 @@
 package appdomain
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -41,9 +40,8 @@ func Check(domain string, clusters, targets []Cluster) (string, string, error) {
 		}
 	}
 	if len(missing) > 0 {
-		return "", "", fmt.Errorf(
-			"%w: %s is under %s, which %s does not serve",
-			ErrDomainNotServed, domain, matched, strings.Join(missing, ", "),
+		return "", "", ErrDomainNotServed.Detail(
+			"%s is under %s, which %s does not serve", domain, matched, strings.Join(missing, ", "),
 		)
 	}
 	return matched, label, nil

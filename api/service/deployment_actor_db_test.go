@@ -49,15 +49,19 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 				t.Fatal("image resolution did not return an image without deploying")
 			}
 			commit := &deploymentv1.SourceCommit{Sha: strings.Repeat("a", 40), Dirty: true}
-			created, err := clients.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
-				ResourceId:    f.resourceID.String(),
-				EnvironmentId: f.envID.String(),
-				Regions:       []string{testRegion},
-				Spec: &deploymentv1.DeploymentSpec{
-					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+			created, err := clients.Deployment.CreateDeployment(
+				t.Context(),
+				&deploymentv1.CreateDeploymentRequest{
+					RequestId:     uuid.NewString(),
+					ResourceId:    f.resourceID.String(),
+					EnvironmentId: f.envID.String(),
+					Regions:       []string{testRegion},
+					Spec: &deploymentv1.DeploymentSpec{
+						Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+					},
+					Commit: commit,
 				},
-				Commit: commit,
-			})
+			)
 			if err != nil {
 				t.Fatal(err)
 			}

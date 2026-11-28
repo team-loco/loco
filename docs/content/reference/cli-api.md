@@ -79,6 +79,8 @@ Settings update requests use optional fields. Omitted fields and JSON `null` pre
 
 The stream ends once the deployment is canceled or superseded. A failed deployment can still recover to running, so the stream continues after `FAILED`. Every stream ends after 30 minutes with `DeadlineExceeded`. To resume after any disconnect, open a new stream with `after_seq` set to the last `seq` received; the first message brings the deployment up to date. The API answers `ResourceExhausted` when the caller already holds `LOCO_MAX_CALLER_STREAMS` streams (watches, log tails and event streams together) on one API instance, or the instance holds `LOCO_MAX_STREAMS`; retry once one closes. `NotFound` means the deployment does not exist, was deleted, or is not visible to the caller; reconnecting does not help.
 
+`DeploymentService.CreateDeployment` requires a UUID `request_id`. Save one ID before sending and reuse it when retrying a lost response. Retries return the original deployment ID and pinned build, including after deployment history is pruned. A different request or actor using the same ID fails with `AlreadyExists`; a new intentional deployment needs a new ID. Each retry still requires write access to the resource. An attempt that fails before committing can be retried with the same ID after its cause is fixed.
+
 `GetDeployment` includes the current replicas, and `ListDeployments` omits replicas.
 
 ## Operator repository
@@ -106,3 +108,9 @@ locoadm cluster create --name worker-staging --country us --subdivision ca --kub
 `status` requires a system read or system admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
 
 Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.
+
+`CreateResourceDomain` requires the target `environment_id`. Domains returned on a resource include their environment ID; clients show and edit domains for the selected environment. Updating or deleting a domain by its ID keeps the operation in the environment that owns it.
+
+For a new-service draft, `CreateDeployment.update_resource_targets` replaces the resource's region defaults in the same transaction as its deployment and retry receipt. Pass the loaded `resource_revision` to reject stale edits. Replays keep the original response and do not restore old defaults. Redeploys and rollbacks omit this flag and leave resource defaults and other environments' deployments unchanged.
+
+`CreateResource` returns its committed `revision` with the resource ID. A client can save a following deployment request before making another resource read.

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +26,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -263,6 +266,35 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
+	requestID, err := parseID("request_id", req.GetRequestId())
+	if err != nil {
+		return nil, err
+	}
+	requestBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal deployment request: %w", err)
+	}
+	identity := string(principal.ActorType) + principal.ActorID.String()
+	fingerprint := sha256.Sum256(append([]byte(identity), requestBytes...))
+	receipt, err := s.queries.GetDeploymentRequest(ctx, requestID)
+	if err == nil {
+		return replayDeployment(receipt, fingerprint[:])
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("get deployment request: %w", err)
+	}
+	return s.createDeploymentOnce(ctx, req, principal, resource, requestID, fingerprint)
+}
+
+func (s *DeploymentServer) createDeploymentOnce(
+	ctx context.Context,
+	req *deploymentv1.CreateDeploymentRequest,
+	principal reqctx.Principal,
+	resource genDb.Resource,
+	requestID uuid.UUID,
+	fingerprint [32]byte,
+) (*deploymentv1.CreateDeploymentResponse, error) {
+	resourceID := resource.ID
 	serviceSpec := req.GetSpec().GetService()
 	if serviceSpec == nil {
 		return nil, errOnlyServiceResources
@@ -313,17 +345,37 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, err
 	}
 
+	response := &deploymentv1.CreateDeploymentResponse{Build: pinnedBuild}
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		lockErr := lockDeploymentEnvironments(ctx, qtx, resourceID, environmentID, req.GetRemoveHealthCheck())
+		lockErr := lockDeploymentEnvironments(
+			ctx,
+			qtx,
+			resourceID,
+			environmentID,
+			req.GetRemoveHealthCheck() || req.GetUpdateResourceTargets(),
+		)
 		if lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
+		}
+		receipt, claimErr := qtx.ClaimDeploymentRequest(ctx, genDb.ClaimDeploymentRequestParams{
+			ID: requestID, ResourceID: resourceID, Fingerprint: fingerprint[:],
+		})
+		if claimErr != nil {
+			return fmt.Errorf("claim deployment request: %w", claimErr)
+		}
+		if !bytes.Equal(receipt.Fingerprint, fingerprint[:]) {
+			return errDeploymentRequestChanged
+		}
+		if receipt.Response != nil {
+			response, claimErr = replayDeployment(receipt, fingerprint[:])
+			return claimErr
 		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
@@ -340,21 +392,38 @@ func (s *DeploymentServer) CreateDeployment(
 		if len(regions) == 0 {
 			regions = enabledRegions(render.resourceSpec.GetService().GetRegions())
 		}
-		targets, targetErr := placementTargets(clusters, regions, string(s.defaults.TargetPlatform))
+		targets, targetErr := deploymentTargets(ctx, qtx, render, clusters, regions)
 		if targetErr != nil {
 			return targetErr
 		}
 
-		if req.GetRemoveHealthCheck() {
-			removeErr := removeHealthCheck(ctx, qtx, resourceID, render.resourceSpec.GetService())
-			if removeErr != nil {
-				return removeErr
-			}
+		if prepareErr := prepareDeploymentResource(
+			ctx,
+			qtx,
+			resource,
+			req,
+			render.resourceSpec.GetService(),
+			requestSpec.GetService(),
+		); prepareErr != nil {
+			return prepareErr
 		}
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
 		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
 			return mergeErr
+		}
+
+		if req.GetUpdateResourceTargets() {
+			if targetErr := saveResourceTargets(
+				ctx,
+				qtx,
+				resource,
+				environmentID,
+				render.resourceSpec.GetService(),
+				mergedServiceSpec,
+			); targetErr != nil {
+				return targetErr
+			}
 		}
 
 		resolved, resolveErr := s.resolveVariables(
@@ -393,16 +462,59 @@ func (s *DeploymentServer) CreateDeployment(
 		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
 			return bumpErr
 		}
-		return recordDeploymentCreated(ctx, qtx, resource, environmentID, deploymentID, regions)
+		if eventErr := recordDeploymentCreated(
+			ctx,
+			qtx,
+			resource,
+			environmentID,
+			deploymentID,
+			regions,
+		); eventErr != nil {
+			return eventErr
+		}
+		response.DeploymentId = deploymentID.String()
+		return saveDeploymentResponse(ctx, qtx, requestID, response)
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &deploymentv1.CreateDeploymentResponse{
-		DeploymentId: deploymentID.String(),
-		Build:        pinnedBuild,
-	}, nil
+	return response, nil
+}
+
+func saveDeploymentResponse(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	requestID uuid.UUID,
+	response *deploymentv1.CreateDeploymentResponse,
+) error {
+	encoded, err := proto.Marshal(response)
+	if err != nil {
+		return fmt.Errorf("marshal deployment response: %w", err)
+	}
+	if err := qtx.CompleteDeploymentRequest(
+		ctx,
+		genDb.CompleteDeploymentRequestParams{ID: requestID, Response: encoded},
+	); err != nil {
+		return fmt.Errorf("save deployment response: %w", err)
+	}
+	return nil
+}
+
+var errDeploymentRequestChanged = rpcerr.NewCoded(connect.CodeAlreadyExists, "deployment request ID already used")
+
+func replayDeployment(
+	receipt genDb.DeploymentRequest,
+	fingerprint []byte,
+) (*deploymentv1.CreateDeploymentResponse, error) {
+	if !bytes.Equal(receipt.Fingerprint, fingerprint) {
+		return nil, errDeploymentRequestChanged
+	}
+	response := &deploymentv1.CreateDeploymentResponse{}
+	if err := proto.Unmarshal(receipt.Response, response); err != nil {
+		return nil, fmt.Errorf("decode deployment response: %w", err)
+	}
+	return response, nil
 }
 
 // lockDeploymentEnvironments locks the deployment's environment, or every environment of the

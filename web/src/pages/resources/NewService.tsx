@@ -187,7 +187,10 @@ function ImageStep({
 					body: "Creating a resource needs write access to this workspace.",
 				}
 			: env === undefined
-				? { title: "No environments yet", body: "Create an environment before adding a resource." }
+				? {
+						title: "No environments yet",
+						body: "Create an environment before adding a resource.",
+					}
 				: null;
 	if (notice !== null) {
 		return (
@@ -309,15 +312,21 @@ function DraftPanel({
 	close: () => void;
 }) {
 	const store = useDrafts(orgId, workspaceId, env.id);
-	const taken = useTakenKeys(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(
 		listRegions,
 		{ environmentId: env.id },
-		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: open },
+		{
+			refetchInterval: open ? REGION_POLL_MS : false,
+			refetchOnWindowFocus: open,
+		},
 	);
 	const domainsQuery = useRpcQuery(listAppDomains, { environmentId: env.id });
-	const deployment = useServiceDeploy(workspaceId, env);
+	const draft = store.drafts.find((d) => d.id === draftId);
+	const deployment = useServiceDeploy(workspaceId, env, draft, (operation, form) =>
+		store.setDeployment(draftId, operation, form),
+	);
+	const taken = useTakenKeys(orgId, workspaceId, [], deployment.pendingResourceId);
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
 	const [commandOpen, setCommandOpen] = useState(false);
@@ -325,7 +334,6 @@ function DraftPanel({
 	const [saveFailed, setSaveFailed] = useState(false);
 	const [nameText, setNameText] = useState<string | null>(null);
 
-	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
@@ -425,7 +433,9 @@ function DraftPanel({
 				resourceHref={
 					deployment.resourceId === undefined
 						? undefined
-						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.slug })
+						: resourcePath(orgId, workspaceId, deployment.resourceId, {
+								env: env.slug,
+							})
 				}
 				tried={tried}
 				commandOpen={commandOpen}
@@ -592,7 +602,13 @@ function ServiceForm({
 		args: edits.args ?? "",
 	};
 	const imageCheck = useImageCheck(env.workspaceId, image);
-	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, []);
+	const availability = useDomainAvailability(
+		form.isPublic ? form.subdomain : "",
+		form.appDomain,
+		deployment.pendingDomains,
+	);
+	// A retained draft already owns this address; recovery uses it rather than adding it again.
+	const check = availability.state === "mine" ? { ...availability, state: "available" as const } : availability;
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: ReactNode, field: keyof NewResourceForm): ReactNode => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
@@ -614,7 +630,7 @@ function ServiceForm({
 				onTry();
 				if (errors.scaling !== null) setScalingOpen(true);
 				if (errors.env !== null) setVarsOpen(true);
-				if (blocker !== null || isPending || resourceId !== undefined) return;
+				if (blocker !== null || isPending) return;
 				void deploy(form, defaults).then(({ error, resourceId: createdResourceId }) => {
 					if (error === null && createdResourceId !== undefined) {
 						onDeployed(createdResourceId);
@@ -888,7 +904,7 @@ function ServiceForm({
 						Open resource
 					</Button>
 				)}
-				<Button type="submit" className="max-w-full" disabled={isPending || resourceId !== undefined}>
+				<Button type="submit" className="max-w-full" disabled={isPending}>
 					{isPending && <Spinner aria-hidden />}
 					<span className="truncate">{`Deploy ${name}`}</span>
 				</Button>
@@ -1122,7 +1138,10 @@ function HealthSection({
 					aria-label="Health check"
 					checked={health.enabled}
 					onCheckedChange={(enabled) => {
-						onChange({ enabled, path: health.path === "" ? "/healthz" : health.path });
+						onChange({
+							enabled,
+							path: health.path === "" ? "/healthz" : health.path,
+						});
 					}}
 				/>
 			}

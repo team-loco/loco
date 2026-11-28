@@ -112,18 +112,18 @@ func (s *DomainServer) CreateResourceDomain(
 	if err = authorize(ctx, s.authz, actions.AddDomain, resourceID); err != nil {
 		return nil, err
 	}
+	environmentID, err := parseID("environment_id", req.GetEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
 	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetAppDomain()
-	appDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
+	appDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, environmentID, fullDomain)
 	if err != nil {
 		return nil, fmt.Errorf("check the resource domain: %w", err)
 	}
 
 	var resourceDomain uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
-		if envErr != nil {
-			return envErr
-		}
 		if lockErr := lockResourceDomains(ctx, qtx, resourceID, environmentID); lockErr != nil {
 			return lockErr
 		}
@@ -212,7 +212,12 @@ func (s *DomainServer) UpdateResourceDomain(
 	var appDomain *string
 	if changed {
 		if domainRow.DomainSource == genDb.DomainSourceApp {
-			domain, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
+			domain, label, checkErr := s.checkResourceDomain(
+				ctx,
+				domainRow.ResourceID,
+				domainRow.EnvironmentID,
+				req.GetDomain(),
+			)
 			if checkErr != nil {
 				return nil, fmt.Errorf("check the resource domain: %w", checkErr)
 			}
@@ -433,7 +438,7 @@ func (s *DomainServer) CheckDomainAvailability(
 
 func (s *DomainServer) checkResourceDomain(
 	ctx context.Context,
-	resourceID uuid.UUID,
+	resourceID, environmentID uuid.UUID,
 	hostname string,
 ) (string, string, error) {
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
@@ -443,12 +448,15 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
-	env, err := s.queries.GetWorkspaceDefaultEnvironment(ctx, resource.WorkspaceID)
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", errNoWorkspaceEnvironment
+		return "", "", ErrEnvironmentNotFound
 	}
 	if err != nil {
-		return "", "", fmt.Errorf("get production environment: %w", err)
+		return "", "", fmt.Errorf("get domain environment: %w", err)
+	}
+	if env.WorkspaceID != resource.WorkspaceID {
+		return "", "", ErrEnvironmentNotFound
 	}
 	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if err != nil {
@@ -494,23 +502,6 @@ func (s *DomainServer) checkResourceDomain(
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
 	return appdomain.Check(hostname, check.clusters, check.targets)
-}
-
-// imperativeDomainEnvironment resolves the production environment for domain RPCs
-// that operate on a resource without an environment ID.
-func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceID uuid.UUID) (uuid.UUID, error) {
-	workspaceID, err := q.GetResourceWorkspaceID(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, ErrResourceNotFound
-	}
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("get resource workspace: %w", err)
-	}
-	env, err := workspaceDefaultEnvironment(ctx, q, workspaceID)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-	return env.ID, nil
 }
 
 func workspaceDefaultEnvironment(

@@ -1,31 +1,17 @@
-import { createContext, use, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
-import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 
 import { toastConnectError } from "@/lib/error-handler";
 import { removeStorage } from "@/lib/storage";
 
+export { useAuth } from "./auth-context";
+import { AuthContext } from "./auth-context";
+
 import { signOut, unauthenticated } from "./connect-transport";
 import { getClaimedOrgs, setClaimedOrgs, subscribeClaimedOrgs } from "./claimed";
-
-interface AuthContextType {
-	user: User | null;
-	claimedOrgs: ClaimedOrg[];
-	dismissClaimedOrgs: () => void;
-	signedOut: boolean;
-	/** While held, a session that ends sends the user to a sign-in page that waits for a click. */
-	signInHeld: boolean;
-	holdSignIn: (held: boolean) => void;
-	isAuthenticated: boolean;
-	isPending: boolean;
-	error: Error | null;
-	logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
 
 export const QUERY_CACHE_KEY = "loco:query-cache:v1";
 
@@ -79,12 +65,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			{children}
 		</AuthContext>
 	);
-}
-
-export function useAuth() {
-	const ctx = use(AuthContext);
-	if (!ctx) {
-		throw new Error("useAuth must be used inside AuthProvider");
-	}
-	return ctx;
 }

@@ -216,6 +216,8 @@ message CreateResourceRequest {
 // CreateResourceResponse is the response containing the created resource ID.
 message CreateResourceResponse {
   string resource_id = 1;
+  // The committed resource revision, for a following optimistic configuration update.
+  int64 revision = 2;
 }
 
 // GetResourceSlugKey looks up a resource by slug within a workspace.

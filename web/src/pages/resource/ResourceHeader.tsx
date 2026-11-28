@@ -136,7 +136,8 @@ export function ResourceHeader({
 }) {
 	const [titleWidth, measureTitle] = useWidth();
 	const primary = regions.find(isDeployed)?.current;
-	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
+	const domains = resource.domains.filter((d) => d.environmentId === environment?.environmentId);
+	const domain = domains.find((d) => d.isPrimary) ?? domains[0];
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (

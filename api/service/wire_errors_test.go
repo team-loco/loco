@@ -129,7 +129,7 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 		},
 			call: func(ctx context.Context, client *connect.Client) error {
 				serviceClient := domainv1connect.NewDomainServiceClient(client)
-				request := &domainv1.CreateResourceDomainRequest{ResourceId: wireEntityID}
+				request := &domainv1.CreateResourceDomainRequest{ResourceId: wireEntityID, EnvironmentId: wireEntityID}
 				_, err := serviceClient.CreateResourceDomain(ctx, request)
 				return err
 			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},

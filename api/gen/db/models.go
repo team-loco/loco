@@ -826,6 +826,13 @@ type DeploymentPlacement struct {
 	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
+type DeploymentRequest struct {
+	ID          uuid.UUID `json:"id"`
+	ResourceID  uuid.UUID `json:"resourceId"`
+	Fingerprint []byte    `json:"fingerprint"`
+	Response    []byte    `json:"response"`
+}
+
 type DeploymentRollout struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
 	ClusterID    uuid.UUID `json:"clusterId"`

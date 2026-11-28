@@ -27,9 +27,10 @@ const (
 )
 
 type domainClient struct {
-	server *DomainServer
-	ctx    context.Context
-	f      *deployFixture
+	server        *DomainServer
+	ctx           context.Context
+	f             *deployFixture
+	environmentID uuid.UUID
 }
 
 func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
@@ -41,7 +42,7 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 	// Domain tests outlast one heartbeat window on a loaded machine; heartbeat eligibility has its own tests.
 	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), time.Hour, limits.Defaults())
 	f.serveDomains(t, testAppDomain)
-	return &domainClient{server: server, ctx: scoped, f: f}
+	return &domainClient{server: server, ctx: scoped, f: f, environmentID: f.envID}
 }
 
 func (c *domainClient) domainID(t *testing.T, domain string) string {
@@ -474,4 +475,45 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 
 func serviceSpecPayload(_ uuid.UUID) ([]byte, error) {
 	return []byte(`{"app_spec":{"serviceSpec":{"deployment":{}}}}`), nil
+}
+
+func TestDomainOperationsStayInTheirSelectedEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	c := newDomainClient(t, f)
+	if err := c.add("production." + testAppDomain); err != nil {
+		t.Fatal(err)
+	}
+	staging := f.addStagingEnvironment(t)
+	c.environmentID = staging
+	if err := c.add("staging." + testAppDomain); err != nil {
+		t.Fatal(err)
+	}
+	id := c.domainID(t, "staging."+testAppDomain)
+	_, err := c.server.UpdateResourceDomain(
+		c.ctx,
+		&domainv1.UpdateResourceDomainRequest{DomainId: id, Domain: new("renamed." + testAppDomain)},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var actual uuid.UUID
+	if err := f.pool.QueryRow(t.Context(), "SELECT environment_id FROM resource_domains WHERE id=$1", id).
+		Scan(&actual); err != nil {
+		t.Fatal(err)
+	}
+	if actual != staging {
+		t.Fatalf("domain environment=%s want %s", actual, staging)
+	}
+	if err := c.removeByID(id); err != nil {
+		t.Fatal(err)
+	}
+	var remaining string
+	if err := f.pool.QueryRow(t.Context(), "SELECT domain FROM resource_domains WHERE resource_id=$1", f.resourceID).
+		Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != "production."+testAppDomain {
+		t.Fatalf("production domain changed: %s", remaining)
+	}
 }

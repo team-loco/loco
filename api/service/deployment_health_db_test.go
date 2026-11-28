@@ -190,6 +190,7 @@ func healthRequest(
 	remove bool,
 ) *deploymentv1.CreateDeploymentRequest {
 	return &deploymentv1.CreateDeploymentRequest{
+		RequestId:         uuid.NewString(),
 		ResourceId:        f.resourceID.String(),
 		Regions:           []string{testRegion},
 		EnvironmentId:     environmentID.String(),
@@ -200,6 +201,7 @@ func healthRequest(
 
 func wireRequest(service *deploymentv1.ServiceDeploymentSpec, remove bool) *deploymentv1.CreateDeploymentRequest {
 	return &deploymentv1.CreateDeploymentRequest{
+		RequestId:         uuid.NewString(),
 		ResourceId:        "01a1dbb5-4966-72e2-a92b-a2560006942a",
 		EnvironmentId:     "01a1dbb5-4966-72e2-a92b-a2560006942b",
 		Spec:              &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},

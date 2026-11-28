@@ -158,7 +158,10 @@ export function SettingsView({
 		const release = () => {
 			pinnedRef.current = false;
 		};
-		document.addEventListener("scroll", follow, { capture: true, passive: true });
+		document.addEventListener("scroll", follow, {
+			capture: true,
+			passive: true,
+		});
 		for (const type of USER_INPUTS) document.addEventListener(type, release, { passive: true });
 		// Sections that load later move a linked section; keep it in place until the user scrolls.
 		const resize = new ResizeObserver(() => {
@@ -238,7 +241,14 @@ export function SettingsView({
 	const shownErrors: DraftErrors = tried
 		? errors
 		: Object.fromEntries(LIVE_ERROR_KEYS.map((key) => [key, errors[key]]));
-	const props = { draft, base, errors: shownErrors, locked, describedBy, onChange: change };
+	const props = {
+		draft,
+		base,
+		errors: shownErrors,
+		locked,
+		describedBy,
+		onChange: change,
+	};
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -299,9 +309,10 @@ export function SettingsView({
 					<DeploymentSection {...props} />
 					<ObservabilitySection {...props} />
 					<NetworkingSection
+						environmentId={environmentId}
 						{...props}
 						resourceId={resource.id}
-						domains={resource.domains}
+						domains={resource.domains.filter((d) => d.environmentId === environmentId)}
 						appDomains={domainsQuery.data?.appDomains ?? []}
 						regions={regionsQuery.data?.regions ?? []}
 						served={served}
@@ -378,9 +389,11 @@ export function SettingsView({
 						}}
 					>
 						<ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-[13px]">
-							{resource.domains.map((d) => (
-								<li key={d.domain}>{d.domain}</li>
-							))}
+							{resource.domains
+								.filter((d) => d.environmentId === environmentId)
+								.map((d) => (
+									<li key={d.domain}>{d.domain}</li>
+								))}
 						</ul>
 					</ConfirmDialog>
 				</div>

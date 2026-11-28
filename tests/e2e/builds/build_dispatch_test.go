@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -293,6 +294,7 @@ func createDeployment(
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
 	request := &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    resourceID,
 		Regions:       []string{p.Region},
 		EnvironmentId: w.EnvironmentID,

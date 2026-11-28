@@ -54,6 +54,7 @@ func TestScaleBuildsOnTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 		response, err := server.CreateDeployment(
 			ctx,
 			&deploymentv1.CreateDeploymentRequest{
+				RequestId:     uuid.NewString(),
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
 				Regions:       []string{testRegion},

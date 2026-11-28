@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 
@@ -709,18 +710,22 @@ func (s *status) rolloutAcceptsMutations(t *testing.T) {
 	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "125m")
 	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "150m")
 	w.MustLoco(t, dir, "secret", "set", "--env", platform.Production, "ROLLOUT_TEST=changed")
-	replacement, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
-		ResourceId:    id,
-		EnvironmentId: w.EnvironmentID,
-		Regions:       []string{p.Region},
-		Spec: &deploymentv1.DeploymentSpec{
-			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.PublicImage},
-				Port:  new(int32(8080)),
-				Env:   map[string]string{"ROLLOUT_TEST": "changed"},
-			}},
+	replacement, err := p.User.Deployment.CreateDeployment(
+		t.Context(),
+		&deploymentv1.CreateDeploymentRequest{
+			RequestId:     uuid.NewString(),
+			ResourceId:    id,
+			EnvironmentId: w.EnvironmentID,
+			Regions:       []string{p.Region},
+			Spec: &deploymentv1.DeploymentSpec{
+				Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
+					Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.PublicImage},
+					Port:  new(int32(8080)),
+					Env:   map[string]string{"ROLLOUT_TEST": "changed"},
+				}},
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatalf("a replacement deployment during a rollout: %v", err)
 	}
@@ -760,17 +765,21 @@ func (s *status) cancelKeepsPreviousServing(t *testing.T) {
 	w, id := s.w, s.id
 	waitRolloutFinished(t, w, app)
 	previous := regionStatus(t, w, app).GetDeploymentId()
-	created, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
-		ResourceId:    id,
-		EnvironmentId: w.EnvironmentID,
-		Regions:       []string{p.Region},
-		Spec: &deploymentv1.DeploymentSpec{
-			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.WorkerImage},
-				Port:  new(int32(8080)),
-			}},
+	created, err := p.User.Deployment.CreateDeployment(
+		t.Context(),
+		&deploymentv1.CreateDeploymentRequest{
+			RequestId:     uuid.NewString(),
+			ResourceId:    id,
+			EnvironmentId: w.EnvironmentID,
+			Regions:       []string{p.Region},
+			Spec: &deploymentv1.DeploymentSpec{
+				Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
+					Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.WorkerImage},
+					Port:  new(int32(8080)),
+				}},
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

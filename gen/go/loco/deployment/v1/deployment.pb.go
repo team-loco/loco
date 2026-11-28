@@ -1299,8 +1299,12 @@ func (x *DeploymentPlacement) GetPreviousDeploymentId() string {
 
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Persist one ID per deployment attempt and reuse it after a lost response. Reusing an ID with
+	// different input or actor fails. Replay returns the original response while the resource exists,
+	// even after its deployment history is pruned.
+	RequestId  string `protobuf:"bytes,12,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ResourceId string `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	// The regions to deploy to; empty deploys to every enabled region of the resource.
 	Regions       []string        `protobuf:"bytes,8,rep,name=regions,proto3" json:"regions,omitempty"`
 	Spec          *DeploymentSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
@@ -1313,8 +1317,13 @@ type CreateDeploymentRequest struct {
 	// own, which a spec without one inherits. The resource's check is the default for every
 	// environment of the workspace; deployments already running in other environments keep theirs.
 	RemoveHealthCheck bool `protobuf:"varint,11,opt,name=remove_health_check,json=removeHealthCheck,proto3" json:"remove_health_check,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Replace resource region defaults with this deployment's complete target map atomically.
+	// Existing deployments in other environments keep their configuration.
+	UpdateResourceTargets bool `protobuf:"varint,13,opt,name=update_resource_targets,json=updateResourceTargets,proto3" json:"update_resource_targets,omitempty"`
+	// Required when update_resource_targets is true; rejects edits to a changed resource.
+	ResourceRevision *int64 `protobuf:"varint,14,opt,name=resource_revision,json=resourceRevision,proto3,oneof" json:"resource_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateDeploymentRequest) Reset() {
@@ -1345,6 +1354,13 @@ func (x *CreateDeploymentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateDeploymentRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
 }
 
 func (x *CreateDeploymentRequest) GetResourceId() string {
@@ -1401,6 +1417,20 @@ func (x *CreateDeploymentRequest) GetRemoveHealthCheck() bool {
 		return x.RemoveHealthCheck
 	}
 	return false
+}
+
+func (x *CreateDeploymentRequest) GetUpdateResourceTargets() bool {
+	if x != nil {
+		return x.UpdateResourceTargets
+	}
+	return false
+}
+
+func (x *CreateDeploymentRequest) GetResourceRevision() int64 {
+	if x != nil && x.ResourceRevision != nil {
+		return *x.ResourceRevision
+	}
+	return 0
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
@@ -3369,8 +3399,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\rsuperseded_by\x18\f \x01(\tR\fsupersededBy\x124\n" +
 	"\x16previous_deployment_id\x18\r \x01(\tR\x14previousDeploymentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\x94\x05\n" +
-	"\x17CreateDeploymentRequest\x12)\n" +
+	"\r_completed_at\"\x9b\b\n" +
+	"\x17CreateDeploymentRequest\x12'\n" +
+	"\n" +
+	"request_id\x18\f \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\trequestId\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
 	"\aregions\x18\b \x03(\tB\x0e\xbaH\v\x92\x01\b\x18\x01\"\x04r\x02\x10\x01R\aregions\x12>\n" +
@@ -3380,8 +3412,12 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\atrigger\x18\t \x01(\x0e2%.loco.deployment.v1.DeploymentTriggerB\x0e\xbaH\v\x82\x01\b\x18\x00\x18\x01\x18\x02\x18\x03R\atrigger\x12=\n" +
 	"\x14source_deployment_id\x18\n" +
 	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x12sourceDeploymentId\x12.\n" +
-	"\x13remove_health_check\x18\v \x01(\bR\x11removeHealthCheck:\xb8\x01\xbaH\xb4\x01\x1a\xb1\x01\n" +
-	"3create_deployment.remove_health_check_without_check\x127remove_health_check needs a spec without a health_check\x1aA!this.remove_health_check || !has(this.spec.service.health_check)\"v\n" +
+	"\x13remove_health_check\x18\v \x01(\bR\x11removeHealthCheck\x126\n" +
+	"\x17update_resource_targets\x18\r \x01(\bR\x15updateResourceTargets\x129\n" +
+	"\x11resource_revision\x18\x0e \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\x10resourceRevision\x88\x01\x01:\x8d\x03\xbaH\x89\x03\x1a\xd2\x01\n" +
+	"+create_deployment.resource_targets_revision\x12Iupdating resource targets requires resource_revision and explicit regions\x1aX!this.update_resource_targets || (has(this.resource_revision) && size(this.regions) > 0)\x1a\xb1\x01\n" +
+	"3create_deployment.remove_health_check_without_check\x127remove_health_check needs a spec without a health_check\x1aA!this.remove_health_check || !has(this.spec.service.health_check)B\x14\n" +
+	"\x12_resource_revision\"v\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x125\n" +
 	"\x05build\x18\x02 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\"E\n" +
@@ -3748,6 +3784,7 @@ func file_loco_deployment_v1_deployment_proto_init() {
 	}
 	file_loco_deployment_v1_deployment_proto_msgTypes[8].OneofWrappers = []any{}
 	file_loco_deployment_v1_deployment_proto_msgTypes[9].OneofWrappers = []any{}
+	file_loco_deployment_v1_deployment_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

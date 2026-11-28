@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -63,16 +64,20 @@ func TestPublicImageSizeBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
-		ResourceId:    created.GetResourceId(),
-		EnvironmentId: w.EnvironmentID,
-		Regions:       []string{p.Region},
-		Spec: &deploymentv1.DeploymentSpec{
-			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: ref.Name()},
-			}},
+	_, err = p.User.Deployment.CreateDeployment(
+		t.Context(),
+		&deploymentv1.CreateDeploymentRequest{
+			RequestId:     uuid.NewString(),
+			ResourceId:    created.GetResourceId(),
+			EnvironmentId: w.EnvironmentID,
+			Regions:       []string{p.Region},
+			Spec: &deploymentv1.DeploymentSpec{
+				Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
+					Build: &deploymentv1.BuildSource{Type: imageBuild, Image: ref.Name()},
+				}},
+			},
 		},
-	})
+	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "exceeds limit") ||
 		!strings.Contains(err.Error(), "bytes") {
 		t.Fatalf("oversized deployment error = %v", err)

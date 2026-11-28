@@ -197,6 +197,7 @@ type ResourceDomain struct {
 	IsPrimary      bool                   `protobuf:"varint,7,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	EnvironmentId  string                 `protobuf:"bytes,10,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -294,6 +295,13 @@ func (x *ResourceDomain) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ResourceDomain) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 // ListAppDomainsRequest names the environment whose clusters' domains to list.
 type ListAppDomainsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -389,6 +397,7 @@ type CreateResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Domain        *DomainInput           `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -435,6 +444,13 @@ func (x *CreateResourceDomainRequest) GetDomain() *DomainInput {
 		return x.Domain
 	}
 	return nil
+}
+
+func (x *CreateResourceDomainRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 // CreateResourceDomainResponse is the response containing the created resource domain ID.
@@ -884,7 +900,7 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x17app.app_domain_required\x12&app_domain is required for app domains\x1aJthis.domain_source != 1 || (has(this.app_domain) && this.app_domain != '')B\f\n" +
 	"\n" +
 	"_subdomainB\r\n" +
-	"\v_app_domain\"\xa4\x03\n" +
+	"\v_app_domain\"\xcb\x03\n" +
 	"\x0eResourceDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -899,18 +915,21 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x12\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0eenvironment_id\x18\n" +
+	" \x01(\tR\renvironmentIdB\x12\n" +
 	"\x10_subdomain_labelB\r\n" +
 	"\v_app_domain\"H\n" +
 	"\x15ListAppDomainsRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"T\n" +
 	"\x16ListAppDomainsResponse\x12:\n" +
 	"\vapp_domains\x18\x01 \x03(\v2\x19.loco.domain.v1.AppDomainR\n" +
-	"appDomains\"\x85\x01\n" +
+	"appDomains\"\xb6\x01\n" +
 	"\x1bCreateResourceDomainRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12;\n" +
-	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\";\n" +
+	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\x12/\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\";\n" +
 	"\x1cCreateResourceDomainResponse\x12\x1b\n" +
 	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\xb2\x01\n" +
 	"\x1bUpdateResourceDomainRequest\x12%\n" +

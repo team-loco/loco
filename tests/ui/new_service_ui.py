@@ -62,7 +62,9 @@ production = sql(
 replica_limit = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"][
     "maxReplicas"
 ]
-drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
+drafts_key = (
+    f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{production}"
+)
 DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
 
@@ -847,9 +849,9 @@ with session(out) as browser:
     # Failed deployment creation cleans up the resource and permits retry.
     def deployment_error(route):
         return route.fulfill(
-            status=503,
+            status=400,
             json={
-                "code": "unavailable",
+                "code": "invalid_argument",
                 "message": "Deployment creation unavailable",
             },
         )
@@ -875,7 +877,7 @@ with session(out) as browser:
         deployment_error,
     )
 
-    # A retained resource keeps its error and cannot be deployed twice.
+    # Failed cleanup retains ownership so a corrected draft can retry safely.
     def unavailable(route):
         return route.fulfill(status=503, json={"code": "unavailable"})
 
@@ -889,10 +891,9 @@ with session(out) as browser:
         drawer.get_by_text("Deployment creation unavailable.", exact=True)
     ).to_be_visible()
     drawer.get_by_role("textbox", name="Description").fill("Retained resource")
-    expect(drawer.get_by_role("alert")).to_have_text("Deployment creation unavailable.")
     expect(
         drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
-    ).to_be_disabled()
+    ).to_be_enabled()
     retained = drawer.get_by_role("link", name="Open resource", exact=True)
     expect(retained).to_have_attribute(
         "href", re.compile(r"/resource/[0-9a-f-]+\?env=production$")
@@ -905,32 +906,21 @@ with session(out) as browser:
         deployment_error,
     )
     page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
-    # The drawer learns of the retained resource before it is deleted elsewhere.
-    taken = f"{name}.{app_domain} is taken"
-    expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
-    expect(drawer.get_by_role("alert")).to_have_text("Deployment creation unavailable.")
-    orphan = sql(state, f"SELECT id FROM resources WHERE slug='{name}';")
-    call(
-        state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
-    )
+    # The retained resource owns its address and remains available to this draft.
+    expect(
+        drawer.get_by_text(f"{name}.{app_domain} is available", exact=True)
+    ).to_be_visible()
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-    # The table sees a deletion made elsewhere on its next poll; the reload skips the wait.
+    # Reload recovers the saved attempt and its existing resource.
     page.reload()
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
     expect(
         drawer.get_by_text(f"{name}.{app_domain} is available", exact=True)
     ).to_be_visible()
-    expect(drawer.get_by_text(taken, exact=True)).to_have_count(0)
-    expect(drawer.get_by_text("already uses this name")).to_have_count(0)
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-    expect(
-        page.get_by_role("row").filter(
-            has=page.get_by_role("link", name=name, exact=True)
-        )
-    ).to_have_count(1)
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
     drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
@@ -941,12 +931,14 @@ with session(out) as browser:
     )
     deploy_button = drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
     with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
-        deploy_button.click()
+        with page.expect_request(
+            "**/loco.deployment.v1.DeploymentService/CreateDeployment"
+        ):
+            deploy_button.click()
         expect(deploy_button).to_be_disabled()
         expect(deploy_button.locator("[data-slot=spinner]")).to_be_visible()
         expect(page).to_have_url(DRAFT_URL)
-        while not pending:
-            page.wait_for_timeout(50)
+        assert pending, "deployment RPC was not dispatched"
         pending[0].fallback()
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
