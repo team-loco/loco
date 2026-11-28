@@ -101,5 +101,8 @@ openbao:
 platformTelemetry:
   enabled: true
   region: local-1
-  logs:
-    namespaceOverride: loco-control-plane-node-logs
+  collectionInterval: 3s
+nodeCollector:
+  namespaceOverride: loco-control-plane-node-telemetry
+clusterCollector:
+  namespaceOverride: loco-control-plane-cluster-telemetry

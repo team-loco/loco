@@ -156,6 +156,7 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		},
 	)
 	cp.checkNodeLogs(t, reader, readerPassword, pod)
+	cp.checkPlatformCollection(t, reader, readerPassword, pod)
 }
 
 func (cp *controlPlane) checkNodeLogs(t *testing.T, reader, password, clickhousePod string) {

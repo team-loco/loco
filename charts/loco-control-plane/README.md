@@ -168,9 +168,20 @@ The E2E suite builds the dashboard, API and proxy images, installs the CloudNati
 
 `platformTelemetry.enabled: true` makes the API export its own traces and Go runtime metrics over OTLP/HTTP, and makes the observability proxy export workload-ingestion traces. These SDK exporters send directly to the configured endpoint. System-only ingestion produces no proxy spans, so storing those traces cannot create an export loop. The proxy's runtime metrics are not exported over OTLP.
 
-The chart also installs a node collector through the upstream OpenTelemetry collector chart. It reads the API and proxy's container log files and sends them through `platformTelemetry.exporter`, with node and file identity. The installer selects the API runtime mode through `api.env.APP_ENV` or the API environment Secret. Set `APP_ENV=PRODUCTION` to write structured JSON to stdout; it also enables the API's production CORS checks. The observability proxy always writes JSON to stdout. The collector excludes ingestion failure diagnostics marked `loco.telemetry.internal=true` from forwarding to prevent collection loops; they remain visible on stdout.
+The chart installs two roles from the upstream OpenTelemetry collector chart:
 
-`platformTelemetry.logs.enabled` defaults to true. Set it to false to use another log collector while retaining SDK traces and metrics. Disabling `platformTelemetry.enabled` disables both SDK telemetry and this node collector. The node collector runs in the dedicated namespace `loco-obs-control-plane`; change `platformTelemetry.logs.namespaceOverride` to use another namespace. That namespace permits the host log mounts, while the control-plane namespace can retain its restricted Pod Security policy.
+| Chart value | Workload | Collects |
+| --- | --- | --- |
+| `nodeCollector` | `node-collector-agent` DaemonSet, one pod per node | API and proxy container logs, and node, pod and container usage from each kubelet |
+| `clusterCollector` | `cluster-collector` StatefulSet, one active replica | Kubernetes cluster state, node capacity and conditions, and events |
+
+Both export through `platformTelemetry.exporter` with region and Kubernetes identity. `platformTelemetry.collectionInterval` controls metric collection, 60s by default; Kubernetes events use a watch. The installer selects the API runtime mode through `api.env.APP_ENV` or the API environment Secret. Set `APP_ENV=PRODUCTION` to write structured JSON to stdout; it also enables the API's production CORS checks. The observability proxy always writes JSON to stdout. The node collector excludes ingestion failure diagnostics marked `loco.telemetry.internal=true` from forwarding to prevent collection loops; they remain visible on stdout.
+
+`platformTelemetry.logs.enabled` defaults to true. Set it to false to stop automatic platform stdout forwarding while retaining infrastructure metrics, Kubernetes events and SDK telemetry. The node collector stays installed to scrape kubelet metrics. Authenticated OTLP log ingestion remains available.
+
+Disabling `platformTelemetry.enabled` disables SDK telemetry and the default control-plane collectors. Each role follows that master switch unless its `enabled` value is explicitly false. `nodeCollector.enabled: false` and `clusterCollector.enabled: false` delegate their collection to another installation while retaining SDK telemetry. Enabling a role explicitly while platform telemetry is off is refused.
+
+The node collector runs in `loco-obs-control-plane`; change `nodeCollector.namespaceOverride` to use another namespace. That namespace permits the host log mounts, while the control-plane namespace can retain its restricted Pod Security policy. The cluster collector runs in `loco-obs-control-plane-cluster`, configured through `clusterCollector.namespaceOverride`. Images, resources, scheduling and persistent storage belong to these role values rather than the stdout collection switch.
 
 `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
 
@@ -180,13 +191,15 @@ platformTelemetry:
   region: us-ca-1
 ```
 
-Without `platformTelemetry.exporter.endpoint`, the API and proxy send to `<release>-obs-proxy-ingest` on `obsProxy.ingest.httpPort`, which needs `obsProxy.enabled`. The chart generates a token in the Secret `<release>-system-ingest-token`, keeps it across upgrades, and gives it to the proxy as `SYSTEM_INGEST_TOKEN` and to both processes as their exporter bearer token. The proxy stores everything that token sends under the system tenant; see [platform telemetry](../../docs/content/operations/platform-telemetry.md).
+When the worker and control-plane charts share a Kubernetes cluster, use one node and cluster collection owner. Set both control-plane roles' `enabled` values to false and enable the worker chart's platform pipelines. Include the control-plane namespace in the worker's `global.platformTelemetry.namespaces` when it differs from the worker release namespace. This preserves customer telemetry and prevents duplicate kubelet and cluster-state collection.
+
+Without `platformTelemetry.exporter.endpoint`, the API and proxy send to `<release>-obs-proxy-ingest` on `obsProxy.ingest.httpPort`, which needs `obsProxy.enabled`. The node and cluster collectors use the internal `<release>-system-ingest` Service. The chart generates a token in the Secret `<release>-system-ingest-token`, keeps it across upgrades, and copies it into each enabled collector's namespace. The proxy receives it as `SYSTEM_INGEST_TOKEN`; the SDKs and collectors authenticate their exports with it. The proxy stores everything that token sends under the system tenant; see [platform telemetry](../../docs/content/operations/platform-telemetry.md).
 
 The chart's gateway also exports traces to the system ingest as `loco-gateway`. The API starts its own trace and links back to the gateway span, preserving the public request boundary. `gateway.tracing.samplingRate` defaults to 100 percent. A collector sidecar in each ingest pod receives gateway OTLP/gRPC on `gateway.tracing.collector.port` (default 4319), reads the existing system token from its Secret, and forwards spans to the local authenticated ingest listener. Its image and resource limits are under `gateway.tracing.collector`. Only the managed gateway pods can reach this receiver through the chart's NetworkPolicy. If `gatewayNamespace` differs from the release namespace, the chart grants the gateway access to the ingest Service. Exports go directly to the internal Service, so they do not pass through the gateway again.
 
 Gateway tracing is enabled only with the built-in system ingest. With an external endpoint, configure gateway tracing separately against an OTLP/gRPC collector; `platformTelemetry.exporter.endpoint` configures OTLP/HTTP SDK exporters.
 
-With an endpoint, the API, proxy and node collector send only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
+With an endpoint, the API, proxy, node collector and cluster collector send only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
 
 ```yaml
 platformTelemetry:
