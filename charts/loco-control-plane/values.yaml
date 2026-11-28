@@ -633,6 +633,3 @@ openbao:
       name: ""
       key: token
 
-# Shared collector defaults; consumed internally by node log collection.
-# @schema skipProperties
-loco-collector-config: {}

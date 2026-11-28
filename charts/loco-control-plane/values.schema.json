@@ -587,9 +587,6 @@
         "null"
       ]
     },
-    "loco-collector-config": {
-      "type": "object"
-    },
     "obsProxy": {
       "allOf": [
         {
