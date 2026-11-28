@@ -798,6 +798,9 @@
         }
       }
     },
+    "loco-collector-config": {
+      "type": "object"
+    },
     "metrics-server": {
       "type": "object"
     },

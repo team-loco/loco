@@ -1,6 +1,9 @@
 dependencies:
+- name: loco-collector-config
+  repository: file://../loco-collector-config
+  version: 0.1.0
 - name: clickhouse
   repository: https://helm.altinity.com
   version: 0.3.13
-digest: sha256:291ca50ae12f9020a8680c04b75bc9e25c8e7cd25e0c46bbb2ce18367f56d086
-generated: "2026-10-22T22:38:53.796734-07:00"
+digest: sha256:dfac5bcb1f3d813b50a38d42993fe75ed282168741dfca45ab5e037dc0ee2354
+generated: "2026-11-27T19:32:00.145808-08:00"

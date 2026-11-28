@@ -168,6 +168,10 @@ platformTelemetry:
   enabled: false
   # Physical region of this control plane; required when enabled. Exported as loco.region.
   region: ""
+  # Collect control-plane stdout on each node. Disable when an external collector owns these logs.
+  # @schema additionalProperties: false
+  logs:
+    enabled: true
   # without an endpoint, the API sends to the observability proxy, which stores everything under
   # the system tenant; obsProxy.enabled is then required.
   # @schema additionalProperties: false
@@ -625,3 +629,7 @@ openbao:
     tokenSecret:
       name: ""
       key: token
+
+# Shared collector defaults; consumed internally by node log collection.
+# @schema skipProperties
+loco-collector-config: {}

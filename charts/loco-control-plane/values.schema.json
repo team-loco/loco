@@ -587,6 +587,9 @@
         "null"
       ]
     },
+    "loco-collector-config": {
+      "type": "object"
+    },
     "obsProxy": {
       "allOf": [
         {
@@ -1017,6 +1020,15 @@
               "additionalProperties": {
                 "type": "string"
               }
+            }
+          },
+          "additionalProperties": false
+        },
+        "logs": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

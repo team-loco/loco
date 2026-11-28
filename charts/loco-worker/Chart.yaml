@@ -2,8 +2,14 @@ apiVersion: v2
 name: loco-worker
 description: "Loco worker cluster: agent, controllers, Envoy Gateway and OpenTelemetry collectors"
 type: application
-version: 0.4.14
+version: 0.4.15
 dependencies:
+    - name: loco-collector-config
+      version: 0.1.0
+      repository: file://../loco-collector-config
+      import-values:
+        - child: exports.collectors
+          parent: .
     - name: metrics-server
       version: 3.14.0
       repository: https://kubernetes-sigs.github.io/metrics-server/

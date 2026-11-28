@@ -1,0 +1,9 @@
+apiVersion: v2
+name: loco-collector-config
+description: Shared Loco collector defaults and pipeline configuration
+type: library
+version: 0.1.0
+maintainers:
+  - name: nikumar1206
+sources:
+  - https://github.com/team-loco/loco
