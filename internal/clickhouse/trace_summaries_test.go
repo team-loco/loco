@@ -130,6 +130,12 @@ func TestTraceSummaries(t *testing.T) {
 		t.Fatalf("summary result: %v", result)
 	}
 	root := result.GetSummaries()[2]
+	if root.GetHttpPath() != "/cart" {
+		t.Fatalf("root route must take precedence over its path and the child's route: %v", root)
+	}
+	if result.GetSummaries()[0].GetHttpPath() != "/checkout" || result.GetSummaries()[1].GetHttpPath() != "" {
+		t.Fatalf("URL path fallback or absent HTTP path: %v", result)
+	}
 	if root.GetTraceId() != fmt.Sprintf("%032x", 1) || root.GetRootSpanName() != "GET /cart" ||
 		root.GetServiceName() != summaryService || root.GetResourceId() != testResourceID ||
 		!root.GetStartTime().AsTime().Equal(start) || root.GetDurationNanos() != uint64(4*time.Second) ||
@@ -405,7 +411,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testWorkerResourceID,
 			time.Second,
 			3 * time.Second,
-			map[string]string{"user.id": "42", "http.route": "/cart", summaryHTTPStatus: "404"},
+			map[string]string{"user.id": "42", "http.route": "/child", summaryHTTPStatus: "404"},
 		},
 		{
 			1,
@@ -419,7 +425,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			0,
 			2 * time.Second,
-			map[string]string{summaryHTTPStatus: "500"},
+			map[string]string{summaryHTTPStatus: "500", "http.route": "/cart", "url.path": "/cart/42"},
 		},
 		{
 			2,
@@ -433,7 +439,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			time.Second,
 			time.Second,
-			map[string]string{"user.id": "7", summaryHTTPStatus: "200"},
+			map[string]string{"user.id": "7", summaryHTTPStatus: "200", "url.path": "/checkout"},
 		},
 		{
 			3,

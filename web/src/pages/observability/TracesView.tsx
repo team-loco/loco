@@ -428,9 +428,11 @@ function traceColumns({
 			size: 260,
 			sortDescFirst: true,
 			meta: { primary: true },
-			cell: ({ row }) => (
-				<CellText text={row.original.rootSpanName || "Unnamed span"} className="font-mono text-foreground" />
-			),
+			cell: ({ row }) => {
+				const { rootSpanName, httpPath } = row.original;
+				const path = httpPath !== "" && !rootSpanName.includes(httpPath) ? httpPath : undefined;
+				return <CellText text={rootSpanName || "Unnamed span"} detail={path} className="font-mono text-foreground" />;
+			},
 		},
 		{
 			id: "status",
