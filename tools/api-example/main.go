@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"time"
 
@@ -101,6 +103,7 @@ func run(api, tokenFile, workspace, slug, environment string, timeout time.Durat
 		RequestId:  uuid.NewString(),
 		ResourceId: resource.GetResource().GetId(), EnvironmentId: environmentID,
 		Spec:               previous.GetDeployment().GetSpec(),
+		Regions:            slices.Sorted(maps.Keys(previous.GetDeployment().GetSpec().GetService().GetRegions())),
 		Trigger:            deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
 		SourceDeploymentId: previous.GetDeployment().GetId(),
 	})
