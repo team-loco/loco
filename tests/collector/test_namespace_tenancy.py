@@ -1,10 +1,13 @@
 import copy
 import json
+import select
+import socket
 import subprocess
 import sys
 import threading
 import urllib.parse
 import uuid
+from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -16,6 +19,13 @@ from helpers import (
     run_collector,
     wait_for,
 )
+from test_route_tenancy import SIGNALS, attributes
+
+OTLP_ROOTS = {
+    "traces": "resourceSpans",
+    "logs": "resourceLogs",
+    "metrics": "resourceMetrics",
+}
 
 
 @pytest.mark.parametrize("gateway", [False, True], ids=["dependency", "gateway"])
@@ -34,6 +44,9 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
     curl_image = chart_values("loco-control-plane")["openbao"]["curlImage"]
     docker("network", "create", name)
     server = None
+    watches = Counter()
+    watch_lock = threading.Lock()
+    stop_watches = threading.Event()
     try:
         docker(
             "run",
@@ -92,10 +105,24 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
             def do_GET(self):
                 request = urllib.parse.urlparse(self.path)
                 items = objects.get(request.path, [])
+                metadata_only = "as=PartialObjectMetadata" in self.headers.get(
+                    "Accept", ""
+                )
+                if metadata_only:
+                    items = [
+                        {
+                            "apiVersion": "meta.k8s.io/v1",
+                            "kind": "PartialObjectMetadata",
+                            "metadata": item["metadata"],
+                        }
+                        for item in items
+                    ]
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 if urllib.parse.parse_qs(request.query).get("watch") == ["true"]:
+                    with watch_lock:
+                        watches[request.path] += 1
                     for item in items:
                         self.wfile.write(
                             json.dumps({"type": "ADDED", "object": item}).encode()
@@ -106,8 +133,12 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
                             {
                                 "type": "BOOKMARK",
                                 "object": {
-                                    "apiVersion": "v1",
-                                    "kind": "PartialObjectMetadata",
+                                    "apiVersion": "meta.k8s.io/v1"
+                                    if metadata_only
+                                    else "v1",
+                                    "kind": "PartialObjectMetadata"
+                                    if metadata_only
+                                    else "Pod",
                                     "metadata": {
                                         "resourceVersion": "1",
                                         "annotations": {
@@ -119,18 +150,30 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
                         ).encode()
                         + b"\n"
                     )
+                    self.wfile.flush()
+                    try:
+                        while not stop_watches.wait(0.1):
+                            readable, _, _ = select.select([self.connection], [], [], 0)
+                            if readable and not self.connection.recv(
+                                1, socket.MSG_PEEK
+                            ):
+                                break
+                    finally:
+                        with watch_lock:
+                            watches[request.path] -= 1
                 else:
-                    kind = (
-                        "PodList"
-                        if request.path.endswith("pods")
-                        else "NamespaceList"
-                        if request.path.endswith("namespaces")
-                        else "ReplicaSetList"
-                    )
+                    kind = {
+                        "/api/v1/pods": "PodList",
+                        "/api/v1/namespaces": "NamespaceList",
+                    }.get(request.path, "ReplicaSetList")
+                    if metadata_only:
+                        kind = "PartialObjectMetadataList"
                     self.wfile.write(
                         json.dumps(
                             {
-                                "apiVersion": "v1",
+                                "apiVersion": "meta.k8s.io/v1"
+                                if metadata_only
+                                else "v1",
                                 "kind": kind,
                                 "metadata": {"resourceVersion": "1"},
                                 "items": items,
@@ -169,9 +212,12 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
         config["exporters"] = {
             "file": {"path": "/data/output.json", "flush_interval": "100ms"}
         }
-        pipeline = config["service"]["pipelines"]["traces"]
-        pipeline.update(receivers=["otlp"], exporters=["file"])
-        config["service"] = {"pipelines": {"traces": pipeline}}
+        pipelines = {
+            signal: config["service"]["pipelines"][signal] for signal in SIGNALS
+        }
+        for pipeline in pipelines.values():
+            pipeline.update(receivers=["otlp"], exporters=["file"])
+        config["service"] = {"pipelines": pipelines}
         config.pop("extensions", None)
         host_gateway = (
             ["--add-host", "host.docker.internal:host-gateway"]
@@ -184,112 +230,104 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
             "otel-col-deploy",
             "--network",
             name,
+            "--memory",
+            "512m",
+            "--cpus",
+            "1",
             *host_gateway,
             "--env",
             "KUBECONFIG=/data/kubeconfig",
         ) as collector:
-            attributes = [
-                {"key": key, "value": {"stringValue": value}}
-                for key, value in {
-                    "k8s.namespace.name": namespace,
-                    "k8s.pod.name": "forged-pod",
-                    "loco.organization.id": "forged-org",
-                    "loco.workspace.id": "forged-workspace",
-                    "loco.resource.id": "forged-resource",
-                }.items()
-            ]
-            payload = {
-                "resourceSpans": [
+            received = {}
+            for signal, (cluster_key, payload, records) in SIGNALS.items():
+                resource = {
+                    "attributes": attributes(
+                        {
+                            "k8s.namespace.name": namespace,
+                            "k8s.pod.name": "forged-pod",
+                            "loco.organization.id": "forged-org",
+                            "loco.workspace.id": "forged-workspace",
+                            "loco.resource.id": "forged-resource",
+                        }
+                    )
+                }
+                record = attributes(
                     {
-                        "resource": {"attributes": attributes},
-                        "scopeSpans": [
-                            {
-                                "spans": [
-                                    {
-                                        "traceId": "0123456789abcdef0123456789abcdef",
-                                        "spanId": "0123456789abcdef",
-                                        "name": "dependency",
-                                        "attributes": [
-                                            {
-                                                "key": "upstream_cluster",
-                                                "value": {
-                                                    "stringValue": (
-                                                        f"httproute/{namespace}/"
-                                                        "resource-resource-a-route/rule/0"
-                                                    )
-                                                },
-                                            }
-                                        ],
-                                        "startTimeUnixNano": "1700000000000000000",
-                                        "endTimeUnixNano": "1700000000000000001",
-                                    }
-                                ]
-                            }
-                        ],
+                        cluster_key: (
+                            f"httproute/{namespace}/resource-resource-a-route/rule/0"
+                        )
                     }
-                ]
-            }
-            wait_for(
-                collector,
-                lambda: (
-                    subprocess.run(
-                        [
-                            "docker",
-                            "exec",
-                            "-i",
-                            sender,
-                            "curl",
-                            "--silent",
-                            "--show-error",
-                            "--fail",
-                            "-H",
-                            "Content-Type: application/json",
-                            "--data-binary",
-                            "@-",
-                            f"http://{collector.name}:4318/v1/traces",
-                        ],
-                        input=json.dumps(payload),
-                        text=True,
-                        capture_output=True,
-                    ).returncode
-                    == 0
-                ),
-            )
-            post_otlp(collector, "traces", payload)
-            received = read_output(
-                collector, lambda document: document["resourceSpans"], 2
-            )
-        attrs = [
-            {
-                a["key"]: a["value"].get("stringValue")
-                for a in r["resource"]["attributes"]
-            }
-            for r in received
-        ]
-        assert (
-            attrs[0].items()
-            >= {
-                "loco.organization.id": "organization-a",
-                "loco.workspace.id": "workspace-a",
-                "loco.environment.id": "environment-a",
-                "k8s.namespace.name": namespace,
-                "k8s.pod.name": "dependency",
-            }.items()
-        )
-        if gateway:
-            assert attrs[0]["loco.resource.id"] == "resource-a"
-        else:
-            assert "loco.resource.id" not in attrs[0]
-        assert not any(
-            key in attrs[1]
-            for key in (
-                "loco.organization.id",
-                "loco.workspace.id",
-                "loco.environment.id",
-                "loco.resource.id",
-                "k8s.namespace.name",
-            )
-        )
+                )
+                data = payload(resource, record)
+                wait_for(
+                    collector,
+                    lambda signal=signal, data=data: (
+                        subprocess.run(
+                            [
+                                "docker",
+                                "exec",
+                                "-i",
+                                sender,
+                                "curl",
+                                "--silent",
+                                "--show-error",
+                                "--fail",
+                                "-H",
+                                "Content-Type: application/json",
+                                "--data-binary",
+                                "@-",
+                                f"http://{collector.name}:4318/v1/{signal}",
+                            ],
+                            input=json.dumps(data),
+                            text=True,
+                            capture_output=True,
+                        ).returncode
+                        == 0
+                    ),
+                )
+                post_otlp(collector, signal, data)
+                received[signal] = read_output(
+                    collector,
+                    lambda document, signal=signal, records=records: (
+                        records(document) if OTLP_ROOTS[signal] in document else []
+                    ),
+                    2,
+                )
+            with watch_lock:
+                assert watches["/api/v1/pods"] == 2, dict(watches)
+                assert watches["/api/v1/namespaces"] == 2, dict(watches)
+        for signal, items in received.items():
+            attrs = [
+                {
+                    a["key"]: a["value"].get("stringValue")
+                    for a in resource["attributes"]
+                }
+                for resource, _ in items
+            ]
+            assert (
+                attrs[0].items()
+                >= {
+                    "loco.organization.id": "organization-a",
+                    "loco.workspace.id": "workspace-a",
+                    "loco.environment.id": "environment-a",
+                    "k8s.namespace.name": namespace,
+                    "k8s.pod.name": "dependency",
+                }.items()
+            ), (signal, attrs)
+            if gateway:
+                assert attrs[0]["loco.resource.id"] == "resource-a", signal
+            else:
+                assert "loco.resource.id" not in attrs[0], signal
+            assert not any(
+                key in attrs[1]
+                for key in (
+                    "loco.organization.id",
+                    "loco.workspace.id",
+                    "loco.environment.id",
+                    "loco.resource.id",
+                    "k8s.namespace.name",
+                )
+            ), (signal, attrs)
     finally:
         try:
             subprocess.run(
@@ -302,6 +340,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
             )
         finally:
             if server is not None:
+                stop_watches.set()
                 server.shutdown()
                 server.server_close()
                 api_thread.join()

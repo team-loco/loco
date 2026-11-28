@@ -458,7 +458,7 @@ otel-col-daemon:
   command:
     # Keep file-log checkpoints behind acceptance into the persistent exporter queue.
     extraArgs:
-      - --feature-gates=stanza.synchronousLogEmitter
+      - --feature-gates=stanza.synchronousLogEmitter,processor.k8sattributes.ShareProcessorBetweenPipelines
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
@@ -831,6 +831,10 @@ otel-col-daemon:
 otel-col-deploy:
   enabled: true
   fullnameOverride: otel-col-deploy
+  command:
+    # Share Kubernetes metadata caches and watches across signal pipelines.
+    extraArgs:
+      - --feature-gates=processor.k8sattributes.ShareProcessorBetweenPipelines
   namespaceOverride: &observabilityNamespace loco-obs
   ports:
     otlp:
@@ -998,6 +1002,10 @@ otel-col-deploy:
 otel-col-cluster:
   enabled: true
   fullnameOverride: otel-col-cluster
+  command:
+    # Share Kubernetes metadata caches and watches across signal pipelines.
+    extraArgs:
+      - --feature-gates=processor.k8sattributes.ShareProcessorBetweenPipelines
   namespaceOverride: *observabilityNamespace
   configMap:
     create: false
