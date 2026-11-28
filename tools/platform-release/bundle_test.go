@@ -52,6 +52,24 @@ func TestBundleGatewayEnablesBackendAPI(t *testing.T) {
 	require.Equal(t, true, fields(config, "extensionApis")["enableBackend"])
 }
 
+func TestCRDDriftChecksKeepSourcePollingAndFailureRetriesResponsive(t *testing.T) {
+	t.Parallel()
+	manifest, _, namespace := bundleFixture(t)
+	files, err := buildBundle(manifest, namespace)
+	require.NoError(t, err)
+	for _, name := range []string{applicationsName, buildsName, gatewayName} {
+		t.Run(name, func(t *testing.T) {
+			prefix := "layers/crds/loco-" + name + "-crd-"
+			var custom, source object
+			require.NoError(t, json.Unmarshal(files[prefix+"kustomization.yaml"], &custom))
+			require.NoError(t, json.Unmarshal(files[prefix+"ocirepository.yaml"], &source))
+			require.Equal(t, "1h", fields(custom, "spec")[fieldInterval])
+			require.Equal(t, "5m", fields(custom, "spec")["retryInterval"])
+			require.Equal(t, "5m", fields(source, "spec")[fieldInterval])
+		})
+	}
+}
+
 func TestBundleRevisionIncludesArtifactsAndImages(t *testing.T) {
 	t.Parallel()
 	for _, field := range []string{artifactsName, "images"} {
