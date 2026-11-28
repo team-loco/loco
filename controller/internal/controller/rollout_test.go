@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -325,5 +327,60 @@ func TestMissingApplicationDropsOnlyItsReplicaState(t *testing.T) {
 	}
 	if len(r.podEvents[other]) != 1 || len(r.deletedReplicas(other, now)) != 1 {
 		t.Fatal("other application's state removed")
+	}
+}
+
+func TestInvalidApplicationDropsDeletedReplicasAndPreservesPodEvents(t *testing.T) {
+	app := workspaceApp("invalid-replicas", "invalid-replicas")
+	app.Spec.ServiceSpec = nil
+	kube := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(app).
+		WithStatusSubresource(app).Build()
+	r := &ApplicationReconciler{Client: kube, APIReader: kube}
+	key := client.ObjectKeyFromObject(app)
+	other := types.NamespacedName{Namespace: key.Namespace, Name: "other-owner"}
+	now := time.Now()
+	r.recordDeletedPod(key, &corev1.Pod{UID: "expired-owner-pod"}, now.Add(-deletedPodRetention))
+	r.recordDeletedPod(key, &corev1.Pod{UID: "recent-owner-pod"}, now)
+	r.recordDeletedPod(other, &corev1.Pod{UID: "other-expired-pod"}, now.Add(-deletedPodRetention))
+	recorded := podEvent{uid: "live-owner-pod", pull: pullReasonPulled, pulledAt: metav1.NewTime(now)}
+	r.podEvents = map[types.NamespacedName][]podEvent{key: {recorded}}
+	_, err := r.reconcile(t.Context(), reconcile.Request{NamespacedName: key})
+	if !errors.Is(err, reconcile.TerminalError(nil)) {
+		t.Fatalf("error=%v, want terminal validation error", err)
+	}
+	if len(r.deletedPods[key]) != 0 {
+		t.Fatal("invalid owner's deleted copies retained")
+	}
+	if len(r.deletedPods[other]) != 1 {
+		t.Fatal("other owner's state pruned")
+	}
+	if events := r.podEvents[key]; len(events) != 1 || events[0] != recorded {
+		t.Fatalf("pod event changed across invalid spec: %+v", events)
+	}
+}
+
+func TestReadFailureStillPrunesExpiredOwnerReplicas(t *testing.T) {
+	readErr := errors.New("injected API read failure")
+	kube := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithInterceptorFuncs(interceptor.Funcs{
+		Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+			return readErr
+		},
+	}).Build()
+	r := &ApplicationReconciler{APIReader: kube}
+	key := types.NamespacedName{Namespace: "unreadable-control", Name: "unreadable"}
+	other := types.NamespacedName{Namespace: key.Namespace, Name: "other-owner"}
+	expired := time.Now().Add(-deletedPodRetention)
+	for _, owner := range []types.NamespacedName{key, other} {
+		r.recordDeletedPod(owner, &corev1.Pod{UID: "expired-owner-pod"}, expired)
+	}
+	_, err := r.reconcile(t.Context(), reconcile.Request{NamespacedName: key})
+	if !errors.Is(err, readErr) {
+		t.Fatalf("error=%v, want API read failure", err)
+	}
+	if len(r.deletedPods[key]) != 0 {
+		t.Fatal("unreadable owner's expired copies retained")
+	}
+	if len(r.deletedPods[other]) != 1 {
+		t.Fatal("other owner's state pruned")
 	}
 }

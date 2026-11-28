@@ -141,6 +141,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
+	// Expire this owner's retained pods even if a read, validation or resource step exits early.
+	r.deletedMu.Lock()
+	r.pruneDeletedPods(req.NamespacedName, time.Now())
+	r.deletedMu.Unlock()
 
 	// The cache can lag a stop the previous reconcile recorded, and the objects applied follow it.
 	app := &locov1alpha1.Application{}
@@ -170,6 +174,10 @@ func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request)
 	// validate early to prevent nil panics. Same validator the API runs before dispatching
 	// a deploy, so this only fires for Applications written directly against the cluster.
 	if err := app.Spec.Validate(); err != nil {
+		// Terminal validation errors have no automatic retry to expire these diagnostic copies.
+		r.deletedMu.Lock()
+		delete(r.deletedPods, req.NamespacedName)
+		r.deletedMu.Unlock()
 		original := app.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
 		observePlacementRevision(app)

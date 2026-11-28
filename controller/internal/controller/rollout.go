@@ -39,15 +39,8 @@ func (r *ApplicationReconciler) recordDeletedPod(key types.NamespacedName, pod *
 func (r *ApplicationReconciler) deletedReplicas(key types.NamespacedName, now time.Time) []corev1.Pod {
 	r.deletedMu.Lock()
 	defer r.deletedMu.Unlock()
+	r.pruneDeletedPods(key, now)
 	records := r.deletedPods[key]
-	for uid, pod := range records {
-		if now.Sub(pod.at) >= deletedPodRetention {
-			delete(records, uid)
-		}
-	}
-	if len(records) == 0 {
-		delete(r.deletedPods, key)
-	}
 	pods := make([]corev1.Pod, 0, len(records))
 	for _, record := range records {
 		pod := record.pod.DeepCopy()
@@ -58,6 +51,19 @@ func (r *ApplicationReconciler) deletedReplicas(key types.NamespacedName, now ti
 		pods = append(pods, *pod)
 	}
 	return pods
+}
+
+// pruneDeletedPods requires deletedMu to be held.
+func (r *ApplicationReconciler) pruneDeletedPods(key types.NamespacedName, now time.Time) {
+	records := r.deletedPods[key]
+	for uid, pod := range records {
+		if now.Sub(pod.at) >= deletedPodRetention {
+			delete(records, uid)
+		}
+	}
+	if len(records) == 0 {
+		delete(r.deletedPods, key)
+	}
 }
 
 // observedReplica pairs a pod with the replica status and health check failure observed from it.
