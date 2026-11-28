@@ -64,7 +64,7 @@ function ChartAnnotations({
 	const limitY = yAt(limit ?? 0);
 	const labelWidth = limitLabel.length * CHAR_PX + 6;
 	const labelX = limitLabelX(
-		Math.max(area.x + LIMIT_LABEL_X, xAt(limitFrom)),
+		Math.min(Math.max(area.x + LIMIT_LABEL_X, xAt(limitFrom)), area.x + area.width - labelWidth),
 		labelWidth,
 		inRange.map((m) => m.x),
 		area.x + area.width,
