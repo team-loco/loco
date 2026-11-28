@@ -5,19 +5,20 @@ import { CLUSTER_ATTRIBUTE, type LogRow } from "./rows";
 
 export type ColumnKey = string;
 
-export const SYSTEM_COLUMNS: ColumnKey[] = ["level", "component", "cluster"];
+export const SYSTEM_COLUMNS: ColumnKey[] = ["level", "component", "cluster", "source"];
 export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"level",
 	"resource",
 	"replica",
 	"region",
+	"source",
 	"method",
 	"path",
 	"status",
 	"duration",
 	"trace",
 ];
-export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
+export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource", "source"];
 
 /** The columns the picker offers: Loco's own telemetry has components and clusters where workspaces have resources. */
 export function pickableColumns(installation: boolean): ColumnKey[] {
@@ -33,6 +34,7 @@ const LABELS: Record<string, string> = {
 	cluster: "Cluster",
 	replica: "Replica",
 	region: "Region",
+	source: "Source",
 	trace: "Trace",
 	method: "Method",
 	path: "Path",
@@ -55,6 +57,7 @@ const WIDTHS: Record<string, number> = {
 	cluster: 140,
 	replica: 110,
 	region: 112,
+	source: 140,
 	trace: 128,
 	method: 96,
 	path: 180,
@@ -128,6 +131,8 @@ export function columnValue(row: LogRow, key: ColumnKey): string {
 			return row.replica;
 		case "region":
 			return row.region;
+		case "source":
+			return row.entry.scopeName;
 		case "trace":
 			return row.entry.traceId.slice(0, TRACE_PREFIX);
 		default: {

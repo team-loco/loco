@@ -13924,6 +13924,15 @@
               "title": "value"
             },
             "description": "Log-level attributes (e.g., user-defined fields, request ID)."
+          },
+          "scopeName": {
+            "type": "string",
+            "title": "scope_name",
+            "description": "Instrumentation scope that emitted the record, as reported by OpenTelemetry."
+          },
+          "scopeVersion": {
+            "type": "string",
+            "title": "scope_version"
           }
         },
         "title": "LogEntry",

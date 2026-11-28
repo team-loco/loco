@@ -124,6 +124,8 @@ export function logJson(row: LogRow, pref: TimePreferences): string {
 			...(e.spanId === "" ? {} : { span_id: e.spanId }),
 			resource_attributes: e.resourceAttributes,
 			log_attributes: e.logAttributes,
+			scope_name: e.scopeName,
+			scope_version: e.scopeVersion,
 		},
 		null,
 		2,

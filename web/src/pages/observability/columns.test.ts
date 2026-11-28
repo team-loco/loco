@@ -21,11 +21,13 @@ test("attribute columns read log and resource attributes", () => {
 	const entry = create(LogEntrySchema, {
 		logAttributes: { "http.method": "GET" },
 		resourceAttributes: { "k8s.pod.name": "web-7c41e9-x2kd9" },
+		scopeName: "application-sdk",
 	});
 	const row = toRows([entry], new Map())[0];
 	if (row === undefined) throw new Error("no row");
 	expect(columnValue(row, "http.method")).toBe("GET");
 	expect(columnValue(row, "replica")).toBe("x2kd9");
+	expect(columnValue(row, "source")).toBe("application-sdk");
 	expect(columnValue(row, "missing")).toBe("");
 });
 

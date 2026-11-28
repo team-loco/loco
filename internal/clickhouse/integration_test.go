@@ -357,6 +357,45 @@ func TestQueryLogsReturnsTenantResourceID(t *testing.T) {
 	}
 }
 
+func TestLogQueriesPreserveInstrumentationScope(t *testing.T) {
+	f := newQueryFixture(t)
+	batch, err := f.conn.PrepareBatch(t.Context(),
+		"INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes, ScopeName, ScopeVersion)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"stdout-collector@1.0", "application-sdk@2.0", "@"}
+	attrs := tenantAttributes(testUnknownWorkspaceID, testEnvironmentID, testResourceID)
+	for _, scope := range [][2]string{{"stdout-collector", "1.0"}, {"application-sdk", "2.0"}, {"", ""}} {
+		if err = batch.Append(f.end, "request completed", attrs, scope[0], scope[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = batch.Send(); err != nil {
+		t.Fatal(err)
+	}
+	q := LogQuery{WorkspaceID: testUnknownWorkspaceID, Start: f.start, End: f.end.Add(time.Minute), Limit: testFullPage}
+	page, err := f.client.QueryLogs(t.Context(), q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tail, err := f.client.QueryTailLogPage(t.Context(), q, TailLogCursor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(want)
+	for _, entries := range [][]*observabilityv1.LogEntry{page.GetEntries(), tail.Entries} {
+		var got []string
+		for _, entry := range entries {
+			got = append(got, entry.GetScopeName()+"@"+entry.GetScopeVersion())
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Fatalf("instrumentation scopes = %q, want %q", got, want)
+		}
+	}
+}
+
 func metricsRequest(start, end time.Time) *observabilityv1.QueryMetricsRequest {
 	return &observabilityv1.QueryMetricsRequest{
 		WorkspaceId:     testWorkspaceID,

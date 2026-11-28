@@ -35,6 +35,17 @@ entries = [
         ]
     )
 ]
+entries.extend(
+    {
+        "timestamp": now.isoformat(),
+        "level": "LOG_LEVEL_INFO",
+        "body": "request completed",
+        "resourceAttributes": {"service.name": "loco-api"},
+        "scopeName": source,
+        "scopeVersion": "1.0",
+    }
+    for source in ("stdout-collector", "application-sdk")
+)
 
 
 def open_log(page, body="handled request"):
@@ -66,6 +77,12 @@ with session(out) as browser:
                 lambda route: route.fulfill(json={"buckets": []}),
             )
             page.goto(state["ui_url"] + "/system/logs?live=0")
+            lines = page.get_by_role("table", name="Log lines")
+            for source in ("stdout-collector", "application-sdk"):
+                row = lines.get_by_role("row").filter(has_text=source)
+                expect(row).to_contain_text("request completed")
+            unknown = lines.get_by_role("row").filter(has_text="plain text log")
+            expect(unknown).to_contain_text("—")
             detail = open_log(page)
             toggle = detail.get_by_role("button", name="Parsed JSON", exact=True)
             expect(toggle).to_have_attribute("aria-pressed", "false")

@@ -70,6 +70,8 @@ function attributes(row: LogRow): Attribute[] {
 		{ key: "replica", value: row.replica, filter: field("replica", row.pod), column: "replica" },
 		{ key: "region", value: row.region, filter: field("region", row.region), column: "region" },
 		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
+		{ key: "source", value: e.scopeName, filter: "The OpenTelemetry instrumentation scope", column: "source" },
+		{ key: "source version", value: e.scopeVersion, filter: "The OpenTelemetry instrumentation scope version" },
 	];
 	const extra = new Map<string, Attribute>();
 	for (const [key, value] of Object.entries({ ...e.resourceAttributes, ...e.logAttributes })) {

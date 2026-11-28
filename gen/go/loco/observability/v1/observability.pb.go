@@ -734,6 +734,9 @@ type LogEntry struct {
 	ResourceAttributes map[string]string `protobuf:"bytes,7,rep,name=resource_attributes,json=resourceAttributes,proto3" json:"resource_attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Log-level attributes (e.g., user-defined fields, request ID).
 	LogAttributes map[string]string `protobuf:"bytes,8,rep,name=log_attributes,json=logAttributes,proto3" json:"log_attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Instrumentation scope that emitted the record, as reported by OpenTelemetry.
+	ScopeName     string `protobuf:"bytes,9,opt,name=scope_name,json=scopeName,proto3" json:"scope_name,omitempty"`
+	ScopeVersion  string `protobuf:"bytes,10,opt,name=scope_version,json=scopeVersion,proto3" json:"scope_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -822,6 +825,20 @@ func (x *LogEntry) GetLogAttributes() map[string]string {
 		return x.LogAttributes
 	}
 	return nil
+}
+
+func (x *LogEntry) GetScopeName() string {
+	if x != nil {
+		return x.ScopeName
+	}
+	return ""
+}
+
+func (x *LogEntry) GetScopeVersion() string {
+	if x != nil {
+		return x.ScopeVersion
+	}
+	return ""
 }
 
 // TailLogsRequest specifies filters for tailing live logs.
@@ -2391,7 +2408,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x03R\n" +
-	"totalCount\"\xb2\x04\n" +
+	"totalCount\"\xf6\x04\n" +
 	"\bLogEntry\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x125\n" +
 	"\x05level\x18\x02 \x01(\x0e2\x1f.loco.observability.v1.LogLevelR\x05level\x12\x12\n" +
@@ -2401,7 +2418,11 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\btrace_id\x18\x05 \x01(\tR\atraceId\x12\x17\n" +
 	"\aspan_id\x18\x06 \x01(\tR\x06spanId\x12h\n" +
 	"\x13resource_attributes\x18\a \x03(\v27.loco.observability.v1.LogEntry.ResourceAttributesEntryR\x12resourceAttributes\x12Y\n" +
-	"\x0elog_attributes\x18\b \x03(\v22.loco.observability.v1.LogEntry.LogAttributesEntryR\rlogAttributes\x1aE\n" +
+	"\x0elog_attributes\x18\b \x03(\v22.loco.observability.v1.LogEntry.LogAttributesEntryR\rlogAttributes\x12\x1d\n" +
+	"\n" +
+	"scope_name\x18\t \x01(\tR\tscopeName\x12#\n" +
+	"\rscope_version\x18\n" +
+	" \x01(\tR\fscopeVersion\x1aE\n" +
 	"\x17ResourceAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +

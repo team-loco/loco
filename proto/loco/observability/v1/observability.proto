@@ -179,6 +179,9 @@ message LogEntry {
   map<string, string> resource_attributes = 7;
   // Log-level attributes (e.g., user-defined fields, request ID).
   map<string, string> log_attributes = 8;
+  // Instrumentation scope that emitted the record, as reported by OpenTelemetry.
+  string scope_name = 9;
+  string scope_version = 10;
 }
 
 // ---------- Logs: Live Tail ----------
