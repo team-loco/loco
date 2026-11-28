@@ -253,6 +253,10 @@ message DeploymentPlacement {
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
+  // Persist one ID per deployment attempt and reuse it after a lost response. Reusing an ID with
+  // different input or actor fails. Replay returns the original response while the resource exists,
+  // even after its deployment history is pruned.
+  string request_id = 12 [(buf.validate.field).string.uuid = true];
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   // The regions to deploy to; empty deploys to every enabled region of the resource.
   repeated string regions = 8 [(buf.validate.field).repeated = {

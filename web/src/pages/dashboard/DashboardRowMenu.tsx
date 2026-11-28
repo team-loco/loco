@@ -1,6 +1,7 @@
-import { createQueryOptions, useMutation, useTransport } from "@connectrpc/connect-query";
+import { useCreateDeployment } from "@/hooks/useCreateDeployment";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { createDeployment, getDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { getDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
@@ -80,7 +81,7 @@ export function DashboardRowMenu({
 	const navigate = useNavigate();
 	const transport = useTransport();
 	const queryClient = useQueryClient();
-	const deploy = useMutation(createDeployment);
+	const deploy = useCreateDeployment();
 	const [rollback, setRollback] = useState<Rollback | null>(null);
 	const [restarting, setRestarting] = useState<DeploymentSource[] | null>(null);
 	const canWrite = useMyScopes().resourceLevel(orgId, workspaceId, resource.id) >= scopeLevel(Scope.WRITE);

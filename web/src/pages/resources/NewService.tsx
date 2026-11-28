@@ -309,7 +309,6 @@ function DraftPanel({
 	close: () => void;
 }) {
 	const store = useDrafts(orgId, workspaceId, env.id);
-	const taken = useTakenKeys(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(
 		listRegions,
@@ -318,6 +317,7 @@ function DraftPanel({
 	);
 	const domainsQuery = useRpcQuery(listAppDomains, { environmentId: env.id });
 	const deployment = useServiceDeploy(workspaceId, env);
+	const taken = useTakenKeys(orgId, workspaceId, [], deployment.pendingResourceId);
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
 	const [commandOpen, setCommandOpen] = useState(false);
@@ -592,7 +592,7 @@ function ServiceForm({
 		args: edits.args ?? "",
 	};
 	const imageCheck = useImageCheck(env.workspaceId, image);
-	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, []);
+	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, deployment.pendingDomains);
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: ReactNode, field: keyof NewResourceForm): ReactNode => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);

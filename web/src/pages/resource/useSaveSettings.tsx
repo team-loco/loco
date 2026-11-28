@@ -1,9 +1,9 @@
+import { useCreateDeployment } from "@/hooks/useCreateDeployment";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { callUnaryMethod, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { createResourceDomain, deleteResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import {
@@ -67,7 +67,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 	const update = useMutation(updateResource);
 	const addDomain = useMutation(createResourceDomain);
 	const removeDomain = useMutation(deleteResourceDomain);
-	const deploy = useMutation(createDeployment);
+	const deploy = useCreateDeployment();
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 

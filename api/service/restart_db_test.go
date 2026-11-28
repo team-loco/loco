@@ -41,6 +41,7 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 			f.finishRollouts(t)
 			seedDeployment(t, f, domainsTwoRegionSpec)
 			_, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+				RequestId:     uuid.NewString(),
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
 				Regions:       []string{statusSecondRegion},

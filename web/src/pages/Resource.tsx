@@ -1,3 +1,4 @@
+import { useCreateDeployment } from "@/hooks/useCreateDeployment";
 import { aroundWindow, windowValues } from "@/lib/obs-time";
 import type { Build } from "@gen/loco/build/v1/build_pb";
 import { formatShortId } from "@/lib/utils";
@@ -9,7 +10,6 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "@/lib/toast";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { deleteResource, getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
@@ -151,7 +151,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		await refresh();
 		setDraft(next);
 	});
-	const deploy = useMutation(createDeployment);
+	const deploy = useCreateDeployment();
 	const del = useMutation(deleteResource);
 
 	const [search] = useSearchParams();

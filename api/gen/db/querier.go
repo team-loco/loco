@@ -27,10 +27,12 @@ type Querier interface {
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
+	ClaimDeploymentRequest(ctx context.Context, arg ClaimDeploymentRequestParams) (DeploymentRequest, error)
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimSystemRole(ctx context.Context, arg ClaimSystemRoleParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
+	CompleteDeploymentRequest(ctx context.Context, arg CompleteDeploymentRequestParams) error
 	CountBuildsForResource(ctx context.Context, arg CountBuildsForResourceParams) (int64, error)
 	CountDeployments(ctx context.Context, arg CountDeploymentsParams) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
@@ -138,6 +140,7 @@ type Querier interface {
 	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
 	GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error)
 	GetDeploymentPlacement(ctx context.Context, arg GetDeploymentPlacementParams) (DeploymentPlacement, error)
+	GetDeploymentRequest(ctx context.Context, id uuid.UUID) (DeploymentRequest, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)

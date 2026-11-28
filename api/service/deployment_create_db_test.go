@@ -77,6 +77,7 @@ func deployServiceIn(
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
 	return deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    f.resourceID.String(),
 		Regions:       []string{testRegion},
 		EnvironmentId: environmentID.String(),

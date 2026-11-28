@@ -47,9 +47,13 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 
 	lookups := []byIDLookup{
 		{name: "CreateDeployment", existing: f.resourceID.String(), call: func(ctx context.Context, id string) error {
-			_, callErr := deployments.CreateDeployment(ctx, &deploymentv1.CreateDeploymentRequest{
-				ResourceId: id, EnvironmentId: f.envID.String(), Regions: []string{testRegion}, Spec: spec,
-			})
+			_, callErr := deployments.CreateDeployment(
+				ctx,
+				&deploymentv1.CreateDeploymentRequest{
+					RequestId:  uuid.NewString(),
+					ResourceId: id, EnvironmentId: f.envID.String(), Regions: []string{testRegion}, Spec: spec,
+				},
+			)
 			return callErr
 		}},
 		{name: "GetDeployment", existing: deploymentID, call: func(ctx context.Context, id string) error {

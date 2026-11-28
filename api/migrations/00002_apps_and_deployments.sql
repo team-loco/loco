@@ -273,6 +273,14 @@ CREATE INDEX idx_deployments_resource_environment_created_id_desc ON deployments
 
 CREATE INDEX idx_deployments_source_deployment_id ON deployments (source_deployment_id);
 
+-- Request receipts outlive pruned deployments, so a delayed retry cannot start another rollout.
+CREATE TABLE deployment_requests (
+    id UUID PRIMARY KEY,
+    resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+    fingerprint BYTEA NOT NULL,
+    response BYTEA
+);
+
 -- One region of a deployment.
 CREATE TABLE
     deployment_placements (

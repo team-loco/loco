@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -20,6 +21,7 @@ func TestDeploymentCommitMessageComesFromBuild(t *testing.T) {
 
 	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()}}
 	created, err := deployRequest(t, f.deployFixture, &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    f.resourceID.String(),
 		Regions:       []string{testRegion},
 		EnvironmentId: f.envID.String(),

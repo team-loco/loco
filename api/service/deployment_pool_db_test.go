@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -44,6 +45,7 @@ func TestDeployWithSecretVariablesNeedsOneConnection(t *testing.T) {
 	service.Env = secretEnvOf([]string{databaseURLName})
 
 	_, err = server.CreateDeployment(ctx, &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    f.resourceID.String(),
 		Regions:       []string{testRegion},
 		EnvironmentId: f.envID.String(),

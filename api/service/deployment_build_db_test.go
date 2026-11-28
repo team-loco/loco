@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"buf.build/go/protovalidate"
-
 	"github.com/google/uuid"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -104,6 +104,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			variables := maps.Clone(wantEnv)
 			maps.Copy(variables, wantSecretEnv)
 			request := &deploymentv1.CreateDeploymentRequest{
+				RequestId:  uuid.NewString(),
 				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
 			}
 			if inherit {
@@ -122,6 +123,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 				Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
 				Env:   variables,
 			}
+			request.RequestId = uuid.NewString()
 			request.Spec = &deploymentv1.DeploymentSpec{
 				Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
 			}
@@ -171,14 +173,19 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 				t.Fatal(err)
 			}
 			f.finishRollouts(t)
-			if _, err := deployRequest(t, f.deployFixture, &deploymentv1.CreateDeploymentRequest{
-				ResourceId:    f.resourceID.String(),
-				Regions:       []string{testRegion},
-				EnvironmentId: f.envID.String(),
-				Spec: &deploymentv1.DeploymentSpec{
-					Spec: &deploymentv1.DeploymentSpec_Service{Service: rollback.GetService()},
+			if _, err := deployRequest(
+				t,
+				f.deployFixture,
+				&deploymentv1.CreateDeploymentRequest{
+					RequestId:     uuid.NewString(),
+					ResourceId:    f.resourceID.String(),
+					Regions:       []string{testRegion},
+					EnvironmentId: f.envID.String(),
+					Spec: &deploymentv1.DeploymentSpec{
+						Spec: &deploymentv1.DeploymentSpec_Service{Service: rollback.GetService()},
+					},
 				},
-			}, f.workspaceReadScopes(t)...); err != nil {
+				f.workspaceReadScopes(t)...); err != nil {
 				t.Fatal(err)
 			}
 			got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env
@@ -544,6 +551,7 @@ func TestScaleDuringABuildKeepsTheBuildingDeploymentsEnv(t *testing.T) {
 func TestCreateDeploymentRejectsARepeatedRegion(t *testing.T) {
 	t.Parallel()
 	req := &deploymentv1.CreateDeploymentRequest{
+		RequestId:     uuid.NewString(),
 		ResourceId:    uuid.NewString(),
 		EnvironmentId: uuid.NewString(),
 		Regions:       []string{testRegion, testRegion},

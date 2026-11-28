@@ -11504,6 +11504,12 @@
       "loco.deployment.v1.CreateDeploymentRequest": {
         "type": "object",
         "properties": {
+          "requestId": {
+            "type": "string",
+            "title": "request_id",
+            "format": "uuid",
+            "description": "Persist one ID per deployment attempt and reuse it after a lost response. Reusing an ID with\n different input or actor fails. Replay returns the original response while the resource exists,\n even after its deployment history is pruned."
+          },
           "resourceId": {
             "type": "string",
             "title": "resource_id",

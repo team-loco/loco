@@ -1299,8 +1299,12 @@ func (x *DeploymentPlacement) GetPreviousDeploymentId() string {
 
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Persist one ID per deployment attempt and reuse it after a lost response. Reusing an ID with
+	// different input or actor fails. Replay returns the original response while the resource exists,
+	// even after its deployment history is pruned.
+	RequestId  string `protobuf:"bytes,12,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ResourceId string `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	// The regions to deploy to; empty deploys to every enabled region of the resource.
 	Regions       []string        `protobuf:"bytes,8,rep,name=regions,proto3" json:"regions,omitempty"`
 	Spec          *DeploymentSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
@@ -1345,6 +1349,13 @@ func (x *CreateDeploymentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateDeploymentRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
 }
 
 func (x *CreateDeploymentRequest) GetResourceId() string {
@@ -3369,8 +3380,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\rsuperseded_by\x18\f \x01(\tR\fsupersededBy\x124\n" +
 	"\x16previous_deployment_id\x18\r \x01(\tR\x14previousDeploymentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\x94\x05\n" +
-	"\x17CreateDeploymentRequest\x12)\n" +
+	"\r_completed_at\"\xbd\x05\n" +
+	"\x17CreateDeploymentRequest\x12'\n" +
+	"\n" +
+	"request_id\x18\f \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\trequestId\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
 	"\aregions\x18\b \x03(\tB\x0e\xbaH\v\x92\x01\b\x18\x01\"\x04r\x02\x10\x01R\aregions\x12>\n" +

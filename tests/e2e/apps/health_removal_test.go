@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -32,18 +33,22 @@ func TestRemoveHealthCheck(t *testing.T) {
 	waitProbes(t, w, selector, true)
 
 	for _, remove := range []bool{true, false} {
-		created, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
-			ResourceId:    id,
-			EnvironmentId: w.EnvironmentID,
-			Regions:       []string{p.Region},
-			Spec: &deploymentv1.DeploymentSpec{
-				Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-					Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.PublicImage},
-					Port:  new(int32(8080)),
-				}},
+		created, err := p.User.Deployment.CreateDeployment(
+			t.Context(),
+			&deploymentv1.CreateDeploymentRequest{
+				RequestId:     uuid.NewString(),
+				ResourceId:    id,
+				EnvironmentId: w.EnvironmentID,
+				Regions:       []string{p.Region},
+				Spec: &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
+						Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.PublicImage},
+						Port:  new(int32(8080)),
+					}},
+				},
+				RemoveHealthCheck: remove,
 			},
-			RemoveHealthCheck: remove,
-		})
+		)
 		if err != nil {
 			t.Fatalf("create deployment (remove_health_check %v): %v", remove, err)
 		}

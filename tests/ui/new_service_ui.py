@@ -847,9 +847,9 @@ with session(out) as browser:
     # Failed deployment creation cleans up the resource and permits retry.
     def deployment_error(route):
         return route.fulfill(
-            status=503,
+            status=400,
             json={
-                "code": "unavailable",
+                "code": "invalid_argument",
                 "message": "Deployment creation unavailable",
             },
         )
