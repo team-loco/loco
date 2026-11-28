@@ -22,11 +22,7 @@ const WINDOW_DEPLOYMENTS = 200;
 
 const MI_PER_GI = 1024;
 
-const cpuScale = (): AxisScale => ({
-	divisor: MILLI_PER_CORE,
-	unit: "vCPU",
-	decimals: 3,
-});
+const cpuScale = (): AxisScale => ({ divisor: MILLI_PER_CORE, unit: "vCPU", decimals: 3 });
 const memoryScale = (limit: number): AxisScale =>
 	limit >= MI_PER_GI ? { divisor: MI_PER_GI, unit: "Gi", decimals: 2 } : { divisor: 1, unit: "Mi", decimals: 0 };
 
@@ -73,30 +69,11 @@ export function MetricsPanel({
 	const windowed =
 		useQuery(
 			listDeployments,
-			{
-				resourceId,
-				environmentId,
-				startTime,
-				pageSize: WINDOW_DEPLOYMENTS,
-				view: DeploymentListView.FULL,
-			},
+			{ resourceId, environmentId, startTime, pageSize: WINDOW_DEPLOYMENTS, view: DeploymentListView.FULL },
 			{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
 		).data?.deployments ?? [];
-	const markers = useDeploymentMarkers({
-		workspaceId,
-		environmentId,
-		resourceId,
-		range,
-		nowMs,
-	});
-	const chart = {
-		regions: deployed.map((r) => r.name),
-		workspaceId,
-		environmentId,
-		resourceId,
-		range,
-		markers,
-	};
+	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
+	const chart = { regions: deployed.map((r) => r.name), workspaceId, environmentId, resourceId, range, markers };
 
 	return (
 		<Section

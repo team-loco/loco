@@ -43,6 +43,7 @@ function ChartAnnotations({
 	scale,
 	limit,
 	limitLabel,
+	limitFrom,
 	markers,
 }: {
 	from: number;
@@ -51,6 +52,7 @@ function ChartAnnotations({
 	scale: AxisScale;
 	limit: number | undefined;
 	limitLabel: string;
+	limitFrom: number;
 	markers: readonly ChartMarker[];
 }) {
 	const area = usePlotArea();
@@ -62,7 +64,7 @@ function ChartAnnotations({
 	const limitY = yAt(limit ?? 0);
 	const labelWidth = limitLabel.length * CHAR_PX + 6;
 	const labelX = limitLabelX(
-		area.x + LIMIT_LABEL_X,
+		Math.max(area.x + LIMIT_LABEL_X, xAt(limitFrom)),
 		labelWidth,
 		inRange.map((m) => m.x),
 		area.x + area.width,
@@ -173,6 +175,7 @@ export function RegionAverages({
 	const from = to - RANGE_MS[range];
 	const allocations = allocationRows(limits, from, to);
 	const limit = allocations.at(-1)?.limit;
+	const limitFrom = allocations[allocations.findLastIndex((row) => row.limit !== limit) + 1]?.time ?? from;
 	const peak = Math.max(0, ...data.flatMap((row) => regions.map((region) => row[region] ?? 0)));
 	const top = Math.max(0, ...allocations.map((row) => row.limit ?? 0));
 	const axisScale = scale(limit ?? peak);
@@ -256,6 +259,7 @@ export function RegionAverages({
 							scale={axisScale}
 							limit={limit}
 							limitLabel={limitLabel}
+							limitFrom={limitFrom}
 							markers={markers}
 						/>
 						<ChartTooltip
