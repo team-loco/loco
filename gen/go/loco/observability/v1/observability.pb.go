@@ -2462,7 +2462,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x122\n" +
 	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\x95\x01\xbaH\x91\x01\x1a\x8e\x01\n" +
-	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"\xd2\x04\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"\xc9\x04\n" +
 	"\x11ListTracesRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +
@@ -2470,9 +2470,9 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x1e\n" +
 	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12'\n" +
 	"\tpage_size\x18\x05 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12&\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\f \x01(\tB\a\xbaH\x04r\x02\x18@R\tpageToken\x12F\n" +
+	"page_token\x18\f \x01(\tR\tpageToken\x12F\n" +
 	"\border_by\x18\n" +
 	" \x01(\x0e2!.loco.observability.v1.TraceOrderB\b\xbaH\x05\x82\x01\x02\x10\x01R\aorderBy\x12\x1e\n" +
 	"\n" +

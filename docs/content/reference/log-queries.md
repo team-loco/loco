@@ -89,6 +89,8 @@ Text matches the root span's name, ignoring case: `checkout` matches a trace who
 
 Keys starting with `loco.` are reserved, apart from Kubernetes labels under `loco.io/`. Traces count only the spans within the time range and the resources and environment the request selects, so a span outside them does not make its trace match.
 
+`ListTraces` pages continue after the last trace's sort value and ID. Keep the same scope, time range, query and order when using a page token. A new trace arriving before that position does not shift the next page. Results are live: more spans can change a trace's name, start time, duration, status or span count and move it in the selected order. Refresh from the first page to see those changes; a fixed time range is not a snapshot of received data.
+
 | Query | Finds |
 | --- | --- |
 | `@status:error` | traces with a failed span |
