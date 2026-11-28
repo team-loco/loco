@@ -41,6 +41,7 @@ func StartCache[O client.Object](
 	ctx, onWatchError := StopOnDeadWatch(ctx)
 	c, err := cache.New(cfg, cache.Options{
 		Scheme:                   scheme,
+		DefaultTransform:         cache.TransformStripManagedFields(),
 		DefaultNamespaces:        map[string]cache.Config{namespace: {}},
 		DefaultWatchErrorHandler: onWatchError,
 	})
