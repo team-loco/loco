@@ -71,6 +71,8 @@ The namespace layer uses Flux's bootstrap permissions to create the reconciler i
 
 Each Helm release accepts an optional `<release>-values` ConfigMap and `<release>-secrets` Secret, with a `values.yaml` key. Values sources are operator-owned; credentials belong in standalone Secrets referenced by name. Bundle values pin Loco images and disable the gateway subchart in the worker release. Envoy Gateway runs separately in `GatewayNamespace` mode. CRD Kustomizations disable pruning; each Loco CRD also carries prune protection.
 
+CRD Kustomizations check for drift every hour, reducing repeated schema validation by the Kubernetes API server. Failed reconciliations retry every five minutes. Their OCI sources still poll every five minutes; Flux handles source revision and Kustomization spec changes immediately, outside the drift interval. Manual changes to installed CRDs can therefore persist for up to an hour before automatic correction.
+
 Worker values set `agent.joinToken.existingSecret`, `global.region` and `global.exporter.endpoint` for enrollment and telemetry. Control-plane values supply the API environment Secret, identity provider, external Postgres, registry and object storage configuration. See `examples/gitops/` for the operator repository layout.
 
 ## Releases from source

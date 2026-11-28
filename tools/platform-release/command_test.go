@@ -51,7 +51,7 @@ func testTool(t *testing.T) *tool {
 	}
 	write(
 		crdVersions,
-		encoded(object{"applications": fixtureVersion, buildsName: fixtureVersion, gatewayName: fixtureVersion}),
+		encoded(object{applicationsName: fixtureVersion, buildsName: fixtureVersion, gatewayName: fixtureVersion}),
 	)
 	for _, upstream := range upstreamCharts {
 		write(
