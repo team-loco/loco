@@ -167,7 +167,8 @@ export function MetricsView() {
 	const hasResources = (regionQuery.data?.resources.length ?? 0) > 0;
 	const selectionEnabled = scopeReady && selectionReady;
 	const enabled = selectionEnabled && hasResources;
-	const pageLoading = !ready || resolving || regionQuery.isPending;
+	const selectionLoading = !ready || resolving;
+	const pageLoading = selectionLoading || regionQuery.isPending;
 	const common = {
 		workspaceId,
 		environmentId,
