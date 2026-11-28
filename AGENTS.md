@@ -63,7 +63,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 In a fresh worktree, install JavaScript dependencies from the repository root with `mise exec -- bun install --frozen-lockfile` before running the UI.
 
-A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress. Run deterministic browser suites in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes.
+Open every PR ready (`gh pr create`). Use draft only when explicitly requested. Complete required checks, evidence and review before handoff. Draft PRs run no CI. Run deterministic browser suites in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes.
 
 For UX/UI-only changes, use `mise run ui:staging` for the local preview. It runs the dashboard with hot reload and a local proxy using the saved staging CLI login; it starts no local API, PostgreSQL, OpenBao or Kubernetes services. Sign in with `loco login --host https://api.staging.loco.build --web-host https://staging.loco.build` when needed. Open the localhost URL printed by the command. Each run gets a free port from the OS. Actions change real staging data, so capture existing data without changing it unless the task authorizes those changes. Use an isolated fixture for browser sign-in, sign-out, web-session refresh, backend changes, seeded edge cases and repeatable automated suites.
 
