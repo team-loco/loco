@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { parseAsStringLiteral, useQueryStates } from "nuqs";
-import { getResource, listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { getResource, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import {
 	queryDeploymentBuckets,
 	getDeployment,
@@ -113,18 +113,8 @@ function DeploymentDetails({ id, onClose }: { id: string; onClose: () => void })
 	);
 }
 export function MetricsView() {
-	const {
-		workspaceId,
-		environmentId,
-		environmentLoading,
-		resourcesLoading,
-		scopedResourceIds,
-		tokens,
-		text,
-		setQuery,
-		range,
-		goTo,
-	} = useObs();
+	const { workspaceId, environmentId, environmentLoading, resourcesLoading, tokens, text, setQuery, range, goTo } =
+		useObs();
 	const transport = useTransport();
 	const [prefs, setPrefs] = useQueryStates(PREFS);
 	const [path, setPath] = useState("");
@@ -217,8 +207,12 @@ export function MetricsView() {
 		),
 	});
 	const regionQuery = useQuery({
-		...createQueryOptions(listRegions, { environmentId }, { transport }),
-		enabled: ready && scopedResourceIds === null,
+		...createQueryOptions(
+			listWorkspaceResources,
+			{ workspaceId, environmentId, resourceIds, pageSize: 1, includeFacets: true },
+			{ transport },
+		),
+		enabled: ready && selectionReady,
 	});
 	const pathQuery = useQuery({
 		...createQueryOptions(
@@ -240,7 +234,7 @@ export function MetricsView() {
 	});
 	const regionNames = [
 		...new Set([
-			...(regionQuery.data?.regions.map((r) => r.region) ?? []),
+			...(regionQuery.data?.facets?.regions.map((r) => r.region) ?? []),
 			...queries.flatMap((q) => q.data?.map((s) => s.labels[REGION_LABEL] ?? "") ?? []),
 			...(pathQuery.data?.buckets.map((b) => b.region) ?? []),
 			...regions,

@@ -2089,6 +2089,18 @@ def metrics(page):
         if request.url.endswith("/ListWorkspaceResources"):
             resource_searches.append(request.post_data_json)
 
+    # Synthetic region facets stay unfiltered while chart responses follow the selected region.
+    resource_list_url = "**/loco.resource.v1.ResourceService/ListWorkspaceResources"
+
+    def region_inventory(route):
+        response = route.fetch().json()
+        if route.request.post_data_json.get("includeFacets"):
+            response["facets"] = {
+                "regions": [{"region": region, "count": 1} for region in regions]
+            }
+        route.fulfill(json=response)
+
+    page.route(resource_list_url, region_inventory)
     page.on("request", observed)
     page.route(metric_url, regional)
     page.goto(
@@ -2138,6 +2150,9 @@ def metrics(page):
         memory.locator(".recharts-line-curve").first.get_attribute("stroke")
         == selected_color
     )
+    page.get_by_role("button", name="us-ca-1", exact=True).click()
+    expect(page.get_by_role("option", name="eu-de-1", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
     path_calls = []
 
     def paths(route):
@@ -2238,6 +2253,7 @@ def metrics(page):
     page.unroute(resource_url, configured_worker)
     page.unroute(deployment_url, deployed_web)
     page.unroute(metric_url, regional)
+    page.unroute(resource_list_url, region_inventory)
     page.remove_listener("request", observed)
 
 
