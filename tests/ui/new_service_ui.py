@@ -774,10 +774,11 @@ with session(out) as browser:
     expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(0)
     creations_before = len(creations)
     reject_next.append(True)
+    image_field = drawer.get_by_role("textbox", name="Container image", exact=True)
     with expect_rpc(
         page, "ResolveImage", lambda body: body.get("workspaceId") == workspace
     ) as resolution:
-        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+        image_field.fill(image + "-validation")
     details = resolution.value.json()["details"]
     assert [detail["type"] for detail in details] == [
         "google.rpc.BadRequest",
@@ -789,7 +790,6 @@ with session(out) as browser:
     expect(resolve_error).to_be_visible()
     expect(drawer.get_by_role("alert")).to_have_count(0)
     # The image is editable in the drawer; a bad reference is named at the field.
-    image_field = drawer.get_by_role("textbox", name="Container image", exact=True)
     image_field.fill("UPPER/Case")
     expect(resolve_error).to_have_count(0)
     expect(

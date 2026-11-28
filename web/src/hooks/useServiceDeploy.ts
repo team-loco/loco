@@ -8,6 +8,7 @@ import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 import { DOMAIN_AVAILABILITY_KEY } from "@/hooks/useDomainAvailability";
+import { imageResolutionOptions } from "@/hooks/useImageCheck";
 import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
 import {
@@ -51,7 +52,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {
 			const deployments = createClient(DeploymentService, transport);
-			const { image } = await deployments.resolveImage({ workspaceId, image: form.image.trim() });
+			const { image } = await queryClient.query(imageResolutionOptions(transport, workspaceId, form.image));
 			const { resourceId } = await createClient(ResourceService, transport).createResource({
 				workspaceId,
 				name: form.name,

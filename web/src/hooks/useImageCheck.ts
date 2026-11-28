@@ -1,12 +1,11 @@
-import { createClient } from "@connectrpc/connect";
-import { useTransport } from "@connectrpc/connect-query";
-import { useQuery } from "@tanstack/react-query";
+import { createClient, type Transport } from "@connectrpc/connect";
+import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { getErrorMessage } from "@/lib/error-handler";
 import { apiFieldError, imageError } from "@/lib/new-resource";
 
-const IMAGE_CHECK_KEY = "image-check";
 const IMAGE_CHECK_DEBOUNCE_MS = 600;
 
 export interface ImageCheck {
@@ -14,21 +13,30 @@ export interface ImageCheck {
 	error: string | null;
 }
 
-/** Asks the registry, once the image field settles, whether the image can be pulled. */
-export function useImageCheck(workspaceId: string, image: string): ImageCheck {
-	const transport = useTransport();
-	const trimmed = image.trim();
-	const query = useQuery({
-		queryKey: [IMAGE_CHECK_KEY, workspaceId, trimmed],
+export function imageResolutionOptions(transport: Transport, workspaceId: string, image: string) {
+	const input = { workspaceId, image: image.trim() };
+	return queryOptions({
+		queryKey: createConnectQueryKey({
+			schema: DeploymentService.method.resolveImage,
+			transport,
+			cardinality: "finite",
+			input,
+		}),
 		queryFn: async ({ signal }) => {
 			await new Promise((resolve) => setTimeout(resolve, IMAGE_CHECK_DEBOUNCE_MS));
 			signal.throwIfAborted();
-			await createClient(DeploymentService, transport).resolveImage({ workspaceId, image: trimmed }, { signal });
-			return true;
+			return await createClient(DeploymentService, transport).resolveImage(input, { signal });
 		},
-		enabled: imageError(trimmed) === null,
 		staleTime: Number.POSITIVE_INFINITY,
 		retry: false,
+	});
+}
+
+/** Asks the registry, once the image field settles, whether the image can be pulled. */
+export function useImageCheck(workspaceId: string, image: string): ImageCheck {
+	const query = useQuery({
+		...imageResolutionOptions(useTransport(), workspaceId, image),
+		enabled: imageError(image.trim()) === null,
 	});
 	return {
 		checking: query.isFetching,
