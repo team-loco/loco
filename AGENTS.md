@@ -61,7 +61,7 @@ emulation and font dependencies out of the platform modules.
 
 Builds, tests, code generation, linting and the local environment are mise tasks: `mise tasks` lists them, `mise run <task>` runs one. Every tool (go, bun, golangci-lint, buf, sqlc, helm, kind, ...) is pinned in `mise.toml` and `mise.lock`, and CI installs the same versions; `mise run setup` installs them, the web dependencies and the git hooks. `controller/Makefile` is the kubebuilder scaffold and stays; the root tasks call into it. Add a task to `mise.toml` (or a script under `mise-tasks/`) for commands you find yourself running often.
 
-In a fresh worktree, install JavaScript dependencies from the repository root with `mise exec -- bun install --frozen-lockfile` before running the UI. The root package defines the `web`, `gen/ts` and `docs` workspaces. Linking only `web/node_modules` leaves generated API types unable to resolve `@bufbuild/protobuf/codegenv2` and `@bufbuild/protobuf/wkt`. Keep dependency setup inside the worktree; do not change another checkout’s dependencies.
+In a fresh worktree, install JavaScript dependencies from the repository root with `mise exec -- bun install --frozen-lockfile` before running the UI.
 
 A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress. Run deterministic browser suites in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes.
 
