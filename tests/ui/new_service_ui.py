@@ -1033,48 +1033,46 @@ with session(out) as browser:
         create_failing_deployment,
     )
     page.goto(base + "/resources?env=production")
-    stale = seeded_draft(repository, f"registry.example.com/acme/{repository}:0.9")
+    stale = seeded_draft(name, f"registry.example.com/acme/{repository}:0.9")
     page.evaluate(
         f"localStorage.setItem({json.dumps(drafts_key)},{json.dumps(json.dumps([stale]))})"
     )
     page.reload()
-    row = draft_row(page, repository)
+    row = draft_row(page, name)
     expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
-    row.get_by_role("button", name=f"Actions for {repository}", exact=True).click()
+    row.get_by_role("button", name=f"Actions for {name}", exact=True).click()
     page.get_by_role("menuitem", name="Discard draft", exact=True).click()
-    page.get_by_role("alertdialog", name=f"Discard {repository}?").get_by_role(
+    page.get_by_role("alertdialog", name=f"Discard {name}?").get_by_role(
         "button", name="Cancel", exact=True
     ).click()
     expect(row).to_be_visible()
-    row.get_by_role("link", name=repository, exact=True).click()
-    stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
+    row.get_by_role("link", name=name, exact=True).click()
+    stale_drawer = page.get_by_role("dialog", name=name, exact=True)
     expect(stale_drawer.get_by_role("note")).to_have_text(
-        f"{repository} already uses this name or slug in this workspace. Deploying this draft will fail; discard it and start again with another name."
+        f"{name} already uses this name or slug in this workspace. Deploying this draft will fail; discard it and start again with another name."
     )
     stale_drawer.get_by_role("button", name="Discard draft", exact=True).click()
-    confirm = page.get_by_role("alertdialog", name=f"Discard {repository}?")
+    confirm = page.get_by_role("alertdialog", name=f"Discard {name}?")
     confirm.get_by_role("button", name="Discard draft", exact=True).click()
-    expect(page.get_by_text(f"Discarded {repository}", exact=True)).to_be_visible()
+    expect(page.get_by_text(f"Discarded {name}", exact=True)).to_be_visible()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-    expect(draft_row(page, repository)).to_have_count(0)
+    expect(draft_row(page, name)).to_have_count(0)
     assert stored_drafts(page) == [], stored_drafts(page)
 
     open_new_service(page)
     ask = page.get_by_role("dialog", name="New resource")
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
-    expect(name_input).to_have_value(name)
-    name_input.fill(repository)
+    expect(name_input).to_have_value(repository)
+    name_input.fill(name)
     expect(
-        ask.get_by_text(f"{repository} already exists in this workspace", exact=True)
+        ask.get_by_text(f"{name} already exists in this workspace", exact=True)
     ).to_be_visible()
-    name_input.fill(repository.upper())
+    name_input.fill(name.upper())
     expect(
-        ask.get_by_text(
-            f"{repository.upper()} already exists in this workspace", exact=True
-        )
+        ask.get_by_text(f"{name.upper()} already exists in this workspace", exact=True)
     ).to_be_visible()
-    name_input.fill(repository.replace("-", " "))
+    name_input.fill(name.replace("-", " "))
     expect(
         ask.get_by_text("Too close to an existing name in this workspace", exact=True)
     ).to_be_visible()
