@@ -76,7 +76,7 @@ During the grace period `Webhook-Signature` carries one signature per secret. Th
 
 ### Deliveries and redelivery
 
-Select a webhook on the **Webhooks** page to open its deliveries, newest first, and switch between **All** and **Failing**. A delivery succeeds when the endpoint answers with a 2xx status. A delivery that fails is **Retrying** while attempts remain in `WEBHOOK_RETRY_DELAYS` (by default 30 seconds, 2 minutes, 10 minutes, 1 hour, 6 hours and 24 hours apart), and **Failed** after the last one; each failing delivery shows its last error and attempt count.
+Select a webhook on the **Webhooks** page to open its deliveries, newest first, and switch between **All** and **Failing**. A delivery succeeds when the endpoint answers with a 2xx status. A 4xx response other than 408 (request timeout) or 429 (rate limit) ends the delivery as **Failed** immediately. Other failures are **Retrying** while attempts remain in `WEBHOOK_RETRY_DELAYS` (by default 30 seconds, 2 minutes, 10 minutes, 1 hour, 6 hours and 24 hours apart), and **Failed** after the last one; each failing delivery shows its last error and attempt count.
 
 The **Redeliver** button on a delivered or failed delivery sends it again with the same `Webhook-Id` and restarts its retry schedule. Through the API, `ListWebhookDeliveries` lists deliveries with an optional `status` (`pending`, `succeeded` or `failed`) and `failing` filter, and `RedeliverWebhookDelivery` takes the delivery ID. Redelivering a pending delivery fails with `FailedPrecondition`.
 

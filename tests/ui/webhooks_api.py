@@ -7,14 +7,16 @@ import json
 import queue
 import threading
 import time
+from pathlib import Path
 
-from harness import call, evidence, load_state
+from harness import call, evidence, load_state, session
 
 parser = argparse.ArgumentParser(
     description="Send real webhook deliveries from a throwaway API to a local receiver"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
+parser.add_argument("--out", default="tests/ui/out/webhooks-api")
 args = parser.parse_args()
 state = load_state(args, "webhooks", "tests/ui/fixtures/webhooks/scenario.json")
 workspace = state["workspaces"]["acme/shared"]
@@ -30,7 +32,12 @@ class Receiver(http.server.BaseHTTPRequestHandler):
         self.received.put(
             {"path": self.path, "headers": dict(self.headers), "body": body}
         )
-        self.send_response(503 if self.path == FAILING_PATH else 204)
+        status = 204
+        if self.path == FAILING_PATH:
+            status = 503
+        elif self.path == "/rejected":
+            status = 400
+        self.send_response(status)
         self.end_headers()
 
     def log_message(self, format, *args):
@@ -229,6 +236,57 @@ after = receive("/second", workspace_update)
 assert_signed(final["secret"], after)
 replaced, sent = signatures(rotated["secret"], after)
 assert replaced not in sent, sent
+
+call(
+    state,
+    "loco.webhook.v1.WebhookService/UpdateWebhook",
+    {
+        "workspaceId": workspace,
+        "webhookId": hook,
+        "url": base_url + "/rejected",
+        "eventTypes": ["workspace.updated"],
+    },
+)
+touch_workspace("rejected")
+receive("/rejected")
+rejected = wait_for_delivery(
+    lambda d: d.get("lastError") == "endpoint returned 400 Bad Request"
+)
+print("HTTP 400 delivery:", json.dumps(rejected, sort_keys=True), flush=True)
+out = Path(args.out)
+out.mkdir(parents=True, exist_ok=True)
+shot = {
+    "name": "webhook-rejection",
+    "user": "owner",
+    "path": f"/org/{state['orgs']['acme']['id']}/wks/{workspace}/webhooks?hook={hook}",
+    "ready_selector": 'text="endpoint returned 400 Bad Request, 1 attempt"',
+    "crop": "viewport",
+}
+side = "before" if state["name"] == "before" else "after"
+with session(out) as browser:
+    for theme in evidence.THEMES:
+        for narrow in (False, True):
+            target = out / evidence.shot_filename(shot["name"], side, theme, narrow)
+            evidence.capture(browser, state, shot, theme, narrow, target)
+assert rejected["status"] == "failed" and rejected["attempts"] == 1, rejected
+assert rejected["id"] in [d["id"] for d in deliveries(status="failed")["deliveries"]]
+call(
+    state,
+    "loco.webhook.v1.WebhookService/UpdateWebhook",
+    {
+        "workspaceId": workspace,
+        "webhookId": hook,
+        "url": f"{base_url}/second",
+        "eventTypes": ["workspace.updated"],
+    },
+)
+call(
+    state,
+    "loco.webhook.v1.WebhookService/RedeliverWebhookDelivery",
+    {"workspaceId": workspace, "webhookId": hook, "deliveryId": rejected["id"]},
+)
+receive("/second", lambda request: header(request, "webhook-id") == rejected["id"])
+wait_for_delivery(lambda d: d["id"] == rejected["id"] and d["status"] == "succeeded")
 
 server.shutdown()
 print("PASS: webhook deliveries", flush=True)

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -378,48 +379,88 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 	}
 }
 
+func TestRejectedDeliveriesFailWithoutRetrying(t *testing.T) {
+	for _, status := range []int{
+		http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden,
+		http.StatusNotFound, http.StatusGone, http.StatusUnprocessableEntity,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			f := newFixture(t)
+			hook, secret := f.webhook(t, f.workspaceID)
+			r := newReceiver(t, secret)
+			r.status.Store(int32(status))
+			f.setURL(t, hook.ID, r.srv.URL)
+			f.record(t, f.workspaceID, events.ResourceUpdated)
+			d := f.dispatcher(true)
+			if _, err := d.DispatchDue(t.Context()); err != nil {
+				t.Fatalf("dispatch: %v", err)
+			}
+			row := f.deliveries(t, hook.ID)[0]
+			t.Logf("receiver HTTP %d: status=%s attempts=%d error=%v", status, row.Status, row.Attempts, row.LastError)
+			if row.Status != webhooks.StatusFailed || row.Attempts != 1 || row.DeliveredAt != nil {
+				t.Fatalf("rejected delivery = %+v, want failed after one attempt", row)
+			}
+			wantError := fmt.Sprintf("endpoint returned %d %s", status, http.StatusText(status))
+			if row.LastError == nil || *row.LastError != wantError {
+				t.Fatalf("last error = %v, want %q", row.LastError, wantError)
+			}
+			f.makeDue(t)
+			if claimed, err := d.DispatchDue(t.Context()); err != nil || claimed != 0 {
+				t.Fatalf("reclaimed terminal delivery: %d, %v", claimed, err)
+			}
+			if got := len(r.types()); got != 1 {
+				t.Fatalf("receiver saw %d requests, want 1", got)
+			}
+		})
+	}
+}
+
 func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
-	f := newFixture(t)
-	hook, secret := f.webhook(t, f.workspaceID)
-	r := newReceiver(t, secret)
-	r.status.Store(http.StatusInternalServerError)
-	f.setURL(t, hook.ID, r.srv.URL)
-	f.record(t, f.workspaceID, events.ResourceUpdated)
-	d := f.dispatcher(true)
+	for _, status := range []int{http.StatusRequestTimeout, http.StatusTooManyRequests, http.StatusInternalServerError} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			f := newFixture(t)
+			hook, secret := f.webhook(t, f.workspaceID)
+			r := newReceiver(t, secret)
+			r.status.Store(int32(status))
+			f.setURL(t, hook.ID, r.srv.URL)
+			f.record(t, f.workspaceID, events.ResourceUpdated)
+			d := f.dispatcher(true)
 
-	if _, err := d.DispatchDue(t.Context()); err != nil {
-		t.Fatalf("dispatch: %v", err)
-	}
-	row := f.deliveries(t, hook.ID)[0]
-	if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastError == nil ||
-		*row.LastError != "endpoint returned 500 Internal Server Error" {
-		t.Fatalf("after one failure = %+v", row)
-	}
-	if again, againErr := d.DispatchDue(t.Context()); againErr != nil || again != 0 {
-		t.Fatalf("retried before its backoff elapsed (%v)", againErr)
-	}
+			if _, err := d.DispatchDue(t.Context()); err != nil {
+				t.Fatalf("dispatch: %v", err)
+			}
+			row := f.deliveries(t, hook.ID)[0]
+			if row.Status != webhooks.StatusPending || row.Attempts != 1 || row.LastError == nil ||
+				*row.LastError != fmt.Sprintf("endpoint returned %d %s", status, http.StatusText(status)) {
+				t.Fatalf("after one failure = %+v", row)
+			}
+			if again, againErr := d.DispatchDue(t.Context()); againErr != nil || again != 0 {
+				t.Fatalf("retried before its backoff elapsed (%v)", againErr)
+			}
 
-	for range 6 {
-		f.makeDue(t)
-		if _, err := d.DispatchDue(t.Context()); err != nil {
-			t.Fatalf("dispatch: %v", err)
-		}
-	}
-	row = f.deliveries(t, hook.ID)[0]
-	if row.Status != webhooks.StatusFailed || row.Attempts != 7 {
-		t.Fatalf("after giving up = %+v", row)
-	}
-	if got := len(r.types()); got != 7 {
-		t.Fatalf("receiver saw %d attempts, want 7", got)
-	}
+			for range 6 {
+				f.makeDue(t)
+				if _, err := d.DispatchDue(t.Context()); err != nil {
+					t.Fatalf("dispatch: %v", err)
+				}
+			}
+			row = f.deliveries(t, hook.ID)[0]
+			if row.Status != webhooks.StatusFailed || row.Attempts != 7 {
+				t.Fatalf("after giving up = %+v", row)
+			}
+			if got := len(r.types()); got != 7 {
+				t.Fatalf("receiver saw %d attempts, want 7", got)
+			}
 
-	r.status.Store(http.StatusOK)
-	f.record(t, f.workspaceID, events.ResourceUpdated)
-	if _, err := d.DispatchDue(t.Context()); err != nil {
-		t.Fatalf("dispatch: %v", err)
-	}
-	if latest := f.deliveries(t, hook.ID)[0]; latest.Status != webhooks.StatusSucceeded {
-		t.Fatalf("recovered endpoint delivery = %+v", latest)
+			r.status.Store(http.StatusOK)
+			f.record(t, f.workspaceID, events.ResourceUpdated)
+			if _, err := d.DispatchDue(t.Context()); err != nil {
+				t.Fatalf("dispatch: %v", err)
+			}
+			if latest := f.deliveries(t, hook.ID)[0]; latest.Status != webhooks.StatusSucceeded {
+				t.Fatalf("recovered endpoint delivery = %+v", latest)
+			}
+		})
 	}
 }
 

@@ -251,12 +251,14 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		return
 	}
 	params := genDb.FinishWebhookDeliveryParams{ID: id, Attempts: int32(attempt), NextAttemptAt: d.now()}
+	var rejection *endpointRejection
+	permanent := errors.As(sendErr, &rejection) && rejection.permanent()
 	switch {
 	case sendErr == nil:
 		params.Status = StatusSucceeded
 		delivered := d.now()
 		params.DeliveredAt = &delivered
-	case attempt > len(d.cfg.RetryDelays):
+	case permanent || attempt > len(d.cfg.RetryDelays):
 		params.Status = StatusFailed
 	default:
 		params.Status = StatusPending
@@ -342,7 +344,25 @@ func (d *Dispatcher) send(
 		slog.DebugContext(ctx, "failed to drain webhook response", "error", err)
 	}
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("endpoint returned %s", res.Status)
+		return &endpointRejection{status: res.StatusCode, message: res.Status}
 	}
 	return nil
+}
+
+type endpointRejection struct {
+	status  int
+	message string
+}
+
+func (e *endpointRejection) Error() string {
+	return "endpoint returned " + e.message
+}
+
+func (e *endpointRejection) permanent() bool {
+	switch e.status {
+	case http.StatusRequestTimeout, http.StatusTooManyRequests:
+		return false
+	default:
+		return e.status >= http.StatusBadRequest && e.status < http.StatusInternalServerError
+	}
 }
