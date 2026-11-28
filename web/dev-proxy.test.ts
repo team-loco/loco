@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 // This fixture is synthetic. Live staging verification is separate.
-test("staging dev server preserves compressed responses and quiet streams", async () => {
+test("parallel staging dev servers preserve compressed responses and quiet streams", async () => {
 	const key = "synthetic-bridge-key";
 	const upstream = Bun.serve({
 		hostname: "localhost",
@@ -33,31 +33,45 @@ test("staging dev server preserves compressed responses and quiet streams", asyn
 			);
 		},
 	});
-	const reservation = Bun.serve({ hostname: "localhost", port: 0, fetch: () => new Response() });
-	const port = reservation.port;
-	await reservation.stop(true);
-	const origin = `http://localhost:${port}`;
-	const child = Bun.spawn([process.execPath, "dev.ts"], {
-		cwd: import.meta.dir,
-		env: { ...process.env, WEB_PORT: String(port), LOCO_UI_PROXY_URL: upstream.url.origin, LOCO_UI_PROXY_KEY: key },
-		stdout: "pipe",
-		stderr: "inherit",
-	});
+	const children = Array.from({ length: 2 }, () =>
+		Bun.spawn([process.execPath, "dev.ts"], {
+			cwd: import.meta.dir,
+			env: { ...process.env, WEB_PORT: "0", LOCO_UI_PROXY_URL: upstream.url.origin, LOCO_UI_PROXY_KEY: key },
+			stdout: "pipe",
+			stderr: "inherit",
+		}),
+	);
 	try {
-		const reader = child.stdout.getReader();
-		let startup = "";
-		while (!startup.includes("Loco UI on")) {
-			const chunk = await reader.read();
-			if (chunk.done) throw new Error(`Dev server exited: ${startup}`);
-			startup += new TextDecoder().decode(chunk.value);
+		const origins: string[] = [];
+		for (const child of children) {
+			const reader = child.stdout.getReader();
+			let startup = "";
+			while (!startup.includes("Loco UI on")) {
+				const chunk = await reader.read();
+				if (chunk.done) throw new Error(`Dev server exited: ${startup}`);
+				startup += new TextDecoder().decode(chunk.value);
+			}
+			reader.releaseLock();
+			const match = /Loco UI on (http:\/\/localhost:\d+)\//.exec(startup);
+			if (!match?.[1]) throw new Error(`Missing dev server URL: ${startup}`);
+			origins.push(match[1]);
 		}
-		reader.releaseLock();
+		expect(new Set(origins).size).toBe(2);
+		for (const current of origins) {
+			const response = await fetch(`${current}/api/compressed`, { headers: { origin: current } });
+			expect(response.status).toBe(200);
+			expect(await response.json()).toEqual({ ok: true });
+		}
+		const origin = origins[0];
+		if (!origin) throw new Error("Missing first server URL");
 		const response = await fetch(`${origin}/api/compressed`, { headers: { origin, cookie: "synthetic=browser" } });
 		expect(response.status).toBe(200);
 		expect(response.headers.has("set-cookie")).toBe(false);
 		expect(await response.json()).toEqual({ ok: true });
 		const foreign = await fetch(`${origin}/api/compressed`, { headers: { origin: "https://example.com" } });
 		expect(foreign.status).toBe(403);
+		const crossInstance = await fetch(`${origin}/api/compressed`, { headers: { origin: origins[1] ?? "" } });
+		expect(crossInstance.status).toBe(403);
 		const sameOrigin = await fetch(`${origin}/api/compressed`, { headers: { "sec-fetch-site": "same-origin" } });
 		expect(await sameOrigin.json()).toEqual({ ok: true });
 		const started = performance.now();
@@ -75,8 +89,8 @@ test("staging dev server preserves compressed responses and quiet streams", asyn
 		}
 		expect(text).toBe("first\nsecond\n");
 	} finally {
-		child.kill();
-		await child.exited;
+		for (const child of children) child.kill();
+		await Promise.all(children.map(async (child) => await child.exited));
 		await upstream.stop(true);
 	}
 }, 20_000);

@@ -41,7 +41,7 @@ loco login --host https://api.staging.loco.build --web-host https://staging.loco
 mise run ui:staging
 ```
 
-Open `http://localhost:5173`. The development proxy uses the saved CLI login and refreshes it before expiry. Credentials stay in the local proxy process; they are not compiled into the dashboard. The command refuses a login for another API host.
+Open the localhost URL printed by the command. Each run gets a free port from the OS. The development proxy uses the saved CLI login and refreshes it before expiry. Credentials stay in the local proxy process; they are not compiled into the dashboard. The command refuses a login for another API host.
 
 Actions in this dashboard change real staging data. This mode tests signed-in screens; use the full local platform to test browser sign-in, session refresh and sign-out.
 

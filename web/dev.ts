@@ -15,13 +15,13 @@ const publicRoutes = Object.fromEntries(
 	publicFiles.map((file) => [`/${file}`, () => new Response(Bun.file(`${publicDir}/${file}`))]),
 );
 
-const routes: Record<string, Bun.HTMLBundle | ((request: Request) => Response | Promise<Response>)> = {
+const routes: Bun.Serve.Routes<undefined, string> = {
 	...publicRoutes,
 	"/*": index,
 };
 if (proxyURL) {
 	if (!proxyKey) throw new Error("Missing staging proxy key");
-	routes["/api/*"] = stagingProxy({ upstream: proxyURL, key: proxyKey, origin: `http://localhost:${port}` });
+	routes["/api/*"] = stagingProxy({ upstream: proxyURL, key: proxyKey });
 }
 
 const server = Bun.serve({

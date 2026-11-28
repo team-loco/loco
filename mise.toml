@@ -204,7 +204,7 @@ run = "bun run dev"
 [tasks."ui:staging"]
 description = "Run only the local UI against staging using the CLI login"
 dir = "cmd"
-env = { WEB_PORT = "5173" }
+env = { WEB_PORT = "0" }
 run = "mise exec -- go run ./tools/ui-staging"
 
 [tasks.dev]

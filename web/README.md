@@ -25,8 +25,7 @@ those names.
 
 For UX changes using real staging data, run `mise run ui:staging` from the repository root after
 `loco login --host https://api.staging.loco.build --web-host https://staging.loco.build`.
-This starts only the dashboard and a local API proxy using the saved CLI login. Open
-`http://localhost:5173`. Actions change staging data. Browser sign-in and sign-out require
+This starts only the dashboard and a local API proxy using the saved CLI login. Open the localhost URL printed by the command; each run gets a free port from the OS. Actions change staging data. Browser sign-in and sign-out require
 the full local platform.
 
 ## Configuration

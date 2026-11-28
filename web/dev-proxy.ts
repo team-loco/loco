@@ -1,16 +1,15 @@
 interface ProxyConfig {
 	upstream: string;
 	key: string;
-	origin: string;
 }
 
 export function stagingProxy(config: ProxyConfig) {
-	return async (request: Request): Promise<Response> => {
+	return async (request: Request, server: Bun.Server<undefined>): Promise<Response> => {
 		const url = new URL(request.url);
 		const origin = request.headers.get("origin");
 		const sameOriginFetch = request.headers.get("sec-fetch-site") === "same-origin";
-		const allowedOrigin = origin === null ? sameOriginFetch : origin === config.origin;
-		if (url.origin !== config.origin || !allowedOrigin) return new Response("Forbidden origin", { status: 403 });
+		const allowedOrigin = origin === null ? sameOriginFetch : origin === server.url.origin;
+		if (url.origin !== server.url.origin || !allowedOrigin) return new Response("Forbidden origin", { status: 403 });
 		const headers = new Headers(request.headers);
 		headers.set("authorization", `Bearer ${config.key}`);
 		headers.delete("cookie");
