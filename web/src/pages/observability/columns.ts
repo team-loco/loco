@@ -5,7 +5,7 @@ import { CLUSTER_ATTRIBUTE, type LogRow } from "./rows";
 
 export type ColumnKey = string;
 
-export const SYSTEM_COLUMNS: ColumnKey[] = ["level", "component", "cluster", "source"];
+export const SYSTEM_COLUMNS: ColumnKey[] = ["level", "component", "cluster"];
 export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"level",
 	"resource",
@@ -18,7 +18,7 @@ export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"duration",
 	"trace",
 ];
-export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource", "source"];
+export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
 
 /** The columns the picker offers: Loco's own telemetry has components and clusters where workspaces have resources. */
 export function pickableColumns(installation: boolean): ColumnKey[] {
