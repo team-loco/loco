@@ -1,4 +1,5 @@
 import argparse
+import re
 from pathlib import Path
 
 from harness import call, evidence, load_state, open_page, repo, session
@@ -66,6 +67,34 @@ with session(out) as browser:
     page.get_by_role("button", name="Delete resource", exact=True).click()
     dialog = page.get_by_role("alertdialog")
     dialog.get_by_role("textbox").fill("own-delete")
+    held_lists = []
+    list_rpc = "**/loco.resource.v1.ResourceService/ListWorkspaceResources"
+
+    def hold_complete_list(route):
+        if route.request.post_data_json.get("pageSize") == 200:
+            held_lists.append(route)
+        else:
+            route.continue_()
+
+    context.route(list_rpc, hold_complete_list)
+    confirm = dialog.get_by_role(
+        "button", name=re.compile(r"^(Delete own-delete|Deleting…)$")
+    )
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/ListWorkspaceResources")
+            and request.post_data_json.get("pageSize") == 200
+        )
+    ):
+        confirm.click()
+    page.evaluate(
+        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+    expect(confirm).to_be_disabled()
+    expect(dialog.get_by_role("textbox")).to_be_disabled()
+    expect(dialog.get_by_role("button", name="Cancel", exact=True)).to_be_disabled()
+    page.keyboard.press("Escape")
+    expect(dialog).to_be_visible()
     with page.expect_response(
         lambda response: (
             response.url.endswith("/ListWorkspaceResources")
@@ -73,7 +102,8 @@ with session(out) as browser:
             and response.status == 200
         )
     ) as refreshed_resources:
-        dialog.get_by_role("button", name="Delete own-delete", exact=True).click()
+        held_lists.pop().continue_()
+    context.unroute(list_rpc)
     deleted_id = resources["acme/shared/own-delete"]
     assert deleted_id not in {
         item["id"] for item in refreshed_resources.value.json().get("resources", [])

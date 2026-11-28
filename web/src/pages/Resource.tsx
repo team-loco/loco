@@ -153,7 +153,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setDraft(next);
 	});
 	const deploy = useMutation(createDeployment);
-	const del = useMutation(deleteResource);
+	const del = useMutation(deleteResource, {
+		onSuccess: async () => {
+			if (resource === undefined) throw new Error("Cannot delete an unloaded resource");
+			await queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, resource.workspaceId) });
+		},
+	});
 
 	const [search] = useSearchParams();
 	const rawTab = search.get("tab");
@@ -334,9 +339,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const handleDelete = async () => {
 		try {
 			await del.mutateAsync({ resourceId });
-			await queryClient.invalidateQueries({
-				queryKey: workspaceResourcesKey(transport, resource.workspaceId),
-			});
 			toast.success(withCode`Deleted ${resource.name}`);
 			setModal(null);
 			if (hasWs) {
