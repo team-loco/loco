@@ -73,7 +73,8 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 	for (const entry of entries) {
 		const ts = tsMs(entry.timestamp);
 		const pod = podName(entry);
-		const base = `${entry.timestamp?.seconds.toString() ?? "0"}.${String(entry.timestamp?.nanos ?? 0)}|${entry.resourceId}|${pod}|${hashString(entry.body)}`;
+		const scope = JSON.stringify([entry.scopeName, entry.scopeVersion]);
+		const base = `${entry.timestamp?.seconds.toString() ?? "0"}.${String(entry.timestamp?.nanos ?? 0)}|${entry.resourceId}|${pod}|${hashString(entry.body)}|${scope}`;
 		const n = seen.get(base) ?? 0;
 		seen.set(base, n + 1);
 		const res = resourceById.get(entry.resourceId);
@@ -124,6 +125,8 @@ export function logJson(row: LogRow, pref: TimePreferences): string {
 			...(e.spanId === "" ? {} : { span_id: e.spanId }),
 			resource_attributes: e.resourceAttributes,
 			log_attributes: e.logAttributes,
+			scope_name: e.scopeName,
+			scope_version: e.scopeVersion,
 		},
 		null,
 		2,

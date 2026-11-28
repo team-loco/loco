@@ -35,6 +35,17 @@ entries = [
         ]
     )
 ]
+entries.extend(
+    {
+        "timestamp": now.isoformat(),
+        "level": "LOG_LEVEL_INFO",
+        "body": "request completed",
+        "resourceAttributes": {"service.name": "loco-api"},
+        "scopeName": source,
+        "scopeVersion": "1.0",
+    }
+    for source in ("stdout-collector", "application-sdk")
+)
 
 
 def open_log(page, body="handled request"):
@@ -66,6 +77,35 @@ with session(out) as browser:
                 lambda route: route.fulfill(json={"buckets": []}),
             )
             page.goto(state["ui_url"] + "/system/logs?live=0")
+            lines = page.get_by_role("table", name="Log lines")
+            source_header = lines.get_by_role(
+                "columnheader", name=re.compile(r"^Source\b")
+            )
+            expect(source_header).to_have_count(0)
+            expect(
+                lines.get_by_role("row").filter(has_text="request completed")
+            ).to_have_count(2)
+            page.get_by_role("button", name="Add a column", exact=True).click()
+            source_toggle = page.get_by_role("checkbox", name="Source", exact=True)
+            expect(source_toggle).not_to_be_checked()
+            source_toggle.check()
+            page.keyboard.press("Escape")
+            expect(source_header).to_be_visible()
+            page.reload()
+            expect(source_header).to_be_visible()
+            for source in ("stdout-collector", "application-sdk"):
+                row = lines.get_by_role("row").filter(has_text=source)
+                expect(row).to_contain_text("request completed")
+            unknown = lines.get_by_role("row").filter(has_text="plain text log")
+            source_index = (
+                lines.get_by_role("columnheader").all_text_contents().index("Source")
+            )
+            expect(unknown.get_by_role("cell").nth(source_index)).to_have_text("—")
+            page.get_by_role("button", name="Remove column Source", exact=True).click()
+            expect(source_header).to_have_count(0)
+            expect(
+                lines.get_by_role("row").filter(has_text="request completed")
+            ).to_have_count(2)
             detail = open_log(page)
             toggle = detail.get_by_role("button", name="Parsed JSON", exact=True)
             expect(toggle).to_have_attribute("aria-pressed", "false")

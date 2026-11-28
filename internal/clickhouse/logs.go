@@ -97,6 +97,8 @@ func (c *Client) queryLogPage(
 			spanID        string
 			resourceAttrs map[string]string
 			logAttrs      map[string]string
+			scopeName     string
+			scopeVersion  string
 			blockNumber   uint64
 			blockOffset   uint64
 			partitionID   string
@@ -111,6 +113,8 @@ func (c *Client) queryLogPage(
 			&spanID,
 			&resourceAttrs,
 			&logAttrs,
+			&scopeName,
+			&scopeVersion,
 			&blockNumber,
 			&blockOffset,
 			&partitionID,
@@ -131,6 +135,8 @@ func (c *Client) queryLogPage(
 			SpanId:             spanID,
 			ResourceAttributes: resourceAttrs,
 			LogAttributes:      logAttrs,
+			ScopeName:          scopeName,
+			ScopeVersion:       scopeVersion,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -147,7 +153,8 @@ func (c *Client) queryLogPage(
 }
 
 var logSelect = "SELECT Timestamp, " + levelColumn + ", Body, " + resourceColumn + ", TraceId, SpanId, " +
-	"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs"
+	"ResourceAttributes, LogAttributes, ScopeName, ScopeVersion, " +
+	"_block_number, _block_offset, _partition_id FROM otel_logs"
 
 type binder interface {
 	str(value string) string

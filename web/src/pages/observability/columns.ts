@@ -11,6 +11,7 @@ export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"resource",
 	"replica",
 	"region",
+	"source",
 	"method",
 	"path",
 	"status",
@@ -33,6 +34,7 @@ const LABELS: Record<string, string> = {
 	cluster: "Cluster",
 	replica: "Replica",
 	region: "Region",
+	source: "Source",
 	trace: "Trace",
 	method: "Method",
 	path: "Path",
@@ -55,6 +57,7 @@ const WIDTHS: Record<string, number> = {
 	cluster: 140,
 	replica: 110,
 	region: 112,
+	source: 140,
 	trace: 128,
 	method: 96,
 	path: 180,
@@ -128,6 +131,8 @@ export function columnValue(row: LogRow, key: ColumnKey): string {
 			return row.replica;
 		case "region":
 			return row.region;
+		case "source":
+			return row.entry.scopeName;
 		case "trace":
 			return row.entry.traceId.slice(0, TRACE_PREFIX);
 		default: {

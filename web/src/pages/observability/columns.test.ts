@@ -3,7 +3,7 @@ import { createLoader, createSerializer } from "nuqs";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { columnValue, DEFAULT_COLUMNS, columnsParser, MIN_COLUMN_WIDTH, widthsParser } from "./columns";
+import { columnValue, DEFAULT_COLUMNS, SYSTEM_COLUMNS, columnsParser, MIN_COLUMN_WIDTH, widthsParser } from "./columns";
 import { toRows } from "./rows";
 
 const PARSERS = { cols: columnsParser, widths: widthsParser };
@@ -12,8 +12,10 @@ const serialize = createSerializer(PARSERS);
 
 test("default columns stay out of the URL and custom ones round-trip", () => {
 	expect(serialize({ cols: DEFAULT_COLUMNS })).toBe("");
-	expect(load("").cols).toEqual(DEFAULT_COLUMNS);
-	const custom = ["level", "replica", "http.method"];
+	expect(load("").cols).toEqual(["level", "resource"]);
+	const loadSystem = createLoader({ cols: columnsParser.withDefault(SYSTEM_COLUMNS) });
+	expect(loadSystem("").cols).toEqual(["level", "component", "cluster"]);
+	const custom = ["level", "replica", "http.method", "source"];
 	expect(load(serialize({ cols: custom })).cols).toEqual(custom);
 });
 
@@ -21,11 +23,13 @@ test("attribute columns read log and resource attributes", () => {
 	const entry = create(LogEntrySchema, {
 		logAttributes: { "http.method": "GET" },
 		resourceAttributes: { "k8s.pod.name": "web-7c41e9-x2kd9" },
+		scopeName: "application-sdk",
 	});
 	const row = toRows([entry], new Map())[0];
 	if (row === undefined) throw new Error("no row");
 	expect(columnValue(row, "http.method")).toBe("GET");
 	expect(columnValue(row, "replica")).toBe("x2kd9");
+	expect(columnValue(row, "source")).toBe("application-sdk");
 	expect(columnValue(row, "missing")).toBe("");
 });
 
