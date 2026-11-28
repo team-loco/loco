@@ -32,13 +32,6 @@ func (cp *controlPlane) checkCoLocatedCollection(t *testing.T, reader, password,
 	}
 	cp.upgrade(t, "nodeCollector.enabled=false", "clusterCollector.enabled=false")
 	defer cp.upgrade(t)
-	for _, originalClaim := range queueClaims {
-		var retained corev1.PersistentVolumeClaim
-		c.MustGet(t, &retained, "-n", originalClaim.Namespace, "pvc", originalClaim.Name)
-		if retained.UID != originalClaim.UID {
-			t.Fatalf("delegation replaced queue claim %s/%s", retained.Namespace, retained.Name)
-		}
-	}
 	cpNodeNamespace := cp.values.NodeCollector.NamespaceOverride
 	cpClusterNamespace := cp.values.ClusterCollector.NamespaceOverride
 	platform.Eventually(
@@ -58,6 +51,13 @@ func (cp *controlPlane) checkCoLocatedCollection(t *testing.T, reader, password,
 			return nil
 		},
 	)
+	for _, originalClaim := range queueClaims {
+		var retained corev1.PersistentVolumeClaim
+		c.MustGet(t, &retained, "-n", originalClaim.Namespace, "pvc", originalClaim.Name)
+		if retained.UID != originalClaim.UID || retained.DeletionTimestamp != nil {
+			t.Fatalf("delegation did not retain queue claim %s/%s", retained.Namespace, retained.Name)
+		}
+	}
 	for _, workload := range []string{release + "-api", release + "-obs-proxy-ingest"} {
 		rollout(t, cp.namespace, "deployment/"+workload)
 		var deployment appsv1.Deployment
