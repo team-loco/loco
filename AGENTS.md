@@ -158,7 +158,8 @@ Do not edit generated files directly. Regenerate after changing their sources:
 - Protobuf definitions, SQL queries or migrations: `mise run gen`.
 - Kubernetes API types or controller markers: `mise run controller:gen` (deep copies, CRDs, RBAC and chart copies).
 
-Review generated diffs; CI checks for drift.
+Review generated diffs; CI checks for drift. When a CRD bundle changes, bump its version in
+`tools/platform-release/crds.yaml` and run `mise run lint:crd-versions`.
 
 ## Charts
 
