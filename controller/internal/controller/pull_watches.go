@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -149,9 +150,11 @@ func (r *ApplicationReconciler) watchWorkspacePodEvents(mgr ctrl.Manager, events
 func (r *ApplicationReconciler) forgetPodEventNamespace(namespace string) {
 	r.podEventsMu.Lock()
 	defer r.podEventsMu.Unlock()
-	for uid, e := range r.podEvents {
-		if e.namespace == namespace {
-			delete(r.podEvents, uid)
+	for application, events := range r.podEvents {
+		events = slices.DeleteFunc(events, func(e podEvent) bool { return e.namespace == namespace })
+		r.podEvents[application] = events
+		if len(events) == 0 {
+			delete(r.podEvents, application)
 		}
 	}
 }

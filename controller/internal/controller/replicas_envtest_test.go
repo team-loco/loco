@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"k8s.io/client-go/rest"
@@ -174,7 +175,7 @@ var _ = Describe("Pull event watch", func() {
 		Consistently(func() bool {
 			r.podEventsMu.Lock()
 			defer r.podEventsMu.Unlock()
-			_, found := r.podEvents[outsidePod.UID]
+			found := slices.ContainsFunc(r.podEvents[key], func(e podEvent) bool { return e.uid == outsidePod.UID })
 			return found
 		}, 200*time.Millisecond, routeManagerPoll).Should(BeFalse())
 		observed.expectScoped(pod.Namespace, outside.Name)
@@ -188,7 +189,7 @@ var _ = Describe("Pull event watch", func() {
 		Eventually(func() bool {
 			r.podEventsMu.Lock()
 			defer r.podEventsMu.Unlock()
-			_, found := r.podEvents[pod.UID]
+			found := slices.ContainsFunc(r.podEvents[key], func(e podEvent) bool { return e.uid == pod.UID })
 			return found
 		}, routeManagerWait, routeManagerPoll).Should(BeFalse())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
