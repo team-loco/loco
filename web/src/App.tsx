@@ -13,6 +13,7 @@ import { Splash } from "@/pages/Splash";
 import { createConnectQueryKey, TransportProvider, useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
@@ -100,6 +101,7 @@ const sharedQueryKeys = [
 	createConnectQueryKey({ schema: getConfig, cardinality: undefined }),
 	createConnectQueryKey({ schema: getScopes, cardinality: undefined }),
 	createConnectQueryKey({ schema: listEnvironments, cardinality: undefined }),
+	createConnectQueryKey({ schema: listWorkspaceResources, cardinality: undefined }),
 ];
 for (const queryKey of sharedQueryKeys) queryClient.setQueryDefaults(queryKey, { staleTime: SHARED_STALE_MS });
 

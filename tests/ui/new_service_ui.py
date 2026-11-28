@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 import uuid
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from urllib.parse import urlparse
@@ -162,6 +163,36 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
 
 
 with session(out) as browser:
+    context, page, _ = open_page(browser)
+    page.clock.set_fixed_time(datetime.now(UTC))
+    resource_reads = []
+    page.on(
+        "request",
+        lambda request: (
+            resource_reads.append(request.post_data_json)
+            if request.url.endswith("/ListWorkspaceResources")
+            and request.post_data_json.get("pageSize") == 200
+            else None
+        ),
+    )
+    context.route(
+        "**/loco.deployment.v1.DeploymentService/ResolveImage",
+        lambda route: route.fulfill(
+            json={"image": "example.invalid/metadata@sha256:" + "a" * 64}
+        ),
+    )
+    page.goto(base + "/resources?env=production")
+    open_new_service(page)
+    ask = page.get_by_role("dialog", name="New resource", exact=True)
+    ask.get_by_role("textbox", name="Container image", exact=True).fill(
+        "example.invalid/metadata:1"
+    )
+    ask.get_by_role("button", name="Continue", exact=True).click()
+    drawer = page.get_by_role("dialog", name="metadata", exact=True)
+    expect(drawer.get_by_role("button", name="us-ca-1", exact=True)).to_be_visible()
+    assert len(resource_reads) == 1, resource_reads
+    context.close()
+
     context, page, errors = open_page(
         browser,
         "member",
@@ -940,7 +971,12 @@ with session(out) as browser:
         lambda route: pending.append(route),
     )
     deploy_button = drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
-    with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
+    with (
+        expect_rpc(page, "CreateDeployment", lambda body: "spec" in body),
+        expect_rpc(
+            page, "ListWorkspaceResources", lambda body: body.get("pageSize") == 200
+        ) as refreshed,
+    ):
         deploy_button.click()
         expect(deploy_button).to_be_disabled()
         expect(deploy_button.locator("[data-slot=spinner]")).to_be_visible()
@@ -964,6 +1000,7 @@ with session(out) as browser:
         f"() => localStorage.getItem({json.dumps(drafts_key)}) === null"
     )
     resource = urlparse(page.url).path.rsplit("/", 1)[-1]
+    assert any(row["id"] == resource for row in refreshed.value.json()["resources"])
     assert sql(state, f"SELECT name FROM resources WHERE id='{resource}';") == name
     assert (
         sql(state, f"SELECT description FROM resources WHERE id='{resource}';")
