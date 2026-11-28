@@ -1,7 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentListView, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Section } from "@/components/design/Page";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
@@ -81,7 +81,7 @@ export function MetricsPanel({
 	const windowed =
 		useQuery(
 			listDeployments,
-			{ resourceId, environmentId, startTime, pageSize: WINDOW_DEPLOYMENTS },
+			{ resourceId, environmentId, startTime, pageSize: WINDOW_DEPLOYMENTS, view: DeploymentListView.FULL },
 			{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
 		).data?.deployments ?? [];
 	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });

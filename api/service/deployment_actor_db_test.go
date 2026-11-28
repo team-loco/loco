@@ -263,7 +263,9 @@ func assertDeploymentActor(
 	t.Helper()
 	listed, err := clients.Deployment.ListDeployments(
 		t.Context(),
-		&deploymentv1.ListDeploymentsRequest{ResourceId: resource},
+		&deploymentv1.ListDeploymentsRequest{
+			ResourceId: resource, View: deploymentv1.DeploymentListView_DEPLOYMENT_LIST_VIEW_FULL,
+		},
 	)
 	if err != nil {
 		t.Fatal(err)

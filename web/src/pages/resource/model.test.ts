@@ -1,5 +1,10 @@
 import { create } from "@bufbuild/protobuf";
-import { DeploymentStatus, DeploymentSchema, DeploymentSpecSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentListView,
+	DeploymentStatus,
+	DeploymentSchema,
+	DeploymentSpecSchema,
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { skipToken } from "@connectrpc/connect-query";
 import { describe, expect, test } from "bun:test";
 import { EnvironmentStatusSchema, RegionStatusSchema, ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
@@ -32,6 +37,7 @@ describe("deploymentsRequest", () => {
 			resourceId: RESOURCE_ID,
 			environmentId: PRODUCTION_ID,
 			pageSize: 10,
+			view: DeploymentListView.FULL,
 		});
 	});
 

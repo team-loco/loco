@@ -3,7 +3,7 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentListView, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
@@ -320,7 +320,7 @@ function usePlacementSizing(rows: Placement[], recent: Deployment[], environment
 		queries: earlierFor.map((resourceId) =>
 			createQueryOptions(
 				listDeployments,
-				{ resourceId, environmentId, endTime, pageSize: EARLIER_DEPLOYS },
+				{ resourceId, environmentId, endTime, pageSize: EARLIER_DEPLOYS, view: DeploymentListView.FULL },
 				{ transport },
 			),
 		),

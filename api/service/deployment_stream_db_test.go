@@ -342,7 +342,10 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 	if !proto.Equal(get.GetDeployment(), event.GetDeployment()) {
 		t.Fatalf("get differs: %v", get)
 	}
-	list, err := client.ListDeployments(ctx, &deploymentv1.ListDeploymentsRequest{ResourceId: f.resourceID.String()})
+	list, err := client.ListDeployments(ctx, &deploymentv1.ListDeploymentsRequest{
+		ResourceId: f.resourceID.String(),
+		View:       deploymentv1.DeploymentListView_DEPLOYMENT_LIST_VIEW_FULL,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

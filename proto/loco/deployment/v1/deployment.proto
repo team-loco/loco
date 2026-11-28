@@ -209,6 +209,7 @@ message Deployment {
   optional google.protobuf.Timestamp completed_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   int32 spec_version = 13;
+  // Included by GetDeployment, WatchDeployment and the full list view.
   DeploymentSpec spec = 14;
   string environment_id = 15;
   DeploymentActorType actor_type = 16;
@@ -225,6 +226,8 @@ message Deployment {
   // Who canceled the deployment; empty unless a user or token canceled it.
   string canceled_by_name = 29;
   string resource_name = 30;
+  // The build identity in the summary list view, without the runtime configuration.
+  BuildSource build = 31;
 }
 
 // DeploymentPlacement is one region of a deployment.
@@ -305,6 +308,13 @@ message GetDeploymentResponse {
   Deployment deployment = 1;
 }
 
+// DeploymentListView controls whether a list includes immutable runtime configurations.
+enum DeploymentListView {
+  DEPLOYMENT_LIST_VIEW_UNSPECIFIED = 0; // Defaults to summary.
+  DEPLOYMENT_LIST_VIEW_SUMMARY = 1;
+  DEPLOYMENT_LIST_VIEW_FULL = 2;
+}
+
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
   option (buf.validate.message).cel = {
@@ -354,6 +364,8 @@ message ListDeploymentsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  // Summary includes build identity and status; full also includes the runtime spec.
+  DeploymentListView view = 11 [(buf.validate.field).enum.defined_only = true];
 }
 
 // ListDeploymentsResponse is the response containing deployment list.

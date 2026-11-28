@@ -11648,6 +11648,7 @@
           },
           "spec": {
             "title": "spec",
+            "description": "Included by GetDeployment, WatchDeployment and the full list view.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
           },
           "environmentId": {
@@ -11703,6 +11704,11 @@
           "resourceName": {
             "type": "string",
             "title": "resource_name"
+          },
+          "build": {
+            "title": "build",
+            "description": "The build identity in the summary list view, without the runtime configuration.",
+            "$ref": "#/components/schemas/loco.deployment.v1.BuildSource"
           }
         },
         "title": "Deployment",
@@ -11805,6 +11811,16 @@
         },
         "title": "DeploymentBucketEntry",
         "additionalProperties": false
+      },
+      "loco.deployment.v1.DeploymentListView": {
+        "type": "string",
+        "title": "DeploymentListView",
+        "enum": [
+          "DEPLOYMENT_LIST_VIEW_UNSPECIFIED",
+          "DEPLOYMENT_LIST_VIEW_SUMMARY",
+          "DEPLOYMENT_LIST_VIEW_FULL"
+        ],
+        "description": "DeploymentListView controls whether a list includes immutable runtime configurations."
       },
       "loco.deployment.v1.DeploymentMethod": {
         "type": "string",
@@ -12146,6 +12162,11 @@
             "title": "build_id",
             "format": "uuid",
             "description": "Lists only deployments whose spec builds from this build."
+          },
+          "view": {
+            "title": "view",
+            "description": "Summary includes build identity and status; full also includes the runtime spec.",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentListView"
           }
         },
         "title": "ListDeploymentsRequest",

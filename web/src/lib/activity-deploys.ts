@@ -10,7 +10,13 @@ import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
-import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight, placementPhase } from "@/lib/deployment-utils";
+import {
+	deploymentProblem,
+	desiredReplicas,
+	deploymentBuild,
+	isInFlight,
+	placementPhase,
+} from "@/lib/deployment-utils";
 import { environmentStatus } from "@/lib/resource-status";
 import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
@@ -83,7 +89,7 @@ export function deployPhase(d: Deployment): { label: string; glyph: Glyph } {
 export function deploySteps(d: Deployment): { build: StepState; deploy: StepState; current: "build" | "deploy" } {
 	const active: StepState = deploymentProblem(d) === undefined ? "active" : "retry";
 	if (d.status === DeploymentStatus.BUILDING) return { build: active, deploy: "pending", current: "build" };
-	const built = getServiceSpec(d)?.build?.buildId ? "done" : "skipped";
+	const built = deploymentBuild(d)?.buildId ? "done" : "skipped";
 	return { build: built, deploy: active, current: "deploy" };
 }
 

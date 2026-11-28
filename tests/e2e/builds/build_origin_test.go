@@ -53,7 +53,7 @@ func TestBuildOriginDoesNotBindItsImageToAnEnvironment(t *testing.T) {
 			},
 		)
 		if deploymentErr != nil || len(deployments.GetDeployments()) != 1 ||
-			deployments.GetDeployments()[0].GetSpec().GetService().GetBuild().GetBuildId() != build.GetId() {
+			deployments.GetDeployments()[0].GetBuild().GetBuildId() != build.GetId() {
 			t.Fatalf("environment %s deployments = %v, error %v", environmentID, deployments, deploymentErr)
 		}
 	}

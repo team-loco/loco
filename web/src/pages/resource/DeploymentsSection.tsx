@@ -1,3 +1,4 @@
+import { DeploymentListView } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Build } from "@gen/loco/build/v1/build_pb";
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
@@ -358,14 +359,14 @@ export function DeploymentsSection({
 	const [deploySize, setDeploySize] = useState(DEFAULT_PAGE_SIZE);
 	const [deployPages, setDeployPages] = useState<string[]>([]);
 	const [buildFilter, setBuildFilter] = useState<string | null>(null);
+	const deploymentFilters = {
+		resourceId,
+		environmentId: environmentId ?? "",
+		...(buildFilter === null ? {} : { buildId: buildFilter }),
+	};
 	const history = useTokenPage(
 		listDeployments,
-		{
-			resourceId,
-			environmentId: environmentId ?? "",
-			pageSize: deploySize,
-			...(buildFilter === null ? {} : { buildId: buildFilter }),
-		},
+		{ ...deploymentFilters, pageSize: deploySize, view: DeploymentListView.FULL },
 		deployPages,
 		{
 			enabled: environmentId !== undefined,
@@ -373,6 +374,7 @@ export function DeploymentsSection({
 			staleTime: REFRESH_MS,
 			placeholderData: keepPreviousData,
 		},
+		deploymentFilters,
 	);
 	const deployPager = tokenPager(deployPages, history.nextPageToken, (pages) => {
 		if (!history.query.isPlaceholderData) setDeployPages(pages ?? []);

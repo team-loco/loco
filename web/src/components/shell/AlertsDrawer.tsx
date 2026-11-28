@@ -46,7 +46,7 @@ import {
 	type StepState,
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
-import { deploymentHeadline, deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentHeadline, deploymentProblem, deploymentBuild, isInFlight } from "@/lib/deployment-utils";
 import { ACTIVITY_PARAM, buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -451,7 +451,7 @@ export function AlertsDrawer() {
 		openChange(false);
 	};
 	const deploymentBuildLogsHref = (deployment: Deployment) => {
-		const buildId = getServiceSpec(deployment)?.build?.buildId ?? "";
+		const buildId = deploymentBuild(deployment)?.buildId ?? "";
 		if (buildId === "") return undefined;
 		return buildLogsPath(activeOrgId, activeWorkspaceId, buildId, {
 			createdAt: deployment.createdAt,

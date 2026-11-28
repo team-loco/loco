@@ -2,7 +2,7 @@ import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
 import { DeploymentActorType, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
-import { getServiceSpec, METHOD_LABEL } from "@/lib/deployment-utils";
+import { deploymentBuild, METHOD_LABEL } from "@/lib/deployment-utils";
 import { shortDigest } from "@/lib/image";
 import { maybeTsMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
@@ -92,7 +92,7 @@ export function buildLogSource(build: Build, maxRangeMs: number): BuildLogSource
 }
 
 export function deploymentBuildId(dep: Deployment): string | undefined {
-	const id = getServiceSpec(dep)?.build?.buildId ?? "";
+	const id = deploymentBuild(dep)?.buildId ?? "";
 	return id === "" ? undefined : id;
 }
 
