@@ -74,7 +74,8 @@ FROM generate_series(1, $4::int) n`, f.resourceID, f.clusterID, f.userID, builds
 	})
 	srv := httptest.NewUnstartedServer(mux)
 	srv.EnableHTTP2 = true
-	srv.Config.HTTP2 = &http.HTTP2Config{MaxReceiveBufferPerStream: 16 << 10}
+	// Bound test traffic without shrinking HTTP/2's initial stream credit during setup.
+	srv.Config.HTTP2 = &http.HTTP2Config{MaxReceiveBufferPerStream: 64 << 10}
 	srv.StartTLS()
 	defer func() { srv.CloseClientConnections(); srv.Close() }()
 	agentDir, err := filepath.Abs("../../agent")
