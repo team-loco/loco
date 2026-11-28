@@ -39,6 +39,11 @@ const (
 var observabilityTestConfig = ObservabilityConfig{
 	Limits:          guardrails.Limits{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, MaxBuckets: 60},
 	MaxTailDuration: time.Minute,
+	RequestMetricsLimits: chClient.RequestMetricsLimits{
+		MaxGroups:      10000,
+		MaxMemoryBytes: 256 * 1024 * 1024,
+		MaxRowsRead:    10000000,
+	},
 }
 
 type observabilityClient = observabilityv1connect.ObservabilityServiceClient

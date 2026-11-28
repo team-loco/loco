@@ -633,3 +633,41 @@ func TestListWorkspaceResourcesSortsByAnotherEnvironment(t *testing.T) {
 		t.Errorf("sorting by another workspace's environment: %v, want NotFound", err)
 	}
 }
+
+func TestWorkspaceAttentionCountDoesNotLoadEveryResource(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	req := &resourcev1.ListWorkspaceResourcesRequest{
+		EnvironmentId:         f.envID.String(),
+		PageSize:              1,
+		IncludeAttentionCount: true,
+	}
+	response := f.list(t, req)
+	if response.GetAttentionCount() != 1 || len(response.GetResources()) != 1 {
+		t.Fatalf("response=%v, want one degraded resource counted and one resource returned", response)
+	}
+	f.deployResource(t, listAlpha, f.clusterID, f.envID, testRegion, 2)
+	if response = f.list(t, req); response.GetAttentionCount() != 1 {
+		t.Fatalf("multi-region resource counted more than once: %d", response.GetAttentionCount())
+	}
+	req.EnvironmentId = f.stagingID.String()
+	if response = f.list(t, req); response.GetAttentionCount() != 0 {
+		t.Fatalf("staging count=%d, in-flight rollout should not be an alert", response.GetAttentionCount())
+	}
+	req.EnvironmentId = f.envID.String()
+	req.IncludeAttentionCount = false
+	if response = f.list(t, req); response.GetAttentionCount() != 0 {
+		t.Fatalf("unrequested attention count=%d", response.GetAttentionCount())
+	}
+	req.IncludeAttentionCount = true
+	f.exec(
+		t,
+		"UPDATE deployment_placements p SET status='failed' FROM deployments d WHERE p.deployment_id=d.id "+
+			"AND d.resource_id=$1 AND d.environment_id=$2",
+		f.ids[listSvc],
+		f.envID,
+	)
+	if response = f.list(t, req); response.GetAttentionCount() != 2 {
+		t.Fatalf("count with failed placement=%d", response.GetAttentionCount())
+	}
+}

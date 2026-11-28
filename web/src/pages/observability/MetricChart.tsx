@@ -30,6 +30,7 @@ export interface ChartSeries {
 	name: string;
 	color: string;
 	dashed: boolean;
+	dash?: string;
 	limits: LimitStep[];
 	points: { t: number; v: number }[];
 }
@@ -45,7 +46,7 @@ export interface PinAction {
 	key: string;
 	icon: ReactNode;
 	label: string;
-	sub: string;
+	sub?: string;
 	/** Starts a new group in the menu. */
 	separated?: boolean;
 	run: () => void;
@@ -53,11 +54,9 @@ export interface PinAction {
 
 const PERCENT = 100;
 const DASH = "4 3";
-const TOP_SERIES = 5;
 const TOOLTIP_ROWS = 8;
-const FADED = 0.3;
 const DIMMED = 0.12;
-const X_AXIS_HEIGHT = 20;
+const X_AXIS_HEIGHT = 28;
 const TOP_MARGIN = 14;
 const MARGIN = 4;
 // Labels of deploys past this share of the range sit left of their line.
@@ -186,7 +185,6 @@ function MetricTooltip({
 				</div>
 			))}
 			{more > 0 && <div className="mt-1.5 h-5 text-fg3">+{more} more</div>}
-			<div className="mt-1.5 border-t border-line pt-1.5 text-[11px] text-fg3">Click for logs, traces and events</div>
 		</div>
 	);
 }
@@ -208,7 +206,7 @@ function PinMenu({
 			align="start"
 			anchor={{ getBoundingClientRect: anchor }}
 			sideOffset={8}
-			className="w-[250px]"
+			className="w-[190px]"
 			aria-label={`Around ${fmtTs(t, false, timePref)}`}
 		>
 			<DropdownMenuGroup>
@@ -226,7 +224,7 @@ function PinMenu({
 							{a.icon}
 							<span className="flex min-w-0 flex-col">
 								<span>{a.label}</span>
-								<span className="text-[12px] text-fg3">{a.sub}</span>
+								{a.sub && <span className="text-[12px] text-fg3">{a.sub}</span>}
 							</span>
 						</DropdownMenuItem>
 					</Fragment>
@@ -274,12 +272,7 @@ export function MetricChart({
 		traffic === null
 			? { ...quarterAxis(peak), format: String }
 			: { ticks: traffic.ticks, maximum: traffic.top, format: traffic.format };
-	const top = new Set(
-		peaks
-			.toSorted((a, b) => b.peak - a.peak)
-			.slice(0, TOP_SERIES)
-			.map((x) => x.key),
-	);
+
 	const highlightKey = highlight ?? nearest;
 	const byT = new Map<number, Datum>();
 	for (const s of series) {
@@ -316,7 +309,7 @@ export function MetricChart({
 							margin={{
 								top: TOP_MARGIN,
 								right: MARGIN,
-								bottom: 0,
+								bottom: 4,
 								left: 0,
 							}}
 							onMouseLeave={() => {
@@ -365,12 +358,12 @@ export function MetricChart({
 								tickFormatter={axis.format}
 								tickLine={false}
 								axisLine={false}
-								mirror
+								width={72}
 								tick={{
 									fontSize: 10.5,
 									fill: "var(--fg3)",
 									fontFamily: "var(--font-mono)",
-									dy: -6,
+									dy: 0,
 								}}
 							/>
 							{pin === null && (
@@ -403,8 +396,7 @@ export function MetricChart({
 							))}
 							{pin !== null && <ReferenceLine x={pin.t} stroke="var(--fg3)" />}
 							{series.map((s) => {
-								const opacity =
-									highlightKey !== null ? (highlightKey === s.key ? 1 : DIMMED) : top.has(s.key) ? 1 : FADED;
+								const opacity = highlightKey !== null ? (highlightKey === s.key ? 1 : DIMMED) : 1;
 								return (
 									<Line
 										key={s.key}
@@ -414,7 +406,7 @@ export function MetricChart({
 										stroke={s.color}
 										strokeWidth={highlightKey === s.key ? 2.4 : 1.6}
 										strokeOpacity={opacity}
-										{...(s.dashed ? { strokeDasharray: DASH } : {})}
+										strokeDasharray={s.dash ?? (s.dashed ? DASH : "")}
 										dot={loneSampleDot(s.points.length, s.color, opacity)}
 										activeDot={{ r: 3.5, stroke: "var(--panel)", strokeWidth: 2 }}
 										isAnimationActive={false}

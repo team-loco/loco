@@ -31,14 +31,15 @@ const (
 
 // observabilityFixture is an organization with two workspaces; the first holds two resources.
 type observabilityFixture struct {
-	org            uuid.UUID
-	workspace      uuid.UUID
-	otherWorkspace uuid.UUID
-	resource       uuid.UUID
-	otherResource  uuid.UUID
-	callers        map[string][]genDb.EntityScope
-	authorizer     *authz.Authorizer
-	queries        *genDb.Queries
+	org             uuid.UUID
+	workspace       uuid.UUID
+	otherWorkspace  uuid.UUID
+	resource        uuid.UUID
+	otherResource   uuid.UUID
+	foreignResource uuid.UUID
+	callers         map[string][]genDb.EntityScope
+	authorizer      *authz.Authorizer
+	queries         *genDb.Queries
 }
 
 func newObservabilityFixture(t *testing.T) *observabilityFixture {
@@ -52,6 +53,7 @@ func newObservabilityFixture(t *testing.T) *observabilityFixture {
 	f.otherWorkspace = tn.workspace(t, "other")
 	f.resource = tn.resource(t, f.workspace, "web", &resourcev1.ServiceSpec{})
 	f.otherResource = tn.resource(t, f.workspace, "worker", &resourcev1.ServiceSpec{})
+	f.foreignResource = tn.resource(t, f.otherWorkspace, "foreign", &resourcev1.ServiceSpec{})
 	f.callers = map[string][]genDb.EntityScope{
 		workspaceReader: {{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspace, Scope: genDb.ScopeRead}},
 		orgReader:       {{EntityType: genDb.EntityTypeOrganization, EntityID: f.org, Scope: genDb.ScopeRead}},
@@ -251,3 +253,41 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 		}
 	}
 }
+
+func TestRequestMetricsAuthorizesTheNamedResource(t *testing.T) {
+	f := newObservabilityFixture(t)
+	client := f.client(t, unreachableClickHouse(t))
+	for _, tc := range []struct {
+		name, caller, workspace, resource string
+		code                              connect.Code
+	}{
+		{"workspace read grant", workspaceReader, f.workspace.String(), f.resource.String(), connect.CodeInternal},
+		{"direct resource grant", resourceReader, f.workspace.String(), f.resource.String(), connect.CodeInternal},
+		{"another resource", resourceReader, f.workspace.String(), f.otherResource.String(), connect.CodePermissionDenied},
+		{
+			"outside the selected workspace", workspaceReader, f.otherWorkspace.String(),
+			f.foreignResource.String(), connect.CodePermissionDenied,
+		},
+		{"stranger", stranger, f.workspace.String(), f.resource.String(), connect.CodePermissionDenied},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			end := time.Now()
+			_, err := client.QueryRequestMetrics(
+				callerContext(t, tc.caller),
+				&observabilityv1.QueryRequestMetricsRequest{
+					WorkspaceId:     tc.workspace,
+					ResourceId:      tc.resource,
+					EnvironmentId:   testEnvironmentIDForRequestMetrics,
+					StartTime:       timestamppb.New(end.Add(-time.Minute)),
+					EndTime:         timestamppb.New(end),
+					IntervalSeconds: 60,
+				},
+			)
+			if connect.CodeOf(err) != tc.code {
+				t.Fatalf("error=%v, want %v", err, tc.code)
+			}
+		})
+	}
+}
+
+const testEnvironmentIDForRequestMetrics = "66666666-7777-8888-9999-000000000000"

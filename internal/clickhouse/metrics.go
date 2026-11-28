@@ -49,6 +49,7 @@ func (c *Client) QueryMetrics(
 	type seriesKey struct {
 		resourceID  string
 		pod         string
+		region      string
 		metricType  string
 		temporality int32
 		monotonic   bool
@@ -59,19 +60,30 @@ func (c *Client) QueryMetrics(
 		var (
 			resourceID  string
 			pod         string
+			region      string
 			bucket      time.Time
 			value       float64
 			metricType  string
 			temporality int32
 			monotonic   bool
 		)
-		if err := rows.Scan(&resourceID, &pod, &bucket, &value, &metricType, &temporality, &monotonic); err != nil {
+		if err := rows.Scan(
+			&resourceID,
+			&pod,
+			&region,
+			&bucket,
+			&value,
+			&metricType,
+			&temporality,
+			&monotonic,
+		); err != nil {
 			return nil, fmt.Errorf("scan metric row: %w", err)
 		}
 
 		key := seriesKey{
 			resourceID:  resourceID,
 			pod:         pod,
+			region:      region,
 			metricType:  metricType,
 			temporality: temporality,
 			monotonic:   monotonic,
@@ -89,6 +101,7 @@ func (c *Client) QueryMetrics(
 				}
 			}
 			labelPod(series, req, pod)
+			labelRegion(series, req, region)
 			seriesMap[key] = series
 		}
 		series.Points = append(series.Points, &observabilityv1.MetricPoint{
@@ -127,7 +140,11 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
 
 	where := strings.Join(whereParts, " AND ")
-	series := resourceColumn + ", " + podColumn(req) + " AS Pod"
+	resource := resourceColumn
+	if req.GetCombineResources() {
+		resource = "''"
+	}
+	series := resourceColumn + ", " + podColumn(req) + " AS Pod, " + metricRegionColumn(req) + " AS Region"
 	source := fmt.Sprintf(
 		"SELECT %s, TimeUnix, Value, 'gauge' AS MetricType, toInt32(0) AS AggregationTemporality, false AS IsMonotonic "+
 			"FROM otel_metrics_gauge WHERE %s UNION ALL "+
@@ -138,12 +155,20 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 		series,
 		where,
 	)
+	if req.GetSumPods() {
+		return sumPodMetricsQuery(req, queryTimeout)
+	}
 	query := fmt.Sprintf(
-		"SELECT %s, Pod, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value, "+
+		"SELECT %s AS GroupResource, Pod, Region, "+
+			"toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value, "+
 			"MetricType, AggregationTemporality, IsMonotonic FROM (%s) "+
-			"GROUP BY %s, Pod, bucket, MetricType, AggregationTemporality, IsMonotonic "+
-			"ORDER BY %s, Pod, bucket SETTINGS max_execution_time = %d",
-		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, int(queryTimeout.Seconds()),
+			"GROUP BY GroupResource, Pod, Region, bucket, MetricType, AggregationTemporality, IsMonotonic "+
+			"ORDER BY GroupResource, Pod, Region, bucket SETTINGS max_execution_time = %d",
+		resource,
+		interval,
+		aggFunc,
+		source,
+		int(queryTimeout.Seconds()),
 	)
 	// The WHERE clause appears once per table of the UNION.
 	return query, append(b.args, b.args...)
@@ -160,6 +185,13 @@ func metricsFilters(req *observabilityv1.QueryMetricsRequest, b binder) []string
 	}
 	if len(req.GetResourceIds()) > 0 {
 		whereParts = append(whereParts, resourceIn(req.GetResourceIds(), b))
+	}
+	if len(req.GetRegions()) > 0 {
+		regions := make([]string, 0, len(req.GetRegions()))
+		for _, region := range req.GetRegions() {
+			regions = append(regions, b.str(region))
+		}
+		whereParts = append(whereParts, "ResourceAttributes['loco.region'] IN ("+strings.Join(regions, ", ")+")")
 	}
 	for _, key := range slices.Sorted(maps.Keys(req.GetAttributes())) {
 		whereParts = append(whereParts,
@@ -184,4 +216,49 @@ func labelPod(series *observabilityv1.MetricSeries, req *observabilityv1.QueryMe
 		series.Labels = map[string]string{}
 	}
 	series.Labels[podAttribute] = pod
+}
+
+// Average each pod over time before adding pods, so usage does not grow with scrape frequency.
+func sumPodMetricsQuery(req *observabilityv1.QueryMetricsRequest, timeout time.Duration) (string, []any) {
+	b := &positionalBinder{}
+	filters := metricsFilters(req, b)
+	filters = append(filters, "MetricName = "+b.str(req.GetMetricName()),
+		"TimeUnix >= fromUnixTimestamp64Nano("+b.num(req.GetStartTime().AsTime().UnixNano())+")",
+		"TimeUnix <= fromUnixTimestamp64Nano("+b.num(req.GetEndTime().AsTime().UnixNano())+")",
+		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
+	resource := resourceColumn
+	if req.GetCombineResources() {
+		resource = "''"
+	}
+	query := fmt.Sprintf(
+		`SELECT %s AS GroupResource, '' AS Pod, Region, bucket, sum(usage), 'gauge', toInt32(0), false
+ FROM (SELECT ResourceId, ResourceAttributes['k8s.pod.uid'] AS uid,
+ ResourceAttributes['k8s.pod.name'] AS name, %s AS Region,
+ toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, avg(Value) AS usage
+ FROM otel_metrics_gauge WHERE %s GROUP BY ResourceId, uid, name, Region, bucket)
+ GROUP BY GroupResource, Region, bucket ORDER BY GroupResource, Region, bucket SETTINGS max_execution_time = %d`,
+		resource,
+		metricRegionColumn(req),
+		req.GetIntervalSeconds(),
+		strings.Join(filters, " AND "),
+		int(timeout.Seconds()),
+	)
+	return query, b.args
+}
+
+func metricRegionColumn(req *observabilityv1.QueryMetricsRequest) string {
+	if req.GetByRegion() {
+		return "ResourceAttributes['loco.region']"
+	}
+	return "''"
+}
+
+func labelRegion(series *observabilityv1.MetricSeries, req *observabilityv1.QueryMetricsRequest, region string) {
+	if !req.GetByRegion() {
+		return
+	}
+	if series.Labels == nil {
+		series.Labels = map[string]string{}
+	}
+	series.Labels[regionAttribute] = region
 }

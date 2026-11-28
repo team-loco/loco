@@ -36,6 +36,9 @@ const (
 	// ObservabilityServiceQueryMetricsProcedure is the procedure name of the ObservabilityService's
 	// QueryMetrics RPC.
 	ObservabilityServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityService/QueryMetrics"
+	// ObservabilityServiceQueryRequestMetricsProcedure is the procedure name of the
+	// ObservabilityService's QueryRequestMetrics RPC.
+	ObservabilityServiceQueryRequestMetricsProcedure = "/loco.observability.v1.ObservabilityService/QueryRequestMetrics"
 	// ObservabilityServiceListTracesProcedure is the procedure name of the ObservabilityService's
 	// ListTraces RPC.
 	ObservabilityServiceListTracesProcedure = "/loco.observability.v1.ObservabilityService/ListTraces"
@@ -76,6 +79,13 @@ var (
 			Procedure:  ObservabilityServiceQueryMetricsProcedure,
 		}
 	})
+	observabilityServiceQueryRequestMetricsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryRequestMetrics"),
+			Procedure:  ObservabilityServiceQueryRequestMetricsProcedure,
+		}
+	})
 	observabilityServiceListTracesSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -109,6 +119,8 @@ type ObservabilityServiceClient interface {
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityServiceTailLogsClientStream, error)
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	// On-demand HTTP path statistics from gateway access logs, for one resource.
+	QueryRequestMetrics(context.Context, *v1.QueryRequestMetricsRequest) (*v1.QueryRequestMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
 	// per time bucket.
@@ -154,6 +166,8 @@ type ObservabilityServiceHandler interface {
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityServiceTailLogsServerStream) error
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	// On-demand HTTP path statistics from gateway access logs, for one resource.
+	QueryRequestMetrics(context.Context, *v1.QueryRequestMetricsRequest) (*v1.QueryRequestMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
 	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
 	// per time bucket.
@@ -170,6 +184,7 @@ func RegisterObservabilityServiceHandler(server *connect.Server, svc Observabili
 		connect.Method{Spec: observabilityServiceQueryLogBucketsSpec(), Handler: adapter.queryLogBuckets},
 		connect.Method{Spec: observabilityServiceTailLogsSpec(), Handler: adapter.tailLogs},
 		connect.Method{Spec: observabilityServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
+		connect.Method{Spec: observabilityServiceQueryRequestMetricsSpec(), Handler: adapter.queryRequestMetrics},
 		connect.Method{Spec: observabilityServiceListTracesSpec(), Handler: adapter.listTraces},
 		connect.Method{Spec: observabilityServiceQueryTraceBucketsSpec(), Handler: adapter.queryTraceBuckets},
 		connect.Method{Spec: observabilityServiceGetTraceSpec(), Handler: adapter.getTrace},
@@ -209,6 +224,10 @@ func (UnimplementedObservabilityServiceHandler) TailLogs(context.Context, *v1.Ta
 
 func (UnimplementedObservabilityServiceHandler) QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryMetrics is not implemented")
+}
+
+func (UnimplementedObservabilityServiceHandler) QueryRequestMetrics(context.Context, *v1.QueryRequestMetricsRequest) (*v1.QueryRequestMetricsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryRequestMetrics is not implemented")
 }
 
 func (UnimplementedObservabilityServiceHandler) ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error) {
@@ -254,6 +273,14 @@ func (c *observabilityServiceClient) TailLogs(ctx context.Context, req *v1.TailL
 func (c *observabilityServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
 	var res v1.QueryMetricsResponse
 	if err := c.client.CallUnary(ctx, observabilityServiceQueryMetricsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityServiceClient) QueryRequestMetrics(ctx context.Context, req *v1.QueryRequestMetricsRequest) (*v1.QueryRequestMetricsResponse, error) {
+	var res v1.QueryRequestMetricsResponse
+	if err := c.client.CallUnary(ctx, observabilityServiceQueryRequestMetricsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -323,6 +350,18 @@ func (h observabilityServiceHandler) queryMetrics(ctx context.Context, _ connect
 		return err
 	}
 	res, err := h.svc.QueryMetrics(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityServiceHandler) queryRequestMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryRequestMetricsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryRequestMetrics(ctx, &req)
 	if err != nil {
 		return err
 	}

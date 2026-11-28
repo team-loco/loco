@@ -8,7 +8,6 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { ResourceAccess } from "@/components/ResourceAccess";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -19,18 +18,10 @@ import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { limitReason, limitUsage } from "@/lib/limits";
-import {
-	DRAFT_PARAM,
-	NEW_RESOURCE_PARAM,
-	newResourcePath,
-	RESOURCE_VIEWS,
-	resourceViewParser,
-	type ResourceView,
-} from "@/lib/routes";
+import { DRAFT_PARAM, NEW_RESOURCE_PARAM, newResourcePath } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
-import { ResourcesMap } from "@/pages/resources/ResourcesMap";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
 import { draftRows } from "@/pages/resources/table";
 
@@ -38,27 +29,9 @@ const NOW_TICK_MS = 60_000;
 const TOTAL_POLL_MS = 15_000;
 const SKELETON_ROWS = 6;
 const RESOURCES_PARAMS = {
-	view: resourceViewParser,
 	[DRAFT_PARAM]: parseAsString,
 	[NEW_RESOURCE_PARAM]: parseAsString,
 };
-
-function ViewToggle({ view, onView }: { view: ResourceView; onView: (view: ResourceView) => void }) {
-	return (
-		<ToggleGroup
-			variant="segmented"
-			aria-label="View"
-			value={[view]}
-			onValueChange={(v: string[]) => {
-				const next = RESOURCE_VIEWS.find((r) => r === v[0]);
-				if (next !== undefined) onView(next);
-			}}
-		>
-			<ToggleGroupItem value="table">Table</ToggleGroupItem>
-			<ToggleGroupItem value="map">Map</ToggleGroupItem>
-		</ToggleGroup>
-	);
-}
 
 export function Resources() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
@@ -72,9 +45,15 @@ export function Resources() {
 	const counted = useQuery(
 		listWorkspaceResources,
 		{ workspaceId, pageSize: 1, includeTotalCount: true },
-		{ enabled: grants === "workspace" && workspaceId !== "", refetchInterval: TOTAL_POLL_MS },
+		{
+			enabled: grants === "workspace" && workspaceId !== "",
+			refetchInterval: TOTAL_POLL_MS,
+		},
 	);
-	const granted = useTanstackQuery({ ...useWorkspaceResourcesOptions(orgId, workspaceId), enabled: scoped });
+	const granted = useTanstackQuery({
+		...useWorkspaceResourcesOptions(orgId, workspaceId),
+		enabled: scoped,
+	});
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const configQuery = useQuery(getConfig, {}, { enabled: drafts.length > 0 });
 	const regionsQuery = useQuery(
@@ -92,10 +71,7 @@ export function Resources() {
 			: limitUsage(counted.data?.totalCount ?? 0, limits?.resourcesPerWorkspace, "resources", "workspace");
 	const createBlocked = limitReason(usage);
 	const total = (counted.data?.totalCount ?? 0) + drafts.length;
-	const { view, [DRAFT_PARAM]: draftId } = params;
-	const setView = (next: ResourceView) => {
-		void setParams({ view: next }, { history: "replace" });
-	};
+	const { [DRAFT_PARAM]: draftId } = params;
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.slug });
 
 	const body = (() => {
@@ -116,18 +92,6 @@ export function Resources() {
 		if (scoped)
 			return <ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={granted.data?.resources ?? []} />;
 		if (total === 0) return <EmptyWorkspace wholeWorkspace />;
-		if (view === "map" && active !== undefined) {
-			return (
-				<ResourcesMap
-					orgId={orgId}
-					workspaceId={workspaceId}
-					env={active}
-					onShowTable={() => {
-						setView("table");
-					}}
-				/>
-			);
-		}
 		return (
 			<ResourceTable
 				drafts={
@@ -161,7 +125,6 @@ export function Resources() {
 				}
 				actions={
 					<div className="flex items-center gap-2.5">
-						{!loading && !scoped && total > 0 && <ViewToggle view={view} onView={setView} />}
 						<LimitedAction reason={createBlocked}>
 							<NewResourceMenu serviceHref={serviceHref} disabled={createBlocked !== null} />
 						</LimitedAction>

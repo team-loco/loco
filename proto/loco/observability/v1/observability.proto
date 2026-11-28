@@ -18,6 +18,8 @@ service ObservabilityService {
 
   // Counter rates and histogram quantiles are calculated before combining source streams.
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+  // On-demand HTTP path statistics from gateway access logs, for one resource.
+  rpc QueryRequestMetrics(QueryRequestMetricsRequest) returns (QueryRequestMetricsResponse);
 
   rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
   // QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
@@ -248,7 +250,7 @@ message QueryMetricsRequest {
   // End of time range (inclusive).
   google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
 
-  // Metric name to query (e.g., "k8s.pod.cpu_limit_utilization", "k8s.pod.memory_usage").
+  // Metric name to query (e.g., "k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_set").
   string metric_name = 5 [(buf.validate.field).string.min_len = 1];
 
   // Aggregation window in seconds (e.g., 60 for 1-minute buckets).
@@ -276,6 +278,39 @@ message QueryMetricsRequest {
   // Returns one series per pod of a single resource, labelled with k8s.pod.name.
   bool by_pod = 11;
 
+  // Combines resources before returning rates or calculating histogram percentiles.
+  bool combine_resources = 13;
+  // For gauges, first averages each pod's samples in the bucket, then sums the pods.
+  // This keeps usage independent of the collection frequency.
+  bool sum_pods = 14;
+  // Keeps regions in separate series, labelled with loco.region.
+  bool by_region = 15;
+  // Region subset. Empty selects all; mutually exclusive with region.
+  repeated string regions = 16 [(buf.validate.field).repeated.items.string.max_len = 63];
+  // With no resource_ids, reads only resources the caller may read in this workspace.
+  bool readable_resources = 17;
+  option (buf.validate.message).cel = {
+    id: "metrics.readable_workspace"
+    message: "readable_resources applies only to workspace metrics"
+    expression: "!this.readable_resources || !this.installation"
+  };
+  option (buf.validate.message).cel = {
+    id: "metrics.region_filter"
+    message: "set region or regions, not both"
+    expression: "this.region == '' || size(this.regions) == 0"
+  };
+
+  option (buf.validate.message).cel = {
+    id: "metrics.pod_grouping"
+    message: "by_pod cannot combine resources or sum pods"
+    expression: "!this.by_pod || (!this.combine_resources && !this.sum_pods)"
+  };
+  option (buf.validate.message).cel = {
+    id: "metrics.sum_pods_gauge"
+    message: "sum_pods requires avg aggregation"
+    expression: "!this.sum_pods || this.aggregation == 'avg'"
+  };
+
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
@@ -296,7 +331,7 @@ message QueryMetricsRequest {
 
 // QueryMetricsResponse contains the aggregated metric data.
 message QueryMetricsResponse {
-  // Metric series (one per resource).
+  // Metric series, grouped by the requested resource, region and pod dimensions.
   repeated MetricSeries series = 1;
 }
 
@@ -305,7 +340,7 @@ message MetricSeries {
   // ID of the resource this series is for.
   string resource_id = 1;
   // Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,
-  // and is_monotonic=true/false. Gauge series preserve empty labels.
+  // and is_monotonic=true/false. by_region and by_pod add their identity labels.
   map<string, string> labels = 2;
   // Data points (sorted by timestamp).
   repeated MetricPoint points = 3;
@@ -317,6 +352,41 @@ message MetricPoint {
   google.protobuf.Timestamp timestamp = 1;
   // Metric value (result of aggregation function).
   double value = 2;
+}
+
+message QueryRequestMetricsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  string resource_id = 3 [(buf.validate.field).string.uuid = true];
+  google.protobuf.Timestamp start_time = 4 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 5 [(buf.validate.field).required = true];
+  int32 interval_seconds = 6 [(buf.validate.field).int32.gte = 1];
+  // Empty selects every region; regions remain separate in the response.
+  repeated string regions = 7 [(buf.validate.field).repeated.items.string.max_len = 63];
+  // Case-sensitive path substring, after removing the query string. Empty matches all paths.
+  string path = 8 [(buf.validate.field).string.max_len = 256];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+}
+
+message QueryRequestMetricsResponse {
+  repeated RequestMetricBucket buckets = 1;
+}
+
+// Paths are literal URL paths without query strings, not inferred route templates.
+message RequestMetricBucket {
+  google.protobuf.Timestamp timestamp = 1;
+  string region = 2;
+  string path = 3;
+  uint64 requests = 4;
+  uint64 server_errors = 5;
+  double p50_millis = 6;
+  double p95_millis = 7;
+  double p99_millis = 8;
 }
 
 message TraceScope {

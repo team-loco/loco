@@ -139,14 +139,16 @@ export function ObsProvider({
 	const navigate = useNavigate();
 	const shared = useObsParams(view);
 	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
-	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		workspaceResourcesOptions(transport, workspaceId, grants),
-	);
+	const { data: resourcesData, isLoading: resourcesLoading } = useQuery({
+		...workspaceResourcesOptions(transport, workspaceId, grants),
+		enabled: view !== "metrics",
+	});
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	if (shared === undefined) return <Skeleton className="h-64 w-full" />;
 	const { params, maxMs, range, tokens, text, link, setRange, setQuery } = shared;
 
-	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.slug.localeCompare(b.slug));
+	const sourceResources = view === "metrics" ? [] : (resourcesData?.resources ?? []);
+	const sorted = sourceResources.toSorted((a, b) => a.slug.localeCompare(b.slug));
 	const resources: ObsResource[] = sorted.map((r, i) => ({
 		id: r.id,
 		slug: r.slug,
@@ -162,7 +164,7 @@ export function ObsProvider({
 		void navigate(observabilityPath(orgId, workspaceId, next, { env: params.env, ...link(opts) }));
 	};
 
-	const noResources = grants === "workspace" && !resourcesLoading && resources.length === 0;
+	const noResources = view !== "metrics" && grants === "workspace" && !resourcesLoading && resources.length === 0;
 
 	const value: ObsContextValue = {
 		orgId,
@@ -172,7 +174,7 @@ export function ObsProvider({
 		environmentLoading,
 		view,
 		resources,
-		resourcesLoading,
+		resourcesLoading: view === "metrics" ? grants === undefined : resourcesLoading,
 		noResources,
 		scopedResourceIds,
 		resourceByName,

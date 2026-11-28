@@ -623,30 +623,6 @@ def resources(page):
     expect(page).to_have_url(re.compile(r"/resource/"))
 
 
-def resources_map(page):
-    # The map dims what the server's search leaves out.
-    with expect_rpc(
-        page,
-        "ListWorkspaceResources",
-        lambda body: body.get("query") == "api" and body.get("pageSize") == 200,
-    ):
-        page.goto(base + "/resources?env=production&view=map&q=api")
-    expect(
-        page.get_by_role("group", name="Filter by status", exact=True)
-    ).to_be_visible()
-    expect(page.get_by_role("textbox", name="Search resources")).to_have_value("api")
-    api = page.get_by_role("button", name=re.compile(r"^api\b"))
-    expect(page.get_by_role("button", name=re.compile(r"^web\b"))).to_have_css(
-        "opacity", "0.3"
-    )
-    expect(api).to_have_css("opacity", "1")
-    api.click()
-    panel = page.get_by_role("dialog", name="api", exact=True)
-    expect(panel.get_by_text("Public API", exact=True)).to_be_visible()
-    page.keyboard.press("Escape")
-    expect(panel).to_be_hidden()
-
-
 def dashboard_table(page):
     table = page.get_by_role("table", name="Resources")
     expect(table.get_by_role("row").filter(has_text=LONG_NAME)).to_be_visible()
@@ -908,83 +884,6 @@ def events(page):
     page.keyboard.press("Escape")
 
 
-# Gateway traffic per bucket: 2 requests/s with 0.5 of them 5xx, and 120 ms at p95.
-TRAFFIC_VALUES = {
-    "cluster.upstream_rq_completed": 2,
-    "cluster.upstream_rq_xx": 0.5,
-    "cluster.upstream_rq_time": 120,
-}
-
-
-def mock_metrics(page):
-    # Every metric shares bucket times, as the API's buckets do.
-    now = datetime.now(UTC).replace(second=0, microsecond=0)
-
-    def metrics(route):
-        body = route.request.post_data_json
-        value = TRAFFIC_VALUES.get(body.get("metricName"), 0.4)
-        route.fulfill(
-            json={
-                "series": [
-                    {
-                        "resourceId": rid,
-                        "points": [
-                            {
-                                "timestamp": (now - timedelta(minutes=m))
-                                .isoformat()
-                                .replace("+00:00", "Z"),
-                                "value": value,
-                            }
-                            for m in (30, 10)
-                        ],
-                    }
-                    for rid in body.get("resourceIds") or []
-                ]
-            }
-        )
-
-    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
-
-
-def metrics_table(page):
-    table = page.get_by_role("table", name="By resource and region")
-    expect(table.get_by_role("row").filter(has_text=LONG_NAME)).to_have_count(2)
-    return table
-
-
-def metrics(page):
-    mock_metrics(page)
-    page.goto(base + "/observability?env=production&view=metrics&range=1h")
-    table = metrics_table(page)
-    check_layout(table)
-    row = table.get_by_role("row").filter(has_text="api").first
-    expect_pointer(page, row.get_by_role("cell").nth(1))
-    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
-    traffic = page.get_by_role("region", name="Traffic", exact=True)
-    for card, latest in (
-        ("Requests", "2/s"),
-        ("5xx responses", "25.00%"),
-        ("Latency, p95", "120 ms"),
-    ):
-        section = traffic.get_by_role("region", name=card, exact=True)
-        expect(section.get_by_label(f"{card} over time")).to_be_visible()
-        expect(section.get_by_role("listitem").first).to_contain_text(latest)
-    api = table.get_by_role("row").filter(has_text="api").first
-    for latest in ("2/s", "25.00%", "120 ms"):
-        expect(api.get_by_role("cell", name=latest, exact=True)).to_be_visible()
-    for column in ("Requests", "5xx", "p95"):
-        button = page.get_by_role("button", name=column, exact=True)
-        button.click()
-        expect(table.get_by_role("columnheader").filter(has=button)).to_have_attribute(
-            "aria-sort", "descending"
-        )
-    table = check_resize(page, table, "CPU (latest)", "Region", metrics_table)
-    table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
-        1
-    ).click()
-    expect(page).to_have_url(re.compile(r"resource(:|%3A)api"))
-
-
 def named_table(name, ready):
     """Opens the table called `name` once a row containing `ready` shows."""
 
@@ -1166,14 +1065,12 @@ with session(
         )
         for check in (
             resources,
-            resources_map,
             dashboard,
             recent_deployments,
             history,
             logs,
             traces,
             events,
-            metrics,
             audit,
             organizations,
             settings,
@@ -1222,10 +1119,8 @@ with session(
         table = reopen(page)
         check_layout(table)
         check_fade(scroller_of(page, table))
-    mock_metrics(page)
     for path, reopen in (
         ("/observability?env=production&view=events&live=0", events_table),
-        ("/observability?env=production&view=metrics&range=1h", metrics_table),
     ):
         page.goto(base + path)
         table = reopen(page)

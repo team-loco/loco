@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -130,21 +131,29 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 			MaxBuckets:   defaultObservabilityMaxBuckets,
 		},
 		MaxTailDuration: defaultObservabilityMaxTail,
+		RequestMetricsLimits: chClient.RequestMetricsLimits{
+			MaxGroups:      defaultRequestMetricsMaxGroups,
+			MaxMemoryBytes: defaultRequestMetricsMaxMemory,
+			MaxRowsRead:    defaultRequestMetricsMaxRowsRead,
+		},
 	}
 	if ac.Observability != wantLimits {
 		t.Errorf("default observability = %+v, want %+v", ac.Observability, wantLimits)
 	}
 
 	for name, value := range map[string]string{
-		clickHouseURLEnv:                       testClickHouseURL,
-		clickHouseDBEnv:                        testClickHouseDB,
-		clickHouseConnsEnv:                     "3",
-		clickHouseTimeoutEnv:                   "7s",
-		"LOCO_OBSERVABILITY_DEFAULT_LIMIT":     "10",
-		maxLimitEnv:                            "20",
-		maxTimeRangeEnv:                        "48h",
-		"LOCO_OBSERVABILITY_MAX_TAIL_DURATION": "5m",
-		"LOCO_OBSERVABILITY_MAX_BUCKETS":       "30",
+		clickHouseURLEnv:                        testClickHouseURL,
+		clickHouseDBEnv:                         testClickHouseDB,
+		clickHouseConnsEnv:                      "3",
+		clickHouseTimeoutEnv:                    "7s",
+		"LOCO_OBSERVABILITY_DEFAULT_LIMIT":      "10",
+		maxLimitEnv:                             "20",
+		maxTimeRangeEnv:                         "48h",
+		"LOCO_OBSERVABILITY_MAX_TAIL_DURATION":  "5m",
+		"LOCO_OBSERVABILITY_MAX_BUCKETS":        "30",
+		"LOCO_REQUEST_METRICS_MAX_GROUPS":       "200",
+		"LOCO_REQUEST_METRICS_MAX_MEMORY_BYTES": "67108864",
+		"LOCO_REQUEST_METRICS_MAX_ROWS_READ":    "5000",
 	} {
 		t.Setenv(name, value)
 	}
@@ -163,6 +172,11 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 			MaxBuckets:   30,
 		},
 		MaxTailDuration: 5 * time.Minute,
+		RequestMetricsLimits: chClient.RequestMetricsLimits{
+			MaxGroups:      200,
+			MaxMemoryBytes: 67108864,
+			MaxRowsRead:    5000,
+		},
 	}
 	if ac.Observability != wantLimits {
 		t.Errorf("observability = %+v, want %+v", ac.Observability, wantLimits)
@@ -609,6 +623,17 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			errClickHouseTimeout,
 		},
 		{"zero clickhouse conns", map[string]string{clickHouseConnsEnv: "0"}, envconfig.ErrNotPositive},
+		{"zero path group limit", map[string]string{"LOCO_REQUEST_METRICS_MAX_GROUPS": "0"}, envconfig.ErrNotPositive},
+		{
+			"zero path memory limit",
+			map[string]string{"LOCO_REQUEST_METRICS_MAX_MEMORY_BYTES": "0"},
+			envconfig.ErrNotPositive,
+		},
+		{
+			"zero path scan limit",
+			map[string]string{"LOCO_REQUEST_METRICS_MAX_ROWS_READ": "0"},
+			envconfig.ErrNotPositive,
+		},
 		{"zero observability limit", map[string]string{maxLimitEnv: "0"}, envconfig.ErrNotPositive},
 		{
 			"zero observability time range",

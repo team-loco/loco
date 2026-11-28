@@ -14,15 +14,15 @@ import (
 )
 
 type trafficSample struct {
-	resource, pod, stream string
-	start, end            time.Time
-	temporality           int32
-	values, bounds        []float64
+	resource, pod, region, stream string
+	start, end                    time.Time
+	temporality                   int32
+	values, bounds                []float64
 }
 
 type trafficBucket struct {
-	resource, pod string
-	time          time.Time
+	resource, pod, region string
+	time                  time.Time
 }
 
 func (c *Client) queryTrafficMetrics(
@@ -43,10 +43,11 @@ func (c *Client) queryTrafficMetrics(
 	where := strings.Join(filters, " AND ")
 	// The predecessor is needed even when the range starts between scrapes.
 	columns := fmt.Sprintf(
-		"ResourceId, %s AS Pod, toJSONString(tuple(mapSort(ResourceAttributes), ScopeName, ScopeVersion, "+
+		"ResourceId, %s AS Pod, %s AS Region, toJSONString(tuple(mapSort(ResourceAttributes), ScopeName, ScopeVersion, "+
 			"mapSort(ScopeAttributes), mapSort(Attributes), AggregationTemporality)) AS stream, "+
 			"StartTimeUnix, TimeUnix, AggregationTemporality, %s, %s",
 		podColumn(req),
+		metricRegionColumn(req),
 		values,
 		bounds,
 	)
@@ -76,6 +77,7 @@ func (c *Client) queryTrafficMetrics(
 		if err := rows.Scan(
 			&sample.resource,
 			&sample.pod,
+			&sample.region,
 			&sample.stream,
 			&sample.start,
 			&sample.end,
@@ -84,6 +86,9 @@ func (c *Client) queryTrafficMetrics(
 			&sample.bounds,
 		); err != nil {
 			return nil, fmt.Errorf("scan traffic metric: %w", err)
+		}
+		if req.GetCombineResources() {
+			sample.resource = ""
 		}
 		addTrafficSample(buckets, sample, previous, req, histogram)
 		previous = sample
@@ -169,7 +174,7 @@ func addTrafficSample(
 			right = clippedEnd
 		}
 		weight := right.Sub(left).Seconds() / duration
-		key := trafficBucket{resource: sample.resource, pod: sample.pod, time: at}
+		key := trafficBucket{resource: sample.resource, pod: sample.pod, region: sample.region, time: at}
 		counts := buckets[key]
 		if counts == nil {
 			counts = make(map[float64]float64)
@@ -199,6 +204,9 @@ func trafficSeries(
 		if n := strings.Compare(a.pod, b.pod); n != 0 {
 			return n
 		}
+		if n := strings.Compare(a.region, b.region); n != 0 {
+			return n
+		}
 		return a.time.Compare(b.time)
 	})
 	var result []*observabilityv1.MetricSeries
@@ -221,9 +229,11 @@ func trafficSeries(
 			value /= to.Sub(from).Seconds()
 		}
 		if len(result) == 0 || result[len(result)-1].GetResourceId() != key.resource ||
-			result[len(result)-1].GetLabels()[podAttribute] != key.pod {
+			result[len(result)-1].GetLabels()[podAttribute] != key.pod ||
+			result[len(result)-1].GetLabels()[regionAttribute] != key.region {
 			series := &observabilityv1.MetricSeries{ResourceId: key.resource}
 			labelPod(series, req, key.pod)
+			labelRegion(series, req, key.region)
 			result = append(result, series)
 		}
 		series := result[len(result)-1]

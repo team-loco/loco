@@ -103,10 +103,6 @@ export function draftSearch(search: string | URLSearchParams, draftId: string): 
 	return serializeNewResource(search, { [NEW_RESOURCE_PARAM]: null, [DRAFT_PARAM]: draftId });
 }
 
-export const RESOURCE_VIEWS = ["table", "map"] as const;
-export type ResourceView = (typeof RESOURCE_VIEWS)[number];
-export const resourceViewParser = parseAsStringLiteral(RESOURCE_VIEWS).withDefault("table");
-
 export const OBSERVABILITY_VIEWS = ["logs", "metrics", "traces", "events"] as const;
 export type ObservabilityView = (typeof OBSERVABILITY_VIEWS)[number];
 export const observabilityViewParser = parseAsStringLiteral(OBSERVABILITY_VIEWS).withDefault("logs");

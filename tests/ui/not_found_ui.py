@@ -173,12 +173,10 @@ with session(out) as browser:
 
     top_search.click()
     expect(query).to_be_focused()
-    for group in ("This page", "Actions", "Copy", "Go to"):
+    for group in ("Actions", "Copy", "Go to"):
         expect(results.get_by_role("group", name=group)).to_be_visible()
     expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
     for option in (
-        "Show Map",
-        "Show Table",
         "New resource",
         "New token",
         "New webhook",
@@ -188,9 +186,8 @@ with session(out) as browser:
         )
         page.keyboard.press("ArrowDown")
     page.keyboard.press("Home")
-    page.keyboard.press("Enter")
+    page.keyboard.press("Escape")
     expect(palette).to_have_count(0)
-    expect(page).to_have_url(re.compile(r"/resources\?(.*&)?view=map(&|$)"))
     top_search.click()
     expect(query).to_be_focused()
     query.fill("no such command")
