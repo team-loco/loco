@@ -79,7 +79,8 @@ func (w *Watcher) Attach(sink func(*agentv1.PlacementStatus)) func() {
 // applied, and can still advance past a revision the cluster holds ahead of the database.
 func (w *Watcher) inventory(ctx context.Context) (*agentv1.Inventory, error) {
 	var apps locoControllerV1.ApplicationList
-	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace)); err != nil {
+	// Inventory only reads placement and Secret references; never mutate these shared cache objects.
+	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace), client.UnsafeDisableDeepCopy); err != nil {
 		return nil, fmt.Errorf("failed to list Applications: %w", err)
 	}
 	staged, err := w.stagedRevisions(ctx)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -449,5 +450,36 @@ func TestStartupFailureIsReportedAsStopped(t *testing.T) {
 				t.Fatalf("problem = %v", got.GetProblem())
 			}
 		})
+	}
+}
+
+func TestInventoryDoesNotMutateSharedWorkload(t *testing.T) {
+	application := app("resource-a", "p1", "3")
+	application.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{
+		Deployment: &locoControllerV1.ServiceDeploymentSpec{
+			Env:          map[string]string{"CONFIG": "preserved"},
+			EnvSecretRef: &locoControllerV1.EnvSecretRef{Name: "secret", Revision: 2},
+		},
+	}
+	before := application.DeepCopy()
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if apps, ok := list.(*locoControllerV1.ApplicationList); ok {
+				// Match the cache's shallow list: nested maps and pointers belong to the cache.
+				apps.Items = []locoControllerV1.Application{*application}
+				return nil
+			}
+			return c.List(ctx, list, opts...)
+		},
+	}).Build()
+	if _, err := newWatcher(c, c, testNamespace).inventory(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(before, application) {
+		t.Fatal("inventory mutated the shared workload")
 	}
 }
