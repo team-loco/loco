@@ -102,8 +102,8 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		return nil
 	}
 	ss.builds.starting = true
+	// A held queued build still needs fresh credentials on this stream, even if inventory arrives first.
 	skip := maps.Clone(ss.builds.started)
-	maps.Copy(skip, ss.builds.active)
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
 		if err := ss.prepareQueuedBuilds(ctx, skip); err != nil {
 			return nil, err
@@ -170,9 +170,6 @@ func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UU
 func (ss *syncSession) sendBuildStart(build genDb.ListQueuedClusterBuildsRow, msg *agentv1.SyncResponse) settleFunc {
 	return func(ctx context.Context) error {
 		if _, sent := ss.builds.started[build.ID]; sent {
-			return nil
-		}
-		if _, held := ss.builds.active[build.ID]; held {
 			return nil
 		}
 		rows, err := ss.server.queries.ListBuildStatesByIDs(ctx, []uuid.UUID{build.ID})
