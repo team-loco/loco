@@ -74,6 +74,7 @@ func TestCapacity(t *testing.T) {
 	})
 	inspector := NewInspector(client, "loco-system", "loco-controller")
 
+	startInspectorCapacity(t, inspector)
 	capacity, err := inspector.Capacity(context.Background())
 	if err != nil {
 		t.Fatalf("Capacity: %v", err)
@@ -138,12 +139,13 @@ func TestHealth(t *testing.T) {
 
 func TestCapacityReportsMixedWorkerPlatforms(t *testing.T) {
 	amd := node("amd", "2", "4Gi", "10")
-	amd.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: "linux", Architecture: "amd64"}
+	amd.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: testCapacityOS, Architecture: "amd64"}
 	arm := node("arm", "2", "4Gi", "10")
-	arm.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: "linux", Architecture: "arm64"}
+	arm.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: testCapacityOS, Architecture: "arm64"}
 	secondARM := arm.DeepCopy()
 	secondARM.Name = "arm-2"
 	inspector := NewInspector(fake.NewClientset(amd, arm, secondARM), "loco-system", "loco-controller")
+	startInspectorCapacity(t, inspector)
 	capacity, err := inspector.Capacity(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +172,9 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 	waiting := pod("unassigned", corev1.PodPending, "10", "10Gi")
 	waiting.Spec.NodeName = ""
 	client := fake.NewClientset(node("a", "4", "8Gi", "110"), running, assigned, waiting)
-	capacity, err := NewInspector(client, "loco-system", "loco-controller").Capacity(t.Context())
+	inspector := NewInspector(client, "loco-system", "loco-controller")
+	startInspectorCapacity(t, inspector)
+	capacity, err := inspector.Capacity(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,4 +188,12 @@ func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
 	if capacity.GetPodsAssigned() != 2 || capacity.GetPodsRunning() != 1 {
 		t.Fatalf("assigned/running = %d/%d, want 2/1", capacity.GetPodsAssigned(), capacity.GetPodsRunning())
 	}
+}
+
+func startInspectorCapacity(t *testing.T, inspector *Inspector) {
+	t.Helper()
+	if err := inspector.startCapacity(t.Context(), inspector.client); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(inspector.StopCapacity)
 }

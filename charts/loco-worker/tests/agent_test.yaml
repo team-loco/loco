@@ -18,6 +18,13 @@ templates:
   - templates/builds/namespace.yaml
   - templates/builds/agent-rbac.yaml
 tests:
+  - it: watches node and pod capacity
+    asserts:
+      - contains:
+          path: rules
+          content: {apiGroups: [""], resources: [nodes, pods], verbs: [list, watch]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: ClusterRole}
   - it: can inventory and delete workspace namespaces
     asserts:
       - contains:
