@@ -83,6 +83,38 @@ The stream ends once the deployment is canceled or superseded. A failed deployme
 
 `GetDeployment` includes the current replicas, and `ListDeployments` omits replicas.
 
+## Run a client example
+
+The [Go client example](https://github.com/team-loco/loco/tree/main/tools/api-example) finds an existing service by its workspace ID and slug, starts a deployment with the settings of its latest deployment in the chosen environment, then follows its progress. Use a disposable service: this starts a real deployment.
+
+Run these commands from a clone of the Loco repository after installing its pinned tools with `mise run setup`. Change the API and dashboard URLs, workspace ID and service slug for your installation. The service must already have a deployment in the selected environment.
+
+```sh
+(
+  api_example_host=https://api.example.com
+  api_example_web=https://console.example.com
+  loco login --host "$api_example_host" --web-host "$api_example_web"
+
+  umask 077
+  api_example_token=$(mktemp)
+  trap 'rm -f "$api_example_token"' EXIT
+  loco --host "$api_example_host" token show --raw > "$api_example_token"
+
+  mise exec -- go run ./tools/api-example \
+    -api "$api_example_host" \
+    -token-file "$api_example_token" \
+    -workspace WORKSPACE_UUID \
+    -resource SERVICE_SLUG \
+    -environment production
+)
+```
+
+The token stays in a private temporary file; the example does not print it. The program uses the generated Connect clients. It reads the full deployment separately from the history list, so list summaries need not include runtime settings.
+
+Each watch message includes a deployment snapshot and activity entries. The example saves the sequence number only after writing that activity. If the watch connection drops, it reconnects with that number in `after_seq`, so it can continue without replaying the activity it already handled. A failed deployment can recover; the example keeps watching until it becomes ready, is canceled or is superseded. It retries transient watch failures, including the server's stream deadline, and stops immediately when access is refused. Watch retries do not create another deployment.
+
+The default timeout is ten minutes; use `-timeout 20m` for a longer rollout, or press Ctrl-C to stop following it. Ending the client does not cancel the deployment. The token must remain valid during the watch; sign in again and restart the example after an authentication error.
+
 ## Operator repository
 
 `locoadm init` writes the [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) to a new directory. Supply public API and dashboard URLs, an application domain, administrator email, a digest-pinned bundle, and an API environment file:
