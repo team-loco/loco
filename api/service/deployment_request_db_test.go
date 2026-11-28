@@ -31,6 +31,17 @@ func TestDeploymentRequestReplay(t *testing.T) {
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
 		},
 	}
+	_, revision := regionTargets(t, f)
+	request.UpdateResourceTargets = true
+	request.ResourceRevision = new(revision)
+	request.GetSpec().GetService().Regions = map[string]*deploymentv1.RegionDeploymentTarget{
+		testRegion: {
+			Cpu:         new(biggerCPU),
+			Memory:      new(sizeSmall),
+			MinReplicas: new(int32(1)),
+			MaxReplicas: new(int32(1)),
+		},
+	}
 	const retries = 8
 	responses := make([]*deploymentv1.CreateDeploymentResponse, retries)
 	errs := make([]error, retries)
@@ -100,6 +111,8 @@ func TestDeploymentRequestReplay(t *testing.T) {
 
 	intentional := proto.CloneOf(request)
 	intentional.RequestId = uuid.NewString()
+	_, revision = regionTargets(t, f)
+	intentional.ResourceRevision = new(revision)
 	fresh, err := clients.Deployment.CreateDeployment(t.Context(), intentional)
 	if err != nil {
 		t.Fatal(err)

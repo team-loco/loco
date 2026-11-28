@@ -309,7 +309,11 @@ try:
                 page.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
                 # A and B are real deployments from the preceding recovery case. C makes both
                 # historical targets; changing rollback intent must retire A's lost-reply ID.
-                third = dict(requests[1], requestId=str(uuid.uuid4()))
+                third = dict(
+                    requests[1],
+                    requestId=str(uuid.uuid4()),
+                    updateResourceTargets=False,
+                )
                 third["spec"] = json.loads(json.dumps(third["spec"]))
                 third["spec"]["service"]["port"] = 7070
                 call(
