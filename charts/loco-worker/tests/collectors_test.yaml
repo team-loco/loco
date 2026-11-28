@@ -402,3 +402,19 @@ tests:
         template: charts/otel-col-daemon/templates/daemonset.yaml
       - exists: *collectorRequests
         template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: reads platform container logs on the node collector
+    set:
+      global.platformTelemetry: {enabled: true, installation: test, cluster: test, environment: test}
+    template: templates/collectors/collector-configs.yaml
+    documentSelector: {path: metadata.name, value: otel-col-daemon-agent}
+    asserts:
+      - matchRegex:
+          path: data.relay
+          pattern: 'transform/platform_log'
+      - matchRegex:
+          path: data.relay
+          pattern: 'filter/workload_logs'
+      - matchRegex:
+          path: data.relay
+          pattern: 'wait_for_metadata: true'

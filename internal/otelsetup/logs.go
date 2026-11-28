@@ -2,32 +2,59 @@ package otelsetup
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
+	"slices"
 
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
+	"go.opentelemetry.io/otel/trace"
 )
 
-// StartLogs starts a logger provider exporting log records over OTLP/HTTP, like Start.
-func StartLogs(ctx context.Context, serviceName, version string) (*sdklog.LoggerProvider, error) {
-	exporter, err := otlploghttp.New(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("otlp log exporter: %w", err)
-	}
-	res, err := newResource(ctx, serviceName, version)
-	if err != nil {
-		return nil, err
-	}
-	processor := sdklog.NewBatchProcessor(exporter)
-	return sdklog.NewLoggerProvider(sdklog.WithProcessor(processor), sdklog.WithResource(res)), nil
+// LogHandler preserves trace correlation and service context in structured stdout logs.
+// Context fields stay at the top level even when callers derive grouped loggers.
+func LogHandler(output slog.Handler, attrs func(context.Context) []slog.Attr) slog.Handler {
+	return contextHandler{Handler: output, attrs: attrs}
 }
 
-// StopLogs flushes the log records provider holds and shuts it down.
-func StopLogs(provider *sdklog.LoggerProvider) error {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	if err := provider.Shutdown(ctx); err != nil {
-		return fmt.Errorf("flush logs: %w", err)
+type contextHandler struct {
+	slog.Handler
+	derive func(slog.Handler) slog.Handler
+	attrs  func(context.Context) []slog.Attr
+}
+
+func (l contextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return contextHandler{Handler: l.Handler, attrs: l.attrs, derive: func(h slog.Handler) slog.Handler {
+		if l.derive != nil {
+			h = l.derive(h)
+		}
+		return h.WithAttrs(slices.Clone(attrs))
+	}}
+}
+
+func (l contextHandler) WithGroup(name string) slog.Handler {
+	return contextHandler{Handler: l.Handler, attrs: l.attrs, derive: func(h slog.Handler) slog.Handler {
+		if l.derive != nil {
+			h = l.derive(h)
+		}
+		return h.WithGroup(name)
+	}}
+}
+
+func (l contextHandler) Handle(ctx context.Context, r slog.Record) error {
+	var attrs []slog.Attr
+	if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
+		attrs = append(attrs,
+			slog.String("trace_id", spanContext.TraceID().String()),
+			slog.String("span_id", spanContext.SpanID().String()),
+		)
 	}
-	return nil
+
+	if l.attrs != nil {
+		attrs = append(attrs, l.attrs(ctx)...)
+	}
+
+	// Correlation fields must precede caller groups so log queries can find them.
+	handler := l.Handler.WithAttrs(attrs)
+	if l.derive != nil {
+		handler = l.derive(handler)
+	}
+	return handler.Handle(ctx, r)
 }

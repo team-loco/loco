@@ -716,6 +716,26 @@ otel-col-daemon:
               - set(severity_number, 17) where severity_text == "ERROR"
               - set(severity_text, "FATAL") where cache["level"] == "FATAL" or cache["level"] == "CRITICAL" or cache["level"] == "PANIC"
               - set(severity_number, 21) where severity_text == "FATAL"
+      # observability-proxy/pkg/ingest marks self-export failures with this attribute.
+      filter/platform_feedback:
+        error_mode: propagate
+        log_conditions:
+          - log.attributes["loco.telemetry.internal"] == true
+      transform/platform_log:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              - set(resource.attributes["service.name"], resource.attributes["loco.platform.service.name"]) where IsString(resource.attributes["loco.platform.service.name"])
+              - delete_key(resource.attributes, "loco.platform.service.name")
+              - set(resource.attributes["service.instance.id"], resource.attributes["k8s.pod.uid"])
+              - set(cache["record"], ParseJSON(body)) where IsString(body) and IsMatch(body, "^\\s*\\{")
+              - set(body, cache["record"]["msg"]) where IsString(cache["record"]["msg"])
+              - set(trace_id, TraceID(cache["record"]["trace_id"])) where IsString(cache["record"]["trace_id"])
+              - set(span_id, SpanID(cache["record"]["span_id"])) where IsString(cache["record"]["span_id"])
+              - set(time, Time(cache["record"]["time"], "%Y-%m-%dT%H:%M:%S.%f%z")) where IsString(cache["record"]["time"])
+              - merge_maps(attributes, cache["record"], "upsert") where IsMap(cache["record"]) and IsString(cache["record"]["msg"])
+              - delete_matching_keys(attributes, "^(msg|level|time|trace_id|span_id)$")
       k8s_attributes/connection:
         filter:
           node_from_env_var: OTEL_K8S_NODE_NAME

@@ -305,7 +305,7 @@ true
 {{/* Variables platformTelemetry owns; user env entries must not override its identity or exporter. */}}
 {{- define "loco-control-plane.otlpExporterEnv" -}}
 {{- $names := list "OTEL_RESOURCE_ATTRIBUTES" "LOCO_SYSTEM_INGEST_TOKEN" "LOCO_POD_UID" -}}
-{{- range $signal := list "" "TRACES_" "METRICS_" "LOGS_" -}}
+{{- range $signal := list "" "TRACES_" "METRICS_" -}}
 {{- range $setting := list "ENDPOINT" "HEADERS" -}}
 {{- $names = append $names (printf "OTEL_EXPORTER_OTLP_%s%s" $signal $setting) -}}
 {{- end -}}

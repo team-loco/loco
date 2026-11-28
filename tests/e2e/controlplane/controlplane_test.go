@@ -54,6 +54,7 @@ type chartValues struct {
 	ObsProxy struct {
 		Ingest struct {
 			Hostname string `json:"hostname"`
+			HTTPPort int    `json:"httpPort"`
 		} `json:"ingest"`
 	} `json:"obsProxy"`
 	Registry struct {

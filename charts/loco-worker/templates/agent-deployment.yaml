@@ -18,6 +18,7 @@ spec:
         # rolls the agent automatically when a value in its env secret changes
         checksum/env: {{ include (print $.Template.BasePath "/env-config-secret.yml") . | sha256sum }}
       labels:
+        app.kubernetes.io/name: loco-agent
         app: {{ .Release.Name }}-agent
     spec:
       shareProcessNamespace: true

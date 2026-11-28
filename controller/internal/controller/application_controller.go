@@ -361,7 +361,30 @@ func (r *ApplicationReconciler) patchStatus(
 	if err := r.Status().Patch(ctx, app, patch); err != nil {
 		return fmt.Errorf("patch application status: %w", err)
 	}
+	logRolloutChange(ctx, original, app)
 	return nil
+}
+
+func logRolloutChange(ctx context.Context, original, app *locov1alpha1.Application) {
+	current, previous := app.Status.Rollout, original.Status.Rollout
+	if current == nil {
+		return
+	}
+	attrs := rolloutLogAttributes(current)
+	if previous != nil && equality.Semantic.DeepEqual(attrs, rolloutLogAttributes(previous)) {
+		return
+	}
+	attrs = append(attrs, "resource", app.Spec.ResourceID, "placement", app.PlacementID())
+	slog.InfoContext(ctx, "application rollout changed", attrs...)
+}
+
+func rolloutLogAttributes(rollout *locov1alpha1.RolloutStatus) []any {
+	attrs := []any{"available", rollout.Available, "healthy", rollout.Healthy,
+		"proven_revision", rollout.ProvenRevision, "stopped", rollout.Stopped != nil}
+	if rollout.Problem != nil {
+		attrs = append(attrs, "reason", string(rollout.Problem.Reason), "detail", rollout.Problem.Detail)
+	}
+	return attrs
 }
 
 func (r *ApplicationReconciler) ensureFinalizer(ctx context.Context, app *locov1alpha1.Application) error {

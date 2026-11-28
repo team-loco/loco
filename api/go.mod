@@ -25,12 +25,10 @@ require (
 	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1
 	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
-	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
-	go.opentelemetry.io/otel/sdk/log v1.47.0
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	golang.org/x/mod v0.43.0
@@ -112,7 +110,6 @@ require (
 	go.opentelemetry.io/contrib/propagators/b3 v1.47.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.47.0 // indirect
 	go.opentelemetry.io/contrib/propagators/ot v1.47.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.23.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0 // indirect

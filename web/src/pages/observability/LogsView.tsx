@@ -497,10 +497,7 @@ export function LogsView() {
 					}
 					body={
 						installation ? (
-							<>
-								The API sends its logs here once <InlineCode>platformTelemetry</InlineCode> is on in the control plane
-								chart.
-							</>
+							"Logs from platform services appear here."
 						) : (
 							<>
 								Anything{" "}

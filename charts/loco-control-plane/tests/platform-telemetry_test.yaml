@@ -99,11 +99,11 @@ tests:
   - it: refuses a signal-specific OTLP endpoint in api.env as well
     set:
       platformTelemetry.enabled: true
-      api.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://elsewhere
+      api.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://elsewhere
     template: templates/api-deployment.yaml
     asserts:
       - failedTemplate:
-          errorPattern: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT is set in both api.env and platformTelemetry"
+          errorPattern: "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT is set in both api.env and platformTelemetry"
 
   - it: refuses signal-specific OTLP headers in api.env as well
     set:
@@ -188,3 +188,14 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "LOCO_POD_UID is set in both obsProxy.ingest.env and platformTelemetry"
+
+  - it: identifies API and proxy stdout logs by component
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: loco-api
+        template: templates/api-deployment.yaml
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: loco-obs-proxy
+        template: templates/obs-proxy-ingest-deployment.yaml

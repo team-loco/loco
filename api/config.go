@@ -260,7 +260,6 @@ type APIConfig struct {
 	SystemRoles           auth.SystemRoles
 	TracingEnabled        bool
 	MetricsEnabled        bool
-	LogsEnabled           bool
 }
 
 func newAPIConfig() *APIConfig {
@@ -385,7 +384,6 @@ func newAPIConfig() *APIConfig {
 		SystemRoles:           systemRoles,
 		TracingEnabled:        tracingEnabled,
 		MetricsEnabled:        newMetricsEnabled(),
-		LogsEnabled:           newLogsEnabled(),
 	}
 }
 

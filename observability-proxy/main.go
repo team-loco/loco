@@ -164,7 +164,9 @@ func openListeners(ctx context.Context, cfg *config.Config) (listeners, error) {
 func main() {
 	cfg := config.Load()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(
+		otelsetup.LogHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}), nil),
+	)
 	slog.SetDefault(logger)
 
 	proxyVersion := buildinfo.Version(version)

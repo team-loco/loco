@@ -30,9 +30,14 @@ api:
   imagePullPolicy: Never
   existingSecret: api-env
   replicaCount: 2
+  # Leave room for the extra API/proxy replica during rollouts on the shared single CI node.
+  resources:
+    requests:
+      cpu: 100m
   registry:
     auth: token
   env:
+    APP_ENV: PRODUCTION
     ORG_LINKS: '[{"label":"Support","url":"https://support.e2e.test.local/orgs/{orgId}"}]'
 obsProxy:
   image:

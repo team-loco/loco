@@ -126,7 +126,7 @@ app.kubernetes.io/name: loco-build-controller
 {{- define "loco-worker.platformOTLPEnv" -}}
 {{- if .root.Values.global.platformTelemetry.enabled -}}
 {{- range $variable := .env -}}
-{{- if regexMatch "^(OTEL_EXPORTER_OTLP_((TRACES|METRICS|LOGS)_)?(ENDPOINT|HEADERS)|OTEL_RESOURCE_ATTRIBUTES)$" $variable.name -}}
+{{- if regexMatch "^(OTEL_EXPORTER_OTLP_((TRACES|METRICS)_)?(ENDPOINT|HEADERS)|OTEL_RESOURCE_ATTRIBUTES)$" $variable.name -}}
 {{- fail (printf "%s sets %s, which global.platformTelemetry sets" $.path $variable.name) -}}
 {{- end -}}
 {{- end -}}
@@ -137,6 +137,6 @@ app.kubernetes.io/name: loco-build-controller
     fieldRef:
       fieldPath: metadata.uid
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: "service.instance.id=$(LOCO_POD_UID)"
+  value: "service.instance.id=$(LOCO_POD_UID),k8s.namespace.name={{ .root.Release.Namespace }}"
 {{- end -}}
 {{- end -}}
