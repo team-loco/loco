@@ -56,7 +56,7 @@ The author changing a flow owns its assertions and fixture updates. Reviewers ch
 
 ## PR evidence
 
-For UX-only work, start `mise run ui:staging` and capture the local dashboard against real staging data. This uses the saved staging CLI login and starts no local API, PostgreSQL or OpenBao. See [UI changes against staging](development.md#ui-changes-against-staging) for setup. Use existing data for screenshots; actions in the dashboard change staging.
+For UX/UI-only work, start `mise run ui:staging` and capture the local dashboard against real staging data. This uses the saved staging CLI login and starts no local API, PostgreSQL or OpenBao. See [UI changes against staging](development.md#ui-changes-against-staging) for setup. Use existing data for screenshots; actions in the dashboard change staging.
 
 Capture before and after in light and dark mode and include a narrow viewport for layout changes. Label the screenshots as real staging data; live values may differ between captures. Inspect every image before attaching it to the pull request. Keep authentication state and staging browser traces out of commits and public attachments. Use the CI evidence fixture when local browser access or suitable staging data is unavailable. Browser regression suites remain isolated and deterministic; do not point them at staging.
 
