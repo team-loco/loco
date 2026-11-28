@@ -11,6 +11,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
@@ -217,6 +218,13 @@ clusterCollector:
 nodeCollector:
   fullnameOverride: metrics-node-collector
   namespaceOverride: %[6]s
+  ports:
+    jaeger-compact: {enabled: false}
+    jaeger-grpc: {enabled: false}
+    jaeger-thrift: {enabled: false}
+    otlp: {enabled: false}
+    otlp-http: {enabled: false}
+    zipkin: {enabled: false}
   config:
     extensions:
       file_storage:
@@ -233,12 +241,28 @@ nodeCollector:
 	var collectors []any
 	for _, document := range renderedDocuments(t, rendered) {
 		var object struct {
+			Kind     string `json:"kind"`
 			Metadata struct {
 				Labels map[string]string `json:"labels"`
 			} `json:"metadata"`
 		}
 		roundTrip(t, document, &object)
 		if object.Metadata.Labels["app.kubernetes.io/part-of"] == collectorPartOf {
+			if object.Kind == "DaemonSet" {
+				var daemon appsv1.DaemonSet
+				roundTrip(t, document, &daemon)
+				for _, container := range daemon.Spec.Template.Spec.Containers {
+					for _, port := range container.Ports {
+						if port.HostPort != 0 {
+							t.Fatalf(
+								"platform-only fixture %s reserves unused host port %d",
+								daemon.Name,
+								port.HostPort,
+							)
+						}
+					}
+				}
+			}
 			collectors = append(collectors, document)
 		}
 	}

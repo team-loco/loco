@@ -124,6 +124,14 @@ spec:
       ports: [{protocol: TCP, port: %[5]d}]
 `, cp.namespace, release, nodeNamespace, clusterNamespace, cp.values.ObsProxy.Ingest.HTTPPort))
 	defer func() {
+		if t.Failed() {
+			c.LogKubectl(t,
+				"-n "+nodeNamespace+" describe pods",
+				"-n "+nodeNamespace+" logs daemonset/"+nodeName+" --all-containers=true --tail=80",
+				"-n "+clusterNamespace+" describe pods",
+				"-n "+clusterNamespace+" logs statefulset/"+clusterName+" --all-containers=true --tail=80",
+			)
+		}
 		if _, err := c.KubectlInput(
 			t.Context(),
 			collectors,
