@@ -1,27 +1,22 @@
-import { deploymentMessage } from "@/hooks/deployment-watch";
-import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ArrowRightIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData } from "@tanstack/react-query";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import {
 	listDeployments,
 	queryDeploymentBuckets,
 } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 
 import { Button } from "@/components/design/Button";
-import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { DataTable, useDataTable } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
-import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
-import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { deploymentRegions, isInFlight } from "@/lib/deployment-utils";
-import { activitySearch, resourcePath } from "@/lib/routes";
-import { agoLabel, formatStarted, msToTimestamp, readyMs } from "@/lib/time";
+import { isInFlight } from "@/lib/deployment-utils";
+import { resourcePath, withEnv, workspacePath } from "@/lib/routes";
+import { msToTimestamp } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -29,97 +24,13 @@ import {
 	DEPLOYMENT_LIMIT,
 	DEPLOYMENT_WINDOW_MS,
 	deploymentCounts,
-	deploymentState,
 	filterStatuses,
 } from "./deploymentRows";
 import { InlineCode } from "@/components/design/InlineCode";
+import { deploymentColumns, type DeploymentRow } from "@/pages/deployments/columns";
 
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
-
-interface DeploymentRow {
-	deployment: Deployment;
-}
-
-function When({ deployment, nowMs }: { deployment: Deployment; nowMs: number }) {
-	const timePref = useTimePreferences();
-	const ready = readyMs(deployment);
-	return (
-		<span title={ready === undefined ? undefined : formatStarted(ready, timePref)}>
-			{ready === undefined ? "—" : agoLabel(ready, nowMs)}
-		</span>
-	);
-}
-
-function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number): DataColumn<DeploymentRow>[] {
-	return [
-		{
-			id: "status",
-			header: "Status",
-			size: 120,
-			minSize: 90,
-			cell: ({ row: { original: r } }) => (
-				<DeploymentStatusBadge
-					phase={r.deployment.status}
-					superseded={deploymentState(r.deployment.status) === "superseded"}
-				/>
-			),
-		},
-		{
-			id: "resource",
-			header: "Resource",
-			size: 160,
-			minSize: 90,
-			meta: { primary: true },
-			cell: ({ row: { original: r } }) => (
-				<CellText
-					text={r.deployment.resourceName}
-					render={<Link to={hrefOf(r)} />}
-					className="text-[14px] font-medium text-foreground"
-				/>
-			),
-		},
-		{
-			id: "region",
-			header: "Region",
-			size: 110,
-			minSize: 80,
-			cell: ({ row: { original: r } }) => (
-				<CellText text={deploymentRegions(r.deployment).join(", ")} className="font-mono text-[12px] text-fg2" />
-			),
-		},
-		{
-			id: "deployment",
-			header: "Deployment",
-			size: 130,
-			minSize: 90,
-			cell: ({ row: { original: r } }) => <DeploymentId deployment={r.deployment} />,
-		},
-		{
-			id: "actor",
-			header: "Deployed by",
-			size: 170,
-			minSize: 90,
-			cell: ({ row: { original: r } }) => <DeploymentActor deployment={r.deployment} />,
-		},
-		{
-			id: "message",
-			header: "Message",
-			size: 90,
-			minSize: 90,
-			meta: { grow: true },
-			cell: ({ row: { original: r } }) => <CellText text={deploymentMessage(r.deployment)} className="text-fg2" />,
-		},
-		{
-			id: "when",
-			header: "When",
-			size: 80,
-			minSize: 64,
-			meta: { align: "end", cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
-			cell: ({ row: { original: r } }) => <When deployment={r.deployment} nowMs={nowMs} />,
-		},
-	];
-}
 
 const DEPLOYS_VALUES = [ALL_DEPLOYMENTS, ...DEPLOYMENT_FILTERS.map((f) => f.value)];
 const deploysParser = parseAsStringLiteral(DEPLOYS_VALUES)
@@ -142,7 +53,6 @@ export function RecentDeployments({
 	nowMs: number;
 }) {
 	const navigate = useNavigate();
-	const { search } = useLocation();
 	const [filter, setFilter] = useQueryState("deploys", deploysParser);
 	const startTime = msToTimestamp(nowMs - DEPLOYMENT_WINDOW_MS);
 	const listed = useQuery(
@@ -196,7 +106,12 @@ export function RecentDeployments({
 		</ToggleGroup>
 	);
 	const actions = (
-		<Button variant="outline" size="sm" nativeButton={false} render={<Link to={{ search: activitySearch(search) }} />}>
+		<Button
+			variant="outline"
+			size="sm"
+			nativeButton={false}
+			render={<Link to={`${withEnv(workspacePath(orgId, workspaceId, "deployments"), envSlug)}&deploys=${filter}`} />}
+		>
 			View all
 			<ArrowRightIcon />
 		</Button>

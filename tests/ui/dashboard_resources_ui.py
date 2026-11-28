@@ -1,11 +1,13 @@
 import argparse
 import json
 import re
+import uuid
 from pathlib import Path
 
 from harness import (
     call,
     copied_text,
+    evidence,
     expect_rpc,
     load_state,
     open_page,
@@ -216,4 +218,100 @@ with session(out) as browser:
     expect(docs).to_have_attribute("target", "_blank")
     assert not errors, errors
     context.close()
-print("PASS: dashboard resources")
+    # Full history uses real ListDeployments responses and synthetic stored deployments.
+    hour_id = str(uuid.uuid4())
+    failure_id = str(uuid.uuid4())
+    oldest_id = str(uuid.uuid4())
+    stage_id = str(uuid.uuid4())
+    runtime = {
+        "observability": {"injectOtel": True},
+        "build": {"type": "image", "image": "example.invalid/history:stable"},
+        "regions": {
+            "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1,
+            }
+        },
+    }
+    history_entries = [
+        {"id": hour_id, "environment": "production", "age": "1 hour", "spec": runtime},
+        {
+            "id": failure_id,
+            "environment": "production",
+            "age": "3 hours",
+            "status": "failed",
+            "live": False,
+            "spec": runtime,
+        },
+        *[
+            {
+                "id": oldest_id if index == 25 else str(uuid.uuid4()),
+                "environment": "production",
+                "age": f"3 days {index} minutes",
+                "status": "superseded",
+                "live": False,
+                "spec": runtime,
+            }
+            for index in range(26)
+        ],
+        {
+            "id": stage_id,
+            "environment": "staging",
+            "age": "1 hour",
+            "status": "failed",
+            "live": False,
+            "spec": runtime,
+        },
+    ]
+    history_resource = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "hour-old-history",
+                "deployments": history_entries,
+            }
+        ],
+    )["acme/shared/hour-old-history"]
+    context, page, errors = open_page(browser, state=state)
+    page.goto(base + "?env=production")
+    card = page.get_by_role("region", name="Deployments", exact=True)
+    expect(card.get_by_role("row").filter(has_text=hour_id[-8:])).to_be_visible()
+    page.screenshot(path=str(out / "history-dashboard.png"))
+    card.get_by_role("link", name="View all", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/deployments\?env=production&deploys=all$"))
+    table = page.get_by_role("table", name="Deployments", exact=True)
+    hour = table.get_by_role("row").filter(has_text=hour_id[-8:])
+    expect(hour).to_be_visible()
+    page.screenshot(path=str(out / "history-first-page.png"))
+    page.get_by_role("button", name="Next page", exact=True).click()
+    oldest = table.get_by_role("row").filter(has_text=oldest_id[-8:])
+    expect(oldest).to_be_visible()
+    page.screenshot(path=str(out / "history-second-page.png"))
+    page.get_by_role(
+        "group", name="Filter deployments by status", exact=True
+    ).get_by_role("button", name="Failed", exact=True).click()
+    expect(page.get_by_text("Page 1", exact=True)).to_be_visible()
+    expect(table.get_by_role("row").filter(has_text=failure_id[-8:])).to_be_visible()
+    expect(table.get_by_role("row").filter(has_text=hour_id[-8:])).to_have_count(0)
+    page.goto(base + "/deployments?env=staging&deploys=failed")
+    expect(table.get_by_role("row").filter(has_text=stage_id[-8:])).to_be_visible()
+    expect(table.get_by_role("row").filter(has_text=failure_id[-8:])).to_have_count(0)
+    page.goto(base + "?env=production&deploys=failed")
+    card = page.get_by_role("region", name="Deployments", exact=True)
+    card.get_by_role("link", name="View all", exact=True).click()
+    expect(page).to_have_url(
+        re.compile(r"/deployments\?env=production&deploys=failed$")
+    )
+    expect(table.get_by_role("row").filter(has_text=failure_id[-8:])).to_be_visible()
+    table.get_by_role("row").filter(has_text=failure_id[-8:]).get_by_role(
+        "link", name="hour-old-history", exact=True
+    ).click()
+    expect(page).to_have_url(
+        re.compile(rf"/resource/{history_resource}\?env=production$")
+    )
+    assert not errors, errors
+    context.close()
+print("PASS: dashboard resources and complete deployment history")
