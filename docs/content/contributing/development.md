@@ -30,6 +30,21 @@ mise run loco whoami
 
 `mise run stop` keeps state while stopping the dashboard, fixtures and kind node. `mise run dev` starts them. `mise run down` deletes the stack and frees its slot. Apps use self-signed certificates; export the CA with `mise run stack:ca > apps-ca.pem`. The application verification command requires port 443 and is exercised by installation acceptance.
 
+## UI changes against staging
+
+`mise run ui:staging` runs the local dashboard with hot reload and uses staging for API requests, storage and telemetry. It starts no local platform services.
+
+Sign in once with the CLI, then start the dashboard:
+
+```sh
+loco login --host https://api.staging.loco.build --web-host https://staging.loco.build
+mise run ui:staging
+```
+
+Open `http://localhost:5173`. The development proxy uses the saved CLI login and refreshes it before expiry. Credentials stay in the local proxy process; they are not compiled into the dashboard. The command refuses a login for another API host.
+
+Actions in this dashboard change real staging data. This mode tests signed-in screens; use the full local platform to test browser sign-in, session refresh and sign-out.
+
 ## Charts
 
 A chart change starts with a [helm-unittest](https://github.com/helm-unittest/helm-unittest) test that fails on the current chart. [`charts/TESTING.md`](https://github.com/team-loco/loco/blob/main/charts/TESTING.md) describes the static and unit tests and how to run one suite. Run both before opening a pull request:

@@ -23,6 +23,12 @@ cached. It finds what the
 app imports from each package and generates one entry point per group that re-exports exactly
 those names.
 
+For UX changes using real staging data, run `mise run ui:staging` from the repository root after
+`loco login --host https://api.staging.loco.build --web-host https://staging.loco.build`.
+This starts only the dashboard and a local API proxy using the saved CLI login. Open
+`http://localhost:5173`. Actions change staging data. Browser sign-in and sign-out require
+the full local platform.
+
 ## Configuration
 
 `PUBLIC_API_URL` is the API base URL and `PUBLIC_APP_ENV=PRODUCTION` switches the transport to the

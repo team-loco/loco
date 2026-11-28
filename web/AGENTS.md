@@ -33,6 +33,12 @@ Paths and commands below are relative to `web/`.
 - **Errors**: user-facing error text goes through `src/lib/error-handler.tsx`:
   `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a
   toast. Both handle `ConnectError`, `Error` and unknown values.
+- **UX-only preview**: use `mise run ui:staging` from the repository root. It serves local UI
+  changes against real staging data without starting the local platform. Use the saved staging
+  CLI login; browser sign-in, sign-out and web-session refresh need an isolated fixture.
 - **PR screenshots**: UI changes need before/after screenshots in light and dark mode, plus
-  a narrow viewport for layout changes. Take them in CI with `mise run ci:evidence` while the PR
-  is a draft, as the `ci-evidence` skill describes, and upload with `gh pr edit --attach`.
+  a narrow viewport for layout changes. Prefer local captures against `mise run ui:staging`
+  for UX-only changes; inspect every image, label real staging data and attach with
+  `gh pr edit --attach`. Keep authentication state and staging browser traces private.
+  If local capture or suitable data is unavailable, use `mise run ci:evidence` with an isolated
+  fixture. Deterministic browser suites continue to use isolated fixtures in CI.
