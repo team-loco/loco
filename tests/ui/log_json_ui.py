@@ -97,7 +97,10 @@ with session(out) as browser:
                 row = lines.get_by_role("row").filter(has_text=source)
                 expect(row).to_contain_text("request completed")
             unknown = lines.get_by_role("row").filter(has_text="plain text log")
-            expect(unknown).to_contain_text("—")
+            source_index = (
+                lines.get_by_role("columnheader").all_text_contents().index("Source")
+            )
+            expect(unknown.get_by_role("cell").nth(source_index)).to_have_text("—")
             page.get_by_role("button", name="Remove column Source", exact=True).click()
             expect(source_header).to_have_count(0)
             expect(
