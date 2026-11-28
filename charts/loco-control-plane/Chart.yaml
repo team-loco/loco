@@ -2,7 +2,7 @@ apiVersion: v2
 name: loco-control-plane
 description: Helm chart for the regional Loco dashboard, API, observability proxy, OpenBao and ClickHouse
 type: application
-version: 0.12.35
+version: 0.12.36
 dependencies:
     - name: loco-control-plane-telemetry
       version: 0.1.0
