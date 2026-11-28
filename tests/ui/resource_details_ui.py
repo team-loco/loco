@@ -10,6 +10,7 @@ from harness import (
     call,
     copied_text,
     evidence,
+    expect_rpc,
     load_state,
     open_page,
     repo,
@@ -128,7 +129,8 @@ evidence.seed_domains(
     [{"environment": "production", "domain": "details.apps.example.test"}],
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
-USAGE = 0.9
+USAGE = 0.45
+UTILIZATION = 0.9
 NOW = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
 STAMP = NOW.isoformat()
 
@@ -138,7 +140,14 @@ def metrics(route):
     if body.get("byPod"):
         route.fulfill(json={"series": []})
         return
-    value = USAGE if "cpu" in body["metricName"] else 0.25
+    if "cpu" in body["metricName"]:
+        value = USAGE if body["metricName"] == "k8s.pod.cpu.usage" else UTILIZATION
+    else:
+        value = (
+            128 * 1024 * 1024
+            if body["metricName"] == "k8s.pod.memory.working_set"
+            else 0.25
+        )
     route.fulfill(
         json={
             "series": [
@@ -194,6 +203,34 @@ with session(out) as browser:
         assert params.get("r") == [name], params
         assert params.get("view", ["logs"]) == [view], params
     page.keyboard.press("Escape")
+    metrics_panel = page.get_by_role("region", name="Metrics", exact=True)
+    expect(metrics_panel.get_by_role("group", name="Time range")).to_be_visible()
+    # The older pods used 50m from a 100m allocation before the newer deployment started.
+    previous = json.loads(json.dumps(runtime))
+    previous["regions"]["us-ca-1"]["cpu"] = "100m"
+    evidence.seed_deployments(
+        state,
+        resource,
+        [
+            {
+                "environment": "production",
+                "age": "2 hours",
+                "live": False,
+                "spec": previous,
+            }
+        ],
+    )
+    USAGE, UTILIZATION = 0.05, 0.5
+    STAMP = (NOW - datetime.timedelta(minutes=20)).isoformat()
+    page.reload()
+    expect(page.get_by_text("0.05 vCPU", exact=True)).to_be_visible()
+    metrics_panel = page.get_by_role("region", name="Metrics", exact=True)
+    with expect_rpc(page, "QueryMetrics", lambda body: "cpu" in body["metricName"]):
+        metrics_panel.get_by_role("group", name="Time range").get_by_role(
+            "button", name="6h", exact=True
+        ).click()
+    expect(page.get_by_text("0.05 vCPU", exact=True)).to_be_visible()
+    expect(page).to_have_url(re.compile(r"range=6h"))
     title = page.get_by_role("heading", name=name, exact=True)
     events = page.get_by_role("button", name=re.compile(r"^Events"))
     for viewport, below in (
@@ -232,12 +269,6 @@ with session(out) as browser:
     assert first["x"] >= box["x"], (first, box)
     assert last["x"] + last["width"] <= box["x"] + box["width"], (last, box)
     assert first["x"] + first["width"] < last["x"], (first, last)
-    metrics_panel = page.get_by_role("region", name="Metrics", exact=True)
-    expect(metrics_panel.get_by_role("group", name="Time range")).to_be_visible()
-    metrics_panel.get_by_role("group", name="Time range").get_by_role(
-        "button", name="6h", exact=True
-    ).click()
-    expect(page).to_have_url(re.compile(r"range=6h"))
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     expect(page).to_have_url(re.compile(rf"[?&]activity={name}(&|$)"))
     scoped = page.get_by_role("dialog", name=f"{name} activity", exact=True)

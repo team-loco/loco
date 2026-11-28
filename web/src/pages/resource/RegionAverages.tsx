@@ -7,18 +7,15 @@ import { CartesianGrid, ComposedChart, Line, usePlotArea, XAxis, YAxis } from "r
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { formatPercent } from "@/lib/compute-chart";
-import { limitAt, type LimitStep } from "@/lib/limit-history";
+import type { LimitStep } from "@/lib/limit-history";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { chartMax, limitLabelX, placeMarkers } from "./chart-layout";
 import { formatFullTime } from "./format";
-import { percentPoints, RANGE_MS, type ChartMarker, type MetricRange } from "./metric";
+import { allocationRows, usageRows, RANGE_MS, type ChartMarker, type MetricRange } from "./metric";
 
-const PERCENT = 100;
 const AXIS_FONT = 11;
-const FULL_REQUEST = 100;
 const CHAR_PX = 6;
 const MARKER_BAND = 14;
 const LIMIT_LABEL_X = 64;
@@ -46,16 +43,16 @@ function ChartAnnotations({
 	scale,
 	limit,
 	limitLabel,
-	showLimit,
+	limitFrom,
 	markers,
 }: {
 	from: number;
 	to: number;
 	max: number;
 	scale: AxisScale;
-	limit: number;
+	limit: number | undefined;
 	limitLabel: string;
-	showLimit: boolean;
+	limitFrom: number;
 	markers: readonly ChartMarker[];
 }) {
 	const area = usePlotArea();
@@ -64,10 +61,10 @@ function ChartAnnotations({
 	const xAt = (ms: number) => area.x + ((ms - from) / Math.max(1, to - from)) * area.width;
 	const inRange = markers.filter((m) => m.ms >= from && m.ms <= to).map((m) => ({ x: xAt(m.ms), label: m.label }));
 	const placed = placeMarkers(inRange, area.x, area.x + area.width, CHAR_PX);
-	const limitY = yAt(limit);
+	const limitY = yAt(limit ?? 0);
 	const labelWidth = limitLabel.length * CHAR_PX + 6;
 	const labelX = limitLabelX(
-		area.x + LIMIT_LABEL_X,
+		Math.min(Math.max(area.x + LIMIT_LABEL_X, xAt(limitFrom)), area.x + area.width - labelWidth),
 		labelWidth,
 		inRange.map((m) => m.x),
 		area.x + area.width,
@@ -105,20 +102,21 @@ function ChartAnnotations({
 					{axisNumber(max * q, scale)}
 				</text>
 			))}
-			{showLimit && (
-				<line x1={area.x} x2={area.x + area.width} y1={limitY} y2={limitY} stroke={ERR_LINE} strokeDasharray="4 4" />
+			{limit !== undefined && (
+				<>
+					<rect
+						x={labelX - 3}
+						y={limitY - LABEL_HEIGHT - 2}
+						width={labelWidth}
+						height={LABEL_HEIGHT}
+						rx={3}
+						fill="var(--panel)"
+					/>
+					<text x={labelX} y={limitY - 6} fill={ERR_LABEL}>
+						{limitLabel}
+					</text>
+				</>
 			)}
-			<rect
-				x={labelX - 3}
-				y={limitY - LABEL_HEIGHT - 2}
-				width={labelWidth}
-				height={LABEL_HEIGHT}
-				rx={3}
-				fill="var(--panel)"
-			/>
-			<text x={labelX} y={limitY - 6} fill={ERR_LABEL}>
-				{limitLabel}
-			</text>
 		</g>
 	);
 }
@@ -127,6 +125,7 @@ function ChartAnnotations({
 export function RegionAverages({
 	title,
 	metricName,
+	unitsPerValue,
 	regions,
 	workspaceId,
 	environmentId,
@@ -139,12 +138,13 @@ export function RegionAverages({
 }: {
 	title: string;
 	metricName: string;
+	unitsPerValue: number;
 	regions: string[];
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
 	range: MetricRange;
-	limits: Map<string, LimitStep[]> | undefined;
+	limits: Map<string, LimitStep[]>;
 	markers: readonly ChartMarker[];
 	format: (value: number) => string;
 	/** The unit the axis and the limit label read in, given the limit. */
@@ -166,32 +166,22 @@ export function RegionAverages({
 		),
 	});
 	const loading = results.some((r) => r.isLoading);
-	const absolute = limits !== undefined;
-	const show = absolute ? format : formatPercent;
-	const limitSteps = limits?.get(regions[0] ?? "") ?? [];
-	const rows = new Map<number, Record<string, number>>();
-	results.forEach((result, i) => {
-		const region = regions[i] ?? "";
-		for (const p of percentPoints(result.data ?? [], resourceId)) {
-			const row = rows.get(p.time) ?? {
-				time: p.time,
-				limit: absolute ? (limitAt(limitSteps, p.time) ?? 0) : FULL_REQUEST,
-			};
-			row[region] = absolute ? (p.pct / PERCENT) * (limitAt(limits.get(region) ?? [], p.time) ?? 0) : p.pct;
-			rows.set(p.time, row);
-		}
-	});
-	const data = [...rows.values()].toSorted((a, b) => (a["time"] ?? 0) - (b["time"] ?? 0));
+	const data = usageRows(
+		regions.map((region, i) => ({ region, values: results[i]?.data ?? [] })),
+		resourceId,
+		unitsPerValue,
+	);
 	const to = Math.max(0, ...results.map((r) => r.dataUpdatedAt));
 	const from = to - RANGE_MS[range];
-	const limit = data.at(-1)?.["limit"] ?? FULL_REQUEST;
-	const resized = data.some((row) => row["limit"] !== limit);
+	const allocations = allocationRows(limits, from, to);
+	const limit = allocations.at(-1)?.limit;
+	const limitFrom = allocations[allocations.findLastIndex((row) => row.limit !== limit) + 1]?.time ?? from;
 	const peak = Math.max(0, ...data.flatMap((row) => regions.map((region) => row[region] ?? 0)));
-	const top = Math.max(limit, ...data.map((row) => row["limit"] ?? 0));
-	const axisScale = absolute ? scale(limit) : { divisor: 1, unit: "%", decimals: 0 };
-	const max = chartMax(peak, limit, top);
-	const limitNumber = axisNumber(limit, axisScale);
-	const limitLabel = `limit ${limitNumber}${axisScale.unit === "%" ? "%" : ` ${axisScale.unit}`}`;
+	const top = Math.max(0, ...allocations.map((row) => row.limit ?? 0));
+	const axisScale = scale(limit ?? peak);
+	const max = chartMax(peak, limit ?? 0, top);
+	const limitNumber = limit === undefined ? "" : axisNumber(limit, axisScale);
+	const limitLabel = `limit ${limitNumber} ${axisScale.unit}`;
 	const latest = (region: string) => data.findLast((row) => row[region] !== undefined)?.[region];
 	const config = Object.fromEntries(
 		regions.map((region, i) => [region, { label: region, color: `var(--series-${i.toString()})` }]),
@@ -215,7 +205,7 @@ export function RegionAverages({
 							<span className="font-mono">{region}</span>
 							{!loading && (
 								<span className="ml-1.5 font-mono text-[12px] text-foreground">
-									{value === undefined ? "—" : show(value)}
+									{value === undefined ? "—" : format(value)}
 								</span>
 							)}
 						</span>
@@ -251,17 +241,17 @@ export function RegionAverages({
 							axisLine={false}
 						/>
 						<YAxis hide domain={[0, max]} ticks={GRID_FRACTIONS.map((q) => max * q)} interval={0} allowDataOverflow />
-						{resized && (
-							<Line
-								dataKey="limit"
-								type="stepAfter"
-								stroke={ERR_LINE}
-								strokeDasharray="4 4"
-								strokeWidth={1}
-								dot={false}
-								isAnimationActive={false}
-							/>
-						)}
+						<Line
+							data={allocations}
+							dataKey="limit"
+							tooltipType="none"
+							type="stepAfter"
+							stroke={ERR_LINE}
+							strokeDasharray="4 4"
+							strokeWidth={1}
+							dot={false}
+							isAnimationActive={false}
+						/>
 						<ChartAnnotations
 							from={from}
 							to={to}
@@ -269,13 +259,13 @@ export function RegionAverages({
 							scale={axisScale}
 							limit={limit}
 							limitLabel={limitLabel}
-							showLimit={!resized}
+							limitFrom={limitFrom}
 							markers={markers}
 						/>
 						<ChartTooltip
 							content={
 								<ChartTooltipContent
-									formatter={(value, name) => `${String(name)} ${show(Number(value))}`}
+									formatter={(value, name) => `${String(name)} ${format(Number(value))}`}
 									labelFormatter={(_label, payload) => {
 										const time = (payload[0]?.payload as { time?: number } | undefined)?.time;
 										return time === undefined ? "" : formatFullTime(time, false, timePref);
