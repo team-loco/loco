@@ -1,4 +1,7 @@
-import { ChartContainer as ChartContainerBase } from "@/components/ui/chart";
+import {
+	ChartContainer as ChartContainerBase,
+	ChartTooltipContent as ChartTooltipContentBase,
+} from "@/components/ui/chart";
 
 // Recharts closes its tooltip on mouseout; a page scroll under a still pointer never sends one.
 function closeTooltipOnScroll(node: HTMLDivElement | null) {
@@ -18,12 +21,9 @@ function ChartContainer(props: React.ComponentProps<typeof ChartContainerBase>) 
 	return <ChartContainerBase ref={closeTooltipOnScroll} {...props} />;
 }
 
-export { ChartContainer };
-export {
-	ChartLegend,
-	ChartLegendContent,
-	ChartStyle,
-	ChartTooltip,
-	ChartTooltipContent,
-	type ChartConfig,
-} from "@/components/ui/chart";
+function ChartTooltipContent({ payload, ...props }: React.ComponentProps<typeof ChartTooltipContentBase>) {
+	return <ChartTooltipContentBase {...props} payload={(payload ?? []).filter((item) => item.type !== "none")} />;
+}
+
+export { ChartContainer, ChartTooltipContent };
+export { ChartLegend, ChartLegendContent, ChartStyle, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
