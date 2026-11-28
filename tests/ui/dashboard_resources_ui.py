@@ -282,6 +282,9 @@ with session(out) as browser:
     page.screenshot(path=str(out / "history-dashboard.png"))
     card.get_by_role("link", name="View all", exact=True).click()
     expect(page).to_have_url(re.compile(r"/deployments\?env=production&deploys=all$"))
+    expect(
+        page.get_by_role("heading", name="Deployments", exact=True, level=1)
+    ).to_be_visible()
     table = page.get_by_role("table", name="Deployments", exact=True)
     hour = table.get_by_role("row").filter(has_text=hour_id[-8:])
     expect(hour).to_be_visible()
