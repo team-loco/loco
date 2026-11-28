@@ -1,11 +1,11 @@
 import {
-	ActivityIcon,
 	ArrowUpRightIcon,
 	BellIcon,
 	CheckIcon,
 	ChevronsUpDownIcon,
 	EllipsisIcon,
 	FileCodeIcon,
+	RadarIcon,
 	RotateCwIcon,
 	Settings2Icon,
 	Trash2Icon,
@@ -169,7 +169,7 @@ export function ResourceHeader({
 			<div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-						<ActivityIcon /> Telemetry
+						<RadarIcon /> Telemetry
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						{(["logs", "metrics", "traces"] as const).map((view) => (
