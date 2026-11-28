@@ -333,6 +333,15 @@ with session(out) as browser:
     pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
     held_image_checks = []
     hold_image_check = True
+    successful_image_checks = []
+
+    def record_image_check(response):
+        if response.url.endswith("/ResolveImage") and response.status == 200:
+            successful_image_checks.append(
+                (response.request.post_data_json["image"], response.json()["image"])
+            )
+
+    page.on("response", record_image_check)
 
     def resolve_image(route):
         if hold_image_check:
@@ -971,6 +980,9 @@ with session(out) as browser:
         lambda route: pending.append(route),
     )
     deploy_button = drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
+    expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(0)
+    assert successful_image_checks[-1] == (image, pinned_image)
+    checks_before_deploy = len(successful_image_checks)
     with (
         expect_rpc(page, "CreateDeployment", lambda body: "spec" in body),
         expect_rpc(
@@ -985,6 +997,10 @@ with session(out) as browser:
             page.wait_for_timeout(50)
         pending[0].fallback()
 
+    assert len(successful_image_checks) == checks_before_deploy, {
+        "before_deploy": checks_before_deploy,
+        "after_deploy": len(successful_image_checks),
+    }
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
     panel = page.get_by_role("region", name="Deploying", exact=True)
