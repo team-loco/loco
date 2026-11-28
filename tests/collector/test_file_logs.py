@@ -77,7 +77,9 @@ def stream(record):
     )
 
 
-def test_platform_namespace_logs_stay_on_the_node(worker_relays, tmp_path):
+def test_platform_namespace_logs_stay_on_the_node(
+    worker_relays, worker_documents, tmp_path
+):
     for namespace in (
         "kube-system",
         "flux-system",
@@ -87,12 +89,18 @@ def test_platform_namespace_logs_stay_on_the_node(worker_relays, tmp_path):
         "loco-ws-a",
     ):
         write_pod_log(tmp_path, namespace, [f"from {namespace}"])
+    node = next(
+        document
+        for document in worker_documents
+        if document["kind"] == "DaemonSet"
+        and document["metadata"]["name"] == "node-collector-agent"
+    )
     write_pod_log(
         tmp_path,
-        "loco-obs-node",
+        node["metadata"]["namespace"],
         ["from the collector"],
-        "node-collector-x",
-        "node-collector",
+        node["metadata"]["name"] + "-x",
+        node["spec"]["template"]["spec"]["containers"][0]["name"],
     )
     config = file_log_pipeline(worker_relays)
     with run_collector(tmp_path, config, "node-collector-agent") as collector:
