@@ -351,7 +351,13 @@ func (s *DeploymentServer) createDeploymentOnce(
 		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		lockErr := lockDeploymentEnvironments(ctx, qtx, resourceID, environmentID, req.GetRemoveHealthCheck())
+		lockErr := lockDeploymentEnvironments(
+			ctx,
+			qtx,
+			resourceID,
+			environmentID,
+			req.GetRemoveHealthCheck() || req.GetUpdateResourceTargets(),
+		)
 		if lockErr != nil {
 			return lockErr
 		}
@@ -391,16 +397,33 @@ func (s *DeploymentServer) createDeploymentOnce(
 			return targetErr
 		}
 
-		if req.GetRemoveHealthCheck() {
-			removeErr := removeHealthCheck(ctx, qtx, resourceID, render.resourceSpec.GetService())
-			if removeErr != nil {
-				return removeErr
-			}
+		if prepareErr := prepareDeploymentResource(
+			ctx,
+			qtx,
+			resource,
+			req,
+			render.resourceSpec.GetService(),
+			requestSpec.GetService(),
+		); prepareErr != nil {
+			return prepareErr
 		}
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
 		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
 			return mergeErr
+		}
+
+		if req.GetUpdateResourceTargets() {
+			if targetErr := saveResourceTargets(
+				ctx,
+				qtx,
+				resource,
+				environmentID,
+				render.resourceSpec.GetService(),
+				mergedServiceSpec,
+			); targetErr != nil {
+				return targetErr
+			}
 		}
 
 		resolved, resolveErr := s.resolveVariables(

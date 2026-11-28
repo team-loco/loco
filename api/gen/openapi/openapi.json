@@ -11558,6 +11558,20 @@
             "type": "boolean",
             "title": "remove_health_check",
             "description": "remove_health_check runs the deployment without a health check and removes the resource's\n own, which a spec without one inherits. The resource's check is the default for every\n environment of the workspace; deployments already running in other environments keep theirs."
+          },
+          "updateResourceTargets": {
+            "type": "boolean",
+            "title": "update_resource_targets",
+            "description": "Replace resource region defaults with this deployment's complete target map atomically.\n Existing deployments in other environments keep their configuration."
+          },
+          "resourceRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "resource_revision",
+            "format": "int64",
+            "description": "Required when update_resource_targets is true; rejects edits to a changed resource.\nint64.gte = 0\n"
           }
         },
         "title": "CreateDeploymentRequest",
@@ -11565,7 +11579,7 @@
           "spec"
         ],
         "additionalProperties": false,
-        "description": "CreateDeploymentRequest is the request to create a new deployment.\ncreate_deployment.remove_health_check_without_check // remove_health_check needs a spec without a health_check\n"
+        "description": "CreateDeploymentRequest is the request to create a new deployment.\ncreate_deployment.remove_health_check_without_check // remove_health_check needs a spec without a health_check\ncreate_deployment.resource_targets_revision // updating resource targets requires resource_revision and explicit regions\n"
       },
       "loco.deployment.v1.CreateDeploymentResponse": {
         "type": "object",

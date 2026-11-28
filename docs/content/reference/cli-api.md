@@ -110,3 +110,5 @@ locoadm cluster create --name worker-staging --country us --subdivision ca --kub
 Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.
 
 `CreateResourceDomain` requires the target `environment_id`. Domains returned on a resource include their environment ID; clients show and edit domains for the selected environment. Updating or deleting a domain by its ID keeps the operation in the environment that owns it.
+
+For a new-service draft, `CreateDeployment.update_resource_targets` replaces the resource's region defaults in the same transaction as its deployment and retry receipt. Pass the loaded `resource_revision` to reject stale edits. Replays keep the original response and do not restore old defaults. Redeploys and rollbacks omit this flag and leave resource defaults and other environments' deployments unchanged.

@@ -125,22 +125,15 @@ export function useServiceDeploy(
 						},
 					},
 				}));
+			const resources = createClient(ResourceService, transport);
+			const { resource } = await resources.getResource({ key: { case: "resourceId", value: resourceId } });
+			if (resource === undefined) throw new Error("The created resource was not returned");
 			if (previous !== undefined && previous.form !== formKey) {
-				const resources = createClient(ResourceService, transport);
-				const { resource } = await resources.getResource({
-					key: { case: "resourceId", value: resourceId },
-				});
-				if (resource === undefined) throw new Error("The created resource was not returned");
 				await resources.updateResource({
 					resourceId,
 					name: form.name,
 					description: form.description.trim(),
 					revision: resource.revision,
-					...(JSON.stringify(priorRequest?.regions) === JSON.stringify(form.regions)
-						? {}
-						: {
-								regions: { targets: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])) },
-							}),
 				});
 				const wantedDomain = form.isPublic ? `${form.subdomain}.${form.appDomain}` : undefined;
 				const domains = createClient(DomainService, transport);
@@ -176,6 +169,8 @@ export function useServiceDeploy(
 					? priorRequest
 					: create(CreateDeploymentRequestSchema, {
 							requestId: crypto.randomUUID(),
+							updateResourceTargets: true,
+							resourceRevision: resource.revision,
 							resourceId,
 							regions: form.regions,
 							environmentId: env.id,

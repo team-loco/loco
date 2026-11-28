@@ -90,6 +90,7 @@ try:
             ("light", ""),
             ("dark", ""),
             ("light", "port"),
+            ("light", "targets"),
             ("light", "public"),
             ("light", "domain"),
         ):
@@ -198,6 +199,18 @@ try:
             expect(deploy).to_be_enabled()
             if changed == "port":
                 drawer.get_by_role("textbox", name="Port", exact=True).fill("9090")
+            elif changed == "targets":
+                drawer.get_by_role(
+                    "button", name=re.compile(r"^Size per replica\b")
+                ).click()
+                drawer.get_by_role("slider", name="CPU", exact=True).focus()
+                page.keyboard.press("Home")
+                page.keyboard.press("ArrowRight")
+                drawer.get_by_role("button", name=re.compile(r"^Scaling\b")).click()
+                drawer.get_by_role(
+                    "button", name="Increase replicas", exact=True
+                ).click()
+                drawer.get_by_role("switch", name="Autoscaling", exact=True).click()
             elif changed == "public":
                 drawer.get_by_role("button", name="Public", exact=True).click()
                 expect(
@@ -230,6 +243,24 @@ try:
                 assert requests[0]["requestId"] != requests[1]["requestId"], requests
                 if changed == "port":
                     assert requests[1]["spec"]["service"]["port"] == 9090, requests
+                if changed == "targets":
+                    persisted = json.loads(
+                        sql(
+                            state,
+                            f"SELECT spec->'regions'->'us-ca-1' FROM resources WHERE id='{requests[0]['resourceId']}';",
+                        )
+                    )
+                    assert persisted["cpu"] == "250m", persisted
+                    assert persisted["minReplicas"] == 2, persisted
+                    assert persisted["maxReplicas"] == 3, persisted
+                    assert persisted["scalers"] == {"enabled": True, "cpuTarget": 70}, (
+                        persisted
+                    )
+                    assert requests[1]["updateResourceTargets"] is True
+                    assert (
+                        requests[0]["resourceRevision"]
+                        != requests[1]["resourceRevision"]
+                    )
                 if changed == "public":
                     assert requests[1]["environmentId"] == staging
                     assert (
