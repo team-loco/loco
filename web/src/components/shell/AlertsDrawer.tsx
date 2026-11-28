@@ -1,10 +1,11 @@
 import "./Activity.css";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
+import { createQueryOptions, useTransport, useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { getResource, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQueryClient, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
 import { withCode } from "@/components/design/InlineCode";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
@@ -49,6 +50,7 @@ import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { deploymentHeadline, deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { ACTIVITY_PARAM, buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, maybeTsMs } from "@/lib/time";
+import { formatTotal } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 import { asSeverity, eventItem, severityStyle } from "@/pages/observability/events";
 import { PROBLEM_REASONS, problemLogsHref } from "@/pages/resource/deployment-progress";
@@ -56,6 +58,7 @@ import { PROBLEM_REASONS, problemLogsHref } from "@/pages/resource/deployment-pr
 import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
 import { useDeployEvents } from "./useDeployEvents";
 
+const EMPTY_RESOURCES: Resource[] = [];
 const CLOCK_TICK_MS = 60_000;
 const LEVEL_PARSER = parseAsStringLiteral(["all", "warn"] as const satisfies readonly ActivityLevel[]).withDefault(
 	"all",
@@ -346,6 +349,8 @@ function DeployCard({
 }
 
 export function AlertsDrawer() {
+	const transport = useTransport();
+	const queryClient = useQueryClient();
 	// The drawer is open while the page's address carries the activity parameter, whose value names the resource it shows.
 	const [activity, setActivity] = useQueryState(ACTIVITY_PARAM, parseAsString);
 	const open = activity !== null;
@@ -360,13 +365,18 @@ export function AlertsDrawer() {
 	const [watchedSinceMs] = useState(Date.now);
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
-		enabled: activeOrgId !== null && activeWorkspaceId !== null,
+		enabled: open && activeWorkspaceId !== null,
 		// The drawer remounts for each environment; the workspace's resource list stays the one the shell loaded.
 		refetchOnMount: false,
 	});
 	const navigate = useNavigate();
 	const viewerId = useAuth().user?.id ?? "";
-	const resourceList = resources.data?.resources;
+	const attention = useConnectQuery(
+		listWorkspaceResources,
+		{ workspaceId: activeWorkspaceId ?? "", environmentId: active?.id ?? "", pageSize: 1, includeAttentionCount: true },
+		{ enabled: activeWorkspaceId !== null && active !== undefined, refetchInterval: IDLE_POLL_MS },
+	);
+
 	// While the drawer is open it shows these changes, so no toasts show.
 	const show = (toasts: readonly DeployToast[]) => {
 		if (open || activeOrgId === null || activeWorkspaceId === null) return;
@@ -377,8 +387,19 @@ export function AlertsDrawer() {
 	};
 	const showDeploymentToasts = useEffectEvent(show);
 	const heard = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id, watchedSinceMs, (events) => {
-		const names = new Map((resourceList ?? []).map((r) => [r.id, r.name]));
-		show(events.flatMap((e) => degradedToast(e, names) ?? []));
+		void Promise.allSettled(
+			events
+				.filter((event) => event.type === "resource.degraded")
+				.map(async (event) => {
+					const response = await queryClient.query(
+						createQueryOptions(getResource, { key: { case: "resourceId", value: event.resourceId } }, { transport }),
+					);
+					if (response.resource !== undefined) {
+						const notification = degradedToast(event, new Map([[event.resourceId, response.resource.name]]));
+						if (notification !== null) show([notification]);
+					}
+				}),
+		);
 	});
 	const openedTickMs = Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS;
 	const sinceMs = openedTickMs - RECENT_MS;
@@ -402,6 +423,18 @@ export function AlertsDrawer() {
 		},
 	);
 
+	const toastResourceIds = [
+		...new Set((deploymentsQuery.data?.deployments ?? []).map((deployment) => deployment.resourceId)),
+	];
+	const toastResources = useQueries({
+		combine: (results) => results.flatMap((query) => (query.data?.resource === undefined ? [] : [query.data.resource])),
+		queries: toastResourceIds.map((resourceId) =>
+			createQueryOptions(getResource, { key: { case: "resourceId", value: resourceId } }, { transport }),
+		),
+	});
+	const drawerResources = open ? (resources.data?.resources ?? EMPTY_RESOURCES) : EMPTY_RESOURCES;
+	const resourceList = open ? resources.data?.resources : toastResources;
+
 	const seenRef = useRef(new Map<string, string>());
 	const fresh = deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments;
 	// Sonner is outside React, so each new page of deployments syncs into it here.
@@ -415,24 +448,22 @@ export function AlertsDrawer() {
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
-	const byId = new Map((resources.data?.resources ?? []).map((r) => [r.id, r]));
+	const byId = new Map(drawerResources.map((r) => [r.id, r]));
 	// Placeholder rows from an earlier opening can belong to another environment.
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter(
 		(d) => byId.has(d.resourceId) && d.environmentId === active.id,
 	);
 	const ready = new Map<string, number>();
-	for (const region of (resources.data?.resources ?? []).flatMap((r) =>
-		r.environmentStatuses.flatMap((e) => e.regions),
-	)) {
+	for (const region of drawerResources.flatMap((r) => r.environmentStatuses.flatMap((e) => e.regions))) {
 		ready.set(region.servingDeploymentId, (ready.get(region.servingDeploymentId) ?? 0) + region.readyReplicas);
 	}
 	const running =
 		open && deploymentsQuery.data !== undefined
 			? runningDeployRegions(deployments)
-			: rollingOutRegions(resources.data?.resources ?? [], active.id);
-	const allAlerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), running);
-	const count = alertedResourceCount(allAlerts);
-	const shownResource = (resources.data?.resources ?? []).find((r) => r.slug === activity);
+			: rollingOutRegions(drawerResources, active.id);
+	const allAlerts = withoutRunningDeploys(buildAlerts(drawerResources, active.id), running);
+	const count = open ? alertedResourceCount(allAlerts) : (attention.data?.attentionCount ?? 0);
+	const shownResource = drawerResources.find((r) => r.slug === activity);
 	const matches = (resourceId: string) => shownResource === undefined || shownResource.id === resourceId;
 	const alerts = allAlerts.filter((a) => matches(a.resourceId));
 	const levelMatches = (d: Deployment) => level === "all" || ["warn", "err"].includes(deployPhase(d).glyph);
@@ -481,7 +512,7 @@ export function AlertsDrawer() {
 		<>
 			<Button
 				variant="outline"
-				aria-label={`Workspace activity, ${count.toString()} active`}
+				aria-label={`Workspace activity, ${formatTotal(count)} active`}
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
@@ -505,7 +536,7 @@ export function AlertsDrawer() {
 					</svg>
 				</span>
 				<span className="hidden md:inline">Workspace activity</span>
-				{count > 0 && <span className="act-n font-mono">{count}</span>}
+				{count > 0 && <span className="act-n font-mono">{formatTotal(count)}</span>}
 			</Button>
 			<Sheet open={open} onOpenChange={openChange}>
 				<SheetContent showCloseButton={false}>
@@ -551,7 +582,7 @@ export function AlertsDrawer() {
 							allValue=""
 							options={[
 								{ value: "", label: "All resources" },
-								...(resources.data?.resources ?? []).map((r) => ({ value: r.slug, label: r.name })),
+								...drawerResources.map((r) => ({ value: r.slug, label: r.name })),
 							]}
 							onChange={pickResource}
 						/>

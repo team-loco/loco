@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Workspace manifests first, so dependency install caches independently of source.
 COPY package.json bun.lock ./
+COPY patches ./patches
 COPY web/package.json ./web/
 COPY gen/ts/package.json ./gen/ts/
 COPY docs/package.json ./docs/

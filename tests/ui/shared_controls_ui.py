@@ -1143,7 +1143,7 @@ def metrics_error(browser):
     page.goto(
         state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
     )
-    failed = page.get_by_role("alert").filter(has_text="Couldn’t load metrics")
+    failed = page.get_by_role("alert").filter(has_text="Couldn’t load cpu").first
     expect(failed).to_be_visible()
     # Live metrics refetch every minute; hold those requests.
     page.route(
@@ -1230,8 +1230,10 @@ def pin_needs_applied_query(page):
         + base
         + "/observability?env=production&view=metrics&range=1h&q=checkout"
     )
-    expect(page.get_by_text("Text search doesn't filter metrics")).to_be_visible()
-    expect(page.get_by_role("button", name="Clear", exact=True)).to_be_visible()
+    expect(
+        page.get_by_text("These filters are not supported for metrics.")
+    ).to_be_visible()
+    expect(page.get_by_role("button", name="Clear filters", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="Pin this search")).to_have_count(0)
     page.goto(
         state["ui_url"] + base + "/observability?env=production&view=logs&q=checkout"
@@ -1792,7 +1794,7 @@ def metric_lone_sample(page):
 
     def lone(route):
         body = route.request.post_data_json
-        if body["metricName"] != "k8s.pod.cpu_limit_utilization":
+        if body["metricName"] != "k8s.pod.cpu.usage":
             route.fallback()
             return
         point = {
@@ -1817,121 +1819,6 @@ def metric_lone_sample(page):
     # A line with one sample has no length, so its sample is drawn as a dot; the full series draws none.
     expect(chart.locator(".recharts-line-dots .recharts-dot")).to_have_count(1)
     page.unroute(metrics, lone)
-
-
-def metrics_many(page):
-    names = [f"controls-svc-{i:02d}" for i in range(13)]
-    seeded = state.get("controls_many")
-    if seeded is None:
-        seeded = list(
-            evidence.seed_resources(
-                state,
-                [
-                    {"workspace": "acme/shared", "name": name, "service": service()}
-                    for name in names
-                ],
-            ).values()
-        )
-        state["controls_many"] = seeded
-        evidence.write_json(Path(args.state), state)
-    requests = []
-
-    def many(route):
-        body = route.request.post_data_json
-        if body["metricName"] not in (
-            "k8s.pod.cpu_limit_utilization",
-            "k8s.pod.memory.working_set_limit_utilization",
-        ):
-            route.fallback()
-            return
-        requests.append(body["metricName"])
-        now = datetime.now(UTC)
-        ids = body.get("resourceIds") or []
-        before_start = (
-            datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
-            - timedelta(seconds=30)
-        ).isoformat()
-        series = [
-            {
-                "resourceId": rid,
-                "points": [
-                    {
-                        "timestamp": stamp(now, timedelta(minutes=minute)),
-                        "value": 0.0004 if i == 0 else (i + 1) / 20 * scale,
-                    }
-                    for minute, scale in ((50, 0.6), (30, 1.0), (10, 0.8))
-                ]
-                + [{"timestamp": before_start, "value": 0.1}],
-            }
-            for i, rid in enumerate(ids)
-        ]
-        route.fulfill(json={"series": series})
-
-    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", many)
-    page.clock.install()
-    page.goto(
-        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
-    )
-    cpu_card = page.get_by_role("region", name="CPU", exact=True)
-    chart = page.locator('[aria-label="CPU over time"]')
-    expect(chart.locator(".recharts-line")).not_to_have_count(0)
-    page.wait_for_timeout(500)
-    count = chart.locator(".recharts-line").count()
-    assert count >= 16, count
-    expect(cpu_card.get_by_text("latest")).to_have_count(0)
-    horizontal = chart.locator(".recharts-reference-line-line").evaluate_all(
-        "els => els.filter(e => e.getAttribute('y1') === e.getAttribute('y2')).length"
-    )
-    assert horizontal == 1, horizontal
-    first_label = chart.locator(".recharts-xAxis-tick-labels text").first
-    plot_left = chart.locator(".recharts-cartesian-grid line").first
-    gap = first_label.bounding_box()["x"] - plot_left.bounding_box()["x"]
-    assert abs(gap) <= 3, gap
-    box = chart.bounding_box()
-    chart.hover(position={"x": box["width"] * 0.5, "y": 60})
-    rows = page.locator("[data-tooltip-row]")
-    expect(rows).to_have_count(8)
-    more = page.get_by_text(f"+{count - 8} more", exact=True)
-    expect(more).to_be_visible()
-    assert rows.evaluate_all("els => els.every(e => e.scrollWidth <= e.clientWidth)")
-    assert "0 vCPU" not in " ".join(rows.all_text_contents()).replace("<0.001 vCPU", "")
-    by_region = page.get_by_role("region", name="By resource and region")
-    table_rows = by_region.locator("tbody tr")
-    expect(table_rows).to_have_count(count)
-    assert table_rows.first.evaluate("e => getComputedStyle(e).cursor") == "pointer"
-    assert (
-        chart.locator(".recharts-surface").evaluate("e => getComputedStyle(e).cursor")
-        == "pointer"
-    )
-    page.mouse.move(0, 0)
-    table_rows.first.hover()
-    lines = chart.locator(".recharts-line-curve")
-    opacities = lines.evaluate_all(
-        "els => els.map(e => e.getAttribute('stroke-opacity'))"
-    )
-    assert opacities.count("1") == 1, opacities
-    # A refetch keeps every row and chart element in place and never shows a skeleton.
-    page.mouse.move(0, 0)
-    table_rows.evaluate_all("els => els.forEach(e => { e.dataset.kept = '1'; })")
-    page.evaluate(
-        """() => {
-            window.flashes = 0;
-            new MutationObserver(() => {
-                if (document.querySelector('[data-slot=skeleton]')) window.flashes++;
-            }).observe(document.body, { childList: true, subtree: true });
-        }"""
-    )
-    before = len(requests)
-    page.clock.fast_forward(61_000)
-    deadline = time.time() + 10
-    while len(requests) == before and time.time() < deadline:
-        page.wait_for_timeout(100)
-    assert len(requests) > before
-    page.wait_for_timeout(500)
-    assert table_rows.evaluate_all("els => els.every(e => e.dataset.kept === '1')")
-    expect(table_rows).to_have_count(count)
-    assert page.evaluate("window.flashes") == 0
-    page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", many)
 
 
 def token_empty(page):
@@ -2169,223 +2056,244 @@ def title_tooltip(page):
     expect(tip).to_have_text("Cut short by its width")
 
 
-def resource_view_history(page):
-    dashboard_url = state["ui_url"] + base + "?env=production"
-    page.goto(dashboard_url)
-    page.goto(state["ui_url"] + base + "/resources?env=production")
-    page.get_by_role("button", name="Map", exact=True).click()
-    expect(page).to_have_url(re.compile(r"[?&]view=map"))
-    page.go_back()
-    expect(page).to_have_url(dashboard_url)
-    page.go_forward()
-    expect(page).to_have_url(re.compile(r"/resources\?env=production&view=map"))
-    page.get_by_role("button", name="Table", exact=True).click()
-    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-    page.go_back()
-    expect(page).to_have_url(dashboard_url)
-
-
 def metrics(page):
-    environments = call(
-        state,
-        "loco.environment.v1.EnvironmentService/ListEnvironments",
-        {"workspaceId": workspace},
-    )["environments"]
-    production = next(e["id"] for e in environments if e["slug"] == "production")
-    sql(
-        state,
-        f"UPDATE resources SET name='Controls Pilot' WHERE id='{resource}';"
-        f"UPDATE resources SET name='Controls Alpha' WHERE id='{sorted_resources[0]}';",
-    )
-    # One ready deploy at each metric point, so a click on any point offers one.
-    deploys = [
-        {
-            "id": f"01a1c8b3-0000-7000-8000-0000000de90{i}",
-            "resourceId": resource,
-            "placements": [{"region": "us-ca-1"}],
-            "environmentId": production,
-            "createdAt": point["timestamp"],
-            "startedAt": point["timestamp"],
-            "spec": {
-                "service": {
-                    "build": {"image": "ghcr.io/acme/pilot:1.27"},
-                    "regions": {"us-ca-1": {"cpu": "100m", "memory": "128Mi"}},
-                }
-            },
-        }
-        for i, point in enumerate(telemetry_points)
-    ]
-    # A deploy that never became ready has no deploy time and no marker.
-    deploys.append(
-        {
-            **deploys[len(deploys) // 2],
-            "id": "01a1c8b3-0000-7000-8000-0000000de9ff",
-            "startedAt": None,
-        }
-    )
-    page.route(
-        "**/loco.deployment.v1.DeploymentService/ListDeployments",
-        lambda route: route.fulfill(
+    # UI fixture only: aggregation correctness is covered against real ClickHouse.
+    requests = []
+    resource_searches = []
+    regions = ["us-ca-1", "us-va-1", "eu-de-1", "ap-sg-1"]
+    metric_url = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+
+    def regional(route):
+        body = route.request.post_data_json
+        requests.append(body)
+        selected = body.get("resourceIds") or [resource]
+        if body.get("combineResources"):
+            selected = [""]
+        pods = ["pod-a", "pod-b"] if body.get("byPod") else [""]
+        route.fulfill(
             json={
-                "deployments": deploys
-                if route.request.post_data_json.get("workspaceId") == workspace
-                else []
+                "series": [
+                    {
+                        "resourceId": rid,
+                        "labels": {"loco.region": region, "k8s.pod.name": pod},
+                        "points": telemetry_points,
+                    }
+                    for rid in selected
+                    for region in body.get("regions") or regions
+                    for pod in pods
+                ]
             }
-        ),
-    )
+        )
+
+    def observed(request):
+        if request.url.endswith("/ListWorkspaceResources"):
+            resource_searches.append(request.post_data_json)
+
+    # Synthetic region facets stay unfiltered while chart responses follow the selected region.
+    resource_list_url = "**/loco.resource.v1.ResourceService/ListWorkspaceResources"
+
+    def region_inventory(route):
+        response = route.fetch().json()
+        if route.request.post_data_json.get("includeFacets"):
+            response["facets"] = {
+                "regions": [{"region": region, "count": 1} for region in regions]
+            }
+        route.fulfill(json=response)
+
+    page.route(resource_list_url, region_inventory)
+    page.on("request", observed)
+    page.route(metric_url, regional)
     page.goto(
         state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
     )
-    chart = page.locator('[aria-label="CPU over time"]')
-    expect(chart.locator(".recharts-line")).to_be_visible()
-    cpu_card = page.get_by_role("region", name="CPU", exact=True)
-    expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
-    expect(cpu_card.get_by_text("latest")).to_have_count(0)
-    expect(chart.get_by_text("limit", exact=True)).to_have_count(1)
-    expect(chart.get_by_text("Controls Pilot 000de900").first).to_be_visible()
-    memory = page.locator('[aria-label="Memory over time"]')
-    chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
-    expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
-    by_region = page.get_by_role("region", name="By resource and region")
-    pilot_row = by_region.get_by_role("row").filter(has_text="Controls Pilot")
-    expect(pilot_row).to_contain_text("0.035 vCPU 35%")
-    # A live deployment sizes its region with its own limit, not the resource's.
-    cluster, deployment = (
-        "01a1c8b3-0000-7000-8000-0000000c1a51",
-        "01a1c8b3-0000-7000-8000-0000000de9aa",
+    cpu = page.locator('[aria-label="CPU over time"]')
+    expect(cpu.locator(".recharts-line")).to_have_count(4)
+    colors = cpu.locator(".recharts-line-curve").evaluate_all(
+        "nodes => nodes.map(n => n.getAttribute('stroke'))"
     )
-    sql(state, evidence.cluster_row(cluster, "us-east-1"))
-    try:
-        evidence.seed_deployments(
-            state,
-            resource,
-            [
-                {
-                    "id": deployment,
-                    "environment": "production",
-                    "spec": {
-                        "build": {"image": "ghcr.io/acme/pilot:1.27"},
-                        "regions": {
-                            "us-east-1": {
-                                "cpu": "500m",
-                                "memory": "512Mi",
-                                "minReplicas": 1,
-                                "maxReplicas": 1,
-                            }
-                        },
-                    },
-                    "placements": {"us-east-1": {"cluster": cluster}},
-                    # Started before the chart, so every point ran with its limit.
-                    "age": "2 hours",
-                }
-            ],
-        )
-        page.reload()
-        expect(pilot_row).to_contain_text("0.175 vCPU 35%")
-    finally:
-        sql(
-            state,
-            f"DELETE FROM placements WHERE deployment_id='{deployment}';"
-            f"DELETE FROM deployments WHERE id='{deployment}';"
-            f"DELETE FROM clusters WHERE id='{cluster}';",
-        )
-    page.reload()
-    expect(pilot_row).to_contain_text("0.035 vCPU 35%")
-    viewport = page.viewport_size
-    page.set_viewport_size({"width": 1280, "height": viewport["height"]})
-    region_cell = (
-        by_region.get_by_role("row")
-        .filter(has_text="Controls Pilot")
-        .get_by_role("cell")
-        .nth(1)
+    assert len(set(colors)) == 4, colors
+    assert all(
+        body.get("byRegion") and body.get("combineResources") for body in requests
     )
-    expect(region_cell).to_have_text("us-ca-1")
-    text_lines = region_cell.evaluate(
-        """node => {
-            const range = document.createRange();
-            range.selectNodeContents(node);
-            return new Set([...range.getClientRects()].map(r => Math.round(r.top))).size;
-        }"""
+    assert all(body.get("pageSize", 0) <= 20 for body in resource_searches), (
+        resource_searches
     )
-    assert text_lines == 1, text_lines
-    page.set_viewport_size(viewport)
-    expect(
-        by_region.get_by_role("columnheader", name="CPU (latest)", exact=True)
-    ).to_have_attribute("aria-sort", "descending")
-    by_region.get_by_role("button", name="Resource", exact=True).click()
-    expect(
-        by_region.get_by_role("columnheader", name="Resource", exact=True)
-    ).to_have_attribute("aria-sort", "ascending")
-    by_region.get_by_role("row").filter(has_text="Controls Alpha").get_by_role(
-        "cell"
-    ).nth(1).click()
-    expect(page).to_have_url(re.compile(r"resource:controls-alpha"))
-    page.goto(
-        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    assert any(
+        body.get("sumPods")
+        for body in requests
+        if body["metricName"] == "k8s.pod.cpu.usage"
     )
-    expect(chart.locator(".recharts-line")).to_be_visible()
-    chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
-    menu = page.get_by_role("menu", name=re.compile(r"^Around"))
-    expect(menu).to_be_visible()
-    expect(
-        menu.get_by_role("menuitem", name=re.compile(r"^Deploy 000de90")).first
-    ).to_be_visible()
-    expect(menu.get_by_role("menuitem").first).to_contain_text("Logs around")
-    expect(
-        menu.get_by_role("menuitem", name=re.compile(r"^Events around"))
-    ).to_contain_text("deploys, restarts, scaling")
-    expect(menu.get_by_role("separator")).to_have_count(1)
-    y_labels = chart.locator(
-        ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
-    ).all_text_contents()
-    # The mocked CPU peaks at 55% of the limit, so the axis tops out at 120.
-    assert y_labels == ["30", "60", "90"], y_labels
-    expect(menu.get_by_role("menuitem", name=re.compile("000de9ff"))).to_have_count(0)
-    first, second = (
-        menu.get_by_role("menuitem").nth(0),
-        menu.get_by_role("menuitem").nth(1),
-    )
-    first.focus()
-    page.keyboard.press("ArrowDown")
-    expect(second).to_be_focused()
+    page.get_by_role("button", name="All resources", exact=True).click()
+    picker = page.get_by_role("dialog", name="Filter by resources")
+    picker.get_by_placeholder("Search resources…").fill("controls-pilot")
+    picker.get_by_role("option", name="controls-pilot", exact=True).click()
     page.keyboard.press("Escape")
-    expect(menu).not_to_be_visible()
-    page.set_viewport_size({"width": 1280, "height": 800})
-    for root_font in ("16px", "20px"):
-        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
-        for target in (chart, memory):
-            for fraction in (0.3, 0.95):
-                box = target.bounding_box()
-                click_x = box["x"] + box["width"] * fraction
-                click_y = box["y"] + 60
-                page.mouse.click(click_x, click_y)
-                expect(menu).to_be_visible()
-                page.wait_for_timeout(300)
-                shown = menu.bounding_box()
-                assert 0 <= shown["x"] and shown["x"] + shown["width"] <= 1280, shown
-                near_left = abs(shown["x"] - click_x) <= 24
-                near_right = abs(shown["x"] + shown["width"] - click_x) <= 24
-                assert near_left or near_right, (root_font, fraction, shown, click_x)
-                assert abs(shown["y"] - click_y) <= 24, (shown, click_y)
-                page.keyboard.press("Escape")
-                expect(menu).not_to_be_visible()
-    page.evaluate("document.documentElement.style.fontSize = ''")
-    chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
-    expect(menu).to_be_visible()
+    expect(page).to_have_url(re.compile(r"resource(:|%3A)controls-pilot"))
+    page.get_by_role("group", name="Replica view", exact=True).get_by_role(
+        "button", name="Per replica", exact=True
+    ).click()
+    expect(cpu.locator(".recharts-line")).to_have_count(8)
+    by_pod = [body for body in requests if body.get("byPod")]
+    assert by_pod and all(
+        body.get("resourceIds") == [resource] and not body.get("combineResources")
+        for body in by_pod
+    )
+    page.get_by_role("button", name="All regions", exact=True).click()
+    picker = page.get_by_role("dialog", name="Filter by regions")
+    picker.get_by_role("option", name="us-ca-1", exact=True).click()
+    page.keyboard.press("Escape")
+    expect(cpu.locator(".recharts-line")).to_have_count(2)
+    selected_color = cpu.locator(".recharts-line-curve").first.get_attribute("stroke")
+    memory = page.locator('[aria-label="Memory over time"]')
+    expect(memory.locator(".recharts-line")).to_have_count(2)
     assert (
-        page.evaluate(
-            "getComputedStyle(document.documentElement).overflow + getComputedStyle(document.body).overflow"
-        ).count("hidden")
-        == 0
+        memory.locator(".recharts-line-curve").first.get_attribute("stroke")
+        == selected_color
     )
-    page.get_by_role("button", name="Earlier", exact=True).click()
-    expect(menu).not_to_be_visible()
-    expect(page).to_have_url(re.compile(r"[?&]from="))
-    page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
-    sql(
-        state,
-        f"UPDATE resources SET name=slug WHERE id IN ('{resource}','{sorted_resources[0]}');",
+    page.get_by_role("button", name="us-ca-1", exact=True).click()
+    expect(page.get_by_role("option", name="eu-de-1", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    path_calls = []
+
+    def paths(route):
+        path_calls.append(route.request.post_data_json)
+        if route.request.post_data_json.get("path") == "broad":
+            route.fulfill(
+                status=400,
+                json={
+                    "code": "failed_precondition",
+                    "message": "Path breakdown is too broad. Shorten the time range or filter paths.",
+                },
+            )
+        else:
+            route.fulfill(
+                json={
+                    "buckets": [
+                        {
+                            "timestamp": telemetry_points[-1]["timestamp"],
+                            "region": "us-ca-1",
+                            "path": "/products/123",
+                            "requests": "1",
+                            "p95Millis": 74,
+                        }
+                    ]
+                }
+            )
+
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryRequestMetrics", paths
     )
+    assert not path_calls
+    page.get_by_role("group", name="Group latency by", exact=True).get_by_role(
+        "button", name="By path", exact=True
+    ).click()
+    expect(page.get_by_text("/products/123 · us-ca-1", exact=True)).to_be_visible()
+    assert path_calls[-1]["resourceId"] == resource
+    assert path_calls[-1]["regions"] == ["us-ca-1"]
+    page.get_by_role("textbox", name="Filter paths").fill("broad")
+    page.get_by_role("button", name="Apply", exact=True).click()
+    expect(
+        page.get_by_role("alert").filter(has_text="Path breakdown is too broad.")
+    ).to_be_visible()
+    page.get_by_role("textbox", name="Filter paths").fill("products")
+    page.get_by_role("button", name="Apply", exact=True).click()
+    expect(page.get_by_text("/products/123 · us-ca-1", exact=True)).to_be_visible()
+    page.get_by_role("group", name="Group latency by", exact=True).get_by_role(
+        "button", name="Combined", exact=True
+    ).click()
+    # The chart menu preserves the selected resource, region and time when opening logs.
+    box = cpu.bounding_box()
+    cpu.click(position={"x": box["width"] * 0.5, "y": 70})
+    menu = page.get_by_role("menu")
+    expect(menu.get_by_role("menuitem", name="View logs", exact=True)).to_be_visible()
+    menu.get_by_role("menuitem", name="View logs", exact=True).click()
+    expect(page).to_have_url(re.compile(r"view=logs"))
+    assert "controls-pilot" in page.url and "us-ca-1" in page.url
+    # Environment deployments, rather than shared configuration, own traffic visibility.
+    deployment_id = "00000000-0000-4000-8000-0000000000ab"
+
+    def configured_worker(route):
+        response = route.fetch().json()
+        current = response.get("resource")
+        if current and current["id"] == resource:
+            current["spec"] = {"service": {"routing": {}}}
+            current["environmentStatuses"] = [
+                {
+                    "environmentId": state["environments"]["acme/shared/production"],
+                    "regions": [{"region": "us-ca-1", "deploymentId": deployment_id}],
+                }
+            ]
+        route.fulfill(json=response)
+
+    def deployed_web(route):
+        route.fulfill(
+            json={
+                "deployment": {
+                    "id": deployment_id,
+                    "resourceId": resource,
+                    "spec": {"service": {"port": 8080}},
+                }
+            }
+        )
+
+    resource_url = "**/loco.resource.v1.ResourceService/GetResource"
+    deployment_url = "**/loco.deployment.v1.DeploymentService/GetDeployment"
+    page.route(resource_url, configured_worker)
+    page.route(deployment_url, deployed_web)
+    with expect_rpc(
+        page, "GetDeployment", lambda body: body.get("deploymentId") == deployment_id
+    ):
+        page.goto(
+            state["ui_url"]
+            + base
+            + "/observability?env=production&view=metrics&q=%40resource%3Acontrols-pilot"
+        )
+    expect(page.get_by_role("heading", name="Traffic", exact=True)).to_be_visible()
+    # Date-and-time labels must fit at phone width when the range crosses midnight.
+    end = datetime.now(UTC).replace(
+        hour=0, minute=30, second=0, microsecond=0
+    ) - timedelta(days=1)
+    end_ms = int(end.timestamp() * 1000)
+    page.set_viewport_size(evidence.NARROW)
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?env=production&view=metrics&from={end_ms - 3600000}&to={end_ms}"
+    )
+    expect(
+        page.locator('[aria-label="CPU over time"] text')
+        .filter(has_text=re.compile(r"\d{1,2}:\d{2}"))
+        .first
+    ).to_be_visible()
+    page.wait_for_function("""() => {
+        const labels = [...document.querySelectorAll('[aria-label="CPU over time"] text')]
+            .filter(node => node.textContent.includes(":"))
+            .map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+        return labels.length >= 2 && labels.every((label, i) => i === 0 || labels[i - 1].right + 1 <= label.left);
+    }""")
+    # Theme changes replace the monospace font while the chart stays open.
+    page.keyboard.press("ControlOrMeta+k")
+    page.get_by_role("combobox").fill("Set theme")
+    page.locator("[cmdk-item]").filter(has_text="Set theme").click()
+    page.get_by_role("combobox").fill("GitHub")
+    page.locator("[cmdk-item]").filter(has_text="GitHub").click()
+    evidence.settle(page)
+    page.wait_for_function("""() => {
+        const chart = document.querySelector('[aria-label="CPU over time"]');
+        const bounds = chart.getBoundingClientRect();
+        const labels = [...chart.querySelectorAll('.recharts-xAxis-tick-labels text')]
+            .map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+        return labels.length >= 2 && labels.every((label, i) => {
+            const inside = label.left >= bounds.left && label.right <= bounds.right;
+            const separated = i === 0 || labels[i - 1].right + 1 <= label.left;
+            return inside && separated;
+        });
+    }""")
+    page.unroute(resource_url, configured_worker)
+    page.unroute(deployment_url, deployed_web)
+    page.unroute(metric_url, regional)
+    page.unroute(resource_list_url, region_inventory)
+    page.remove_listener("request", observed)
 
 
 out = Path(args.out)
@@ -2496,7 +2404,6 @@ with session(out) as browser:
         access_picker,
         resources,
         title_tooltip,
-        resource_view_history,
         token_empty,
         limit_display,
         dashboard,
@@ -2504,7 +2411,6 @@ with session(out) as browser:
         traffic,
         button_sizes,
         metric_lone_sample,
-        metrics_many,
     ):
         check(page)
     assert not errors, errors

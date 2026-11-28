@@ -60,6 +60,24 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Lim
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
 }
 
+func ValidateRequestMetricsRequest(req *observabilityv1.QueryRequestMetricsRequest, limits Limits) error {
+	if err := validateCanonicalIDs(
+		req.GetWorkspaceId(),
+		req.GetEnvironmentId(),
+		[]string{req.GetResourceId()},
+	); err != nil {
+		return err
+	}
+	if err := validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange); err != nil {
+		return err
+	}
+	count := clickhouse.BucketCount(req.GetStartTime().AsTime(), req.GetEndTime().AsTime(), req.GetIntervalSeconds())
+	if count > int64(limits.MaxBuckets) {
+		return fmt.Errorf("%w: %d, at most %d", errTooManyBuckets, count, limits.MaxBuckets)
+	}
+	return nil
+}
+
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, now time.Time) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {

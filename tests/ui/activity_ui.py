@@ -247,15 +247,20 @@ def check_scoped_user(browser):
                 return
             body = route.request.post_data_json
             if method in telemetry:
-                # The proxy serves a caller without workspace read only for resources it names and reads.
-                named = body.get("scope", body).get("resourceIds") or []
-                status = (
-                    200
-                    if named
-                    and set(named) == {rid}
-                    and (body.get("scope", body)).get("environmentId") == production
-                    else 403
+                scope = body.get("scope", body)
+                named = scope.get("resourceIds") or []
+                named_scope = bool(named) and set(named) == {rid}
+                # Metrics resolves the caller's readable resource scope on the server.
+                readable_metrics = method == "QueryMetrics" and body.get(
+                    "readableResources"
                 )
+                readable_scope = readable_metrics and not named
+                allowed_resources = named_scope or readable_scope
+                correct_scope = (
+                    scope.get("workspaceId") == activity["workspaceId"]
+                    and scope.get("environmentId") == production
+                )
+                status = 200 if allowed_resources and correct_scope else 403
                 recorded.append({"method": method, "body": body, "status": status})
                 if status == 200:
                     route.fulfill(json=telemetry[method])

@@ -1,740 +1,605 @@
-import { useTimePreferences } from "@/lib/use-time-preferences";
-import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import { MetricCard } from "./MetricCard";
+import { useState, type ReactNode } from "react";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
-import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
-import { functionalUpdate } from "@tanstack/react-table";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
-import { BellIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
-import { useQueryState } from "nuqs";
-import { useState } from "react";
-import { useNavigate } from "react-router";
-
-import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { parseAsStringLiteral, useQueryStates } from "nuqs";
+import { getResource, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import {
+	queryDeploymentBuckets,
+	getDeployment,
+} from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import {
+	queryMetrics,
+	queryRequestMetrics,
+} from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
+import { RocketIcon, ScrollTextIcon } from "lucide-react";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import { Button } from "@/components/design/Button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/design/Dialog";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
-import { useEnvironments } from "@/hooks/useEnvironment";
-import { useHeldError } from "@/hooks/useHeldError";
-import { useNow } from "@/hooks/useNow";
-import { currentDeploymentOptions } from "@/hooks/useWorkspaceDeployments";
-import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
+import { Input } from "@/components/design/Input";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
+import { useNow } from "@/hooks/useNow";
+import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { aroundWindow, resolveWindow, stepSeconds, windowSpan } from "@/lib/obs-time";
+import { msToTimestamp } from "@/lib/time";
+import { formatCpu, formatMemory, BYTES_PER_MI, MILLI_PER_CORE } from "@/lib/quantity";
 import { formatPercent } from "@/lib/compute-chart";
-import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
-import { limitAt, limitSteps, startedIn, type Sizing } from "@/lib/limit-history";
-import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
-import { isUnimplemented } from "@/lib/error-handler";
-import { errorShare, TRAFFIC_METRICS, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
-import { sortParser } from "@/lib/sort-parser";
-import { HOUR_MS, MINUTE_MS, aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
-import { resourcePath } from "@/lib/routes";
-import { formatHourMinute, readyMs, tsMs } from "@/lib/time";
-import { cn, formatShortId } from "@/lib/utils";
-
-import { filteredResources, useObs, type ObsResource } from "./context";
-import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
-import { ObsHero } from "./ObsEmpty";
-import { liveTokens, narrow, type Token } from "./query";
-import { QueryBar } from "./QueryBar";
+import { TRAFFIC_METRICS, trafficValue } from "@/lib/traffic";
+import { isWorker } from "@/lib/resource-regions";
+import { getErrorMessage } from "@/lib/error-handler";
+import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
+import { SpecDialogContent } from "@/pages/resource/SpecDialog";
+import { useObs } from "./context";
 import { ViewHeader } from "./ViewHeader";
+import { type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
+import { MetricActivity } from "./MetricActivity";
+import { MetricResources, MetricRegions } from "./MetricSelectors";
+import { errorPercentSeries, pathLatencySeries, regionalSeries, REGION_LABEL, regionalColors } from "./metric-series";
+import { quoteValue, unquoteValue, type Token } from "./query";
 
-interface MetricDef {
-	key: "cpu" | "mem";
-	metric: string;
-	title: string;
-	format: (value: number) => string;
-	limit: (target: Sizing) => number;
-}
-
-const CPU: MetricDef = {
-	key: "cpu",
-	metric: "k8s.pod.cpu_limit_utilization",
-	title: "CPU",
-	format: formatCpu,
-	limit: (target) => parseCpuMilli(target.cpu ?? ""),
+const REFRESH_MS = 60_000;
+const PREFS = {
+	units: parseAsStringLiteral(["Usage", "% of limit"]).withDefault("Usage"),
+	replicas: parseAsStringLiteral(["Total", "Per replica"]).withDefault("Total"),
+	comparison: parseAsStringLiteral(["Compare", "Combine"]).withDefault("Compare"),
+	percentile: parseAsStringLiteral(["p50", "p95", "p99"]).withDefault("p95"),
+	traffic: parseAsStringLiteral(["Requests", "5xx"]).withDefault("Requests"),
+	latency: parseAsStringLiteral(["Combined", "By path"]).withDefault("Combined"),
 };
-const MEMORY: MetricDef = {
-	key: "mem",
-	metric: "k8s.pod.memory.working_set_limit_utilization",
-	title: "Memory",
-	format: formatMemory,
-	limit: (target) => parseMemMi(target.memory ?? ""),
-};
-
-const [REQUESTS, ERRORS, , LATENCY] = TRAFFIC_METRICS;
-const TRAFFIC_CARDS = [
-	{
-		key: "req",
-		title: "Requests",
-		column: "Requests",
-		width: 110,
-		unit: "req/s",
-		axisUnit: " req/s",
-		value: (p: TrafficPoint) => p.requests,
-		format: (v: number) => trafficValue(v, "/s"),
-	},
-	{
-		key: "err",
-		title: "5xx responses",
-		column: "5xx",
-		width: 90,
-		unit: "%",
-		axisUnit: "%",
-		value: errorShare,
-		format: (v: number) => `${v.toFixed(2)}%`,
-	},
-	{
-		key: "lat",
-		title: "Latency, p95",
-		column: "p95",
-		width: 100,
-		unit: "ms",
-		axisUnit: " ms",
-		value: (p: TrafficPoint) => p.latency,
-		format: (v: number) => trafficValue(v, " ms"),
-	},
-] as const;
-type TrafficKey = (typeof TRAFFIC_CARDS)[number]["key"];
-const PERCENT = 100;
-const NOW_TICK_MS = 60_000;
-const CHART_HEIGHT = 190;
-const TRAFFIC_HEIGHT = 170;
-// A deployment shows where it became ready, which can be this long after it was created.
-const DEPLOY_LEAD_MS = 24 * HOUR_MS;
-// Enough of the deployments created before the window to find the one running at its start.
-const EARLIER_DEPLOYS = 5;
-const WARN_PERCENT = 85;
-// A click this close to a deploy line, as a share of the range, offers that deploy.
-const DEPLOY_PICK_SHARE = 0.02;
-
-const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem", "req", "err", "lat"] as const;
-const metricSortParser = sortParser(SORT_KEYS, {
-	id: "cpu",
-	desc: true,
-}).withOptions({ history: "replace" });
-
-interface DeployMarker extends ChartMarker {
-	tag: string;
-	resourceId: string;
-	resourceName: string;
-	region: string;
+function isMetricToken(token: Token): boolean {
+	if (token.neg) return false;
+	return token.key === "resource" || token.key === "region";
 }
-
-interface PlacementSizing {
-	deployments: Deployment[];
-	target: Sizing | undefined;
-}
-
-interface Placement {
-	key: string;
-	resource: ObsResource;
-	region: string;
-	dashed: boolean;
-	ready: number | null;
-	desired: number | null;
-	deploymentId: string;
-}
-
-function placements(resources: ObsResource[], environmentId: string, regionTokens: Token[]): Placement[] {
-	const out: Placement[] = [];
-	for (const resource of resources) {
-		const status = resource.raw.environmentStatuses.find((s) => s.environmentId === environmentId);
-		const regions =
-			status !== undefined && status.regions.length > 0 ? status.regions.map((r) => r.region) : resource.regions;
-		const kept = narrow(regions.toSorted(), regionTokens) ?? regions.toSorted();
-		kept.forEach((region, i) => {
-			const rs = status?.regions.find((r) => r.region === region);
-			out.push({
-				key: `${resource.id}|${region}`,
-				resource,
-				region,
-				dashed: i > 0,
-				ready: rs?.readyReplicas ?? null,
-				desired: rs?.desiredReplicas ?? null,
-				deploymentId: rs?.deploymentId ?? "",
-			});
-		});
-	}
-	return out;
-}
-
-function useComputeSeries(
-	def: MetricDef,
-	rows: Placement[],
-	sizing: Map<string, PlacementSizing>,
-	spanMs: number,
-	endMs: number | undefined,
-) {
-	const transport = useTransport();
-	const { workspaceId } = useObs();
-	const { active: environment } = useEnvironments();
-	const environmentId = environment?.id ?? "";
-	const regions = [...new Set(rows.map((p) => p.region))];
-	const results = useQueries({
-		queries: regions.map((region) =>
-			metricsQueryOptions(transport, {
-				workspaceId,
-				environmentId,
-				resourceIds: [...new Set(rows.filter((p) => p.region === region).map((p) => p.resource.id))],
-				spanMs,
-				endMs,
-				metricName: def.metric,
-				aggregation: "max",
-				region,
-			}),
-		),
-	});
-	const error = useHeldError(
-		results.find((r) => r.error !== null)?.error ?? null,
-		results.some((r) => r.isFetching),
-	);
-	const series: ChartSeries[] = [];
-	const latest = new Map<string, { v: number; limit: number }>();
-	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
-	regions.forEach((region, i) => {
-		const peaks = new Map<string, Map<number, number>>();
-		for (const s of results[i]?.data ?? []) {
-			const pts = peaks.get(s.resourceId) ?? new Map<number, number>();
-			for (const p of s.points) {
-				const t = tsMs(p.timestamp);
-				pts.set(t, Math.max(pts.get(t) ?? 0, p.value * PERCENT));
-			}
-			peaks.set(s.resourceId, pts);
-		}
-		for (const [id, pts] of peaks) {
-			const row = rows.find((p) => p.resource.id === id && p.region === region);
-			if (row === undefined) continue;
-			const placement = sizing.get(row.key);
-			const limits =
-				placement === undefined ? [] : limitSteps(placement.deployments, region, def.limit, placement.target);
-			if (limits.length === 0) continue;
-			const points = [...pts].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
-			series.push({
-				key: row.key,
-				name: multi.has(id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
-				color: row.resource.color,
-				dashed: row.dashed,
-				limits,
-				points,
-			});
-			const last = points.at(-1);
-			const limit = last === undefined ? undefined : limitAt(limits, last.t);
-			if (last !== undefined && limit !== undefined) latest.set(row.key, { v: (last.v / PERCENT) * limit, limit });
-		}
-	});
-	return {
-		series,
-		latest,
-		isLoading: error === null && results.some((r) => r.isLoading),
-		error,
-		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
-	};
-}
-
-/** Requests per second, the share of 5xx responses and p95 latency of each placement, from the gateway. */
-function useTrafficSeries(rows: Placement[], spanMs: number, endMs: number | undefined) {
-	const transport = useTransport();
-	const { workspaceId } = useObs();
-	const { active: environment } = useEnvironments();
-	const environmentId = environment?.id ?? "";
-	const regions = [...new Set(rows.map((p) => p.region))];
-	const metrics = [REQUESTS, ERRORS, LATENCY];
-	const results = useQueries({
-		queries: regions.flatMap((region) =>
-			metrics.map((metric) =>
-				metricsQueryOptions(transport, {
-					workspaceId,
-					environmentId,
-					resourceIds: [...new Set(rows.filter((p) => p.region === region).map((p) => p.resource.id))],
-					spanMs,
-					endMs,
-					region,
-					...metric,
-				}),
-			),
-		),
-	});
-	const error = useHeldError(
-		results.find((r) => r.error !== null)?.error ?? null,
-		results.some((r) => r.isFetching),
-	);
-	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
-	const series: Record<TrafficKey, ChartSeries[]> = { req: [], err: [], lat: [] };
-	regions.forEach((region, i) => {
-		const [requests, errors, latency] = results.slice(i * metrics.length, (i + 1) * metrics.length).map((r) => r.data);
-		const points = trafficPoints([requests, errors, undefined, latency]);
-		for (const row of rows.filter((p) => p.region === region)) {
-			const own = points.filter((p) => p.resourceId === row.resource.id);
-			for (const card of TRAFFIC_CARDS) {
-				const values = own.flatMap((p) => {
-					const v = card.value(p);
-					return v === undefined ? [] : [{ t: p.time, v }];
-				});
-				if (values.length === 0) continue;
-				series[card.key].push({
-					key: row.key,
-					name: multi.has(row.resource.id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
-					color: row.resource.color,
-					dashed: row.dashed,
-					limits: [],
-					points: values,
-				});
-			}
-		}
-	});
-	return {
-		series,
-		isLoading: error === null && results.some((r) => r.isLoading),
-		error,
-		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
-	};
-}
-
-function usePlacementSizing(rows: Placement[], recent: Deployment[], environmentId: string, from: number) {
-	const transport = useTransport();
-	const ids = [...new Set(rows.map((p) => p.deploymentId).filter((id) => id !== ""))];
-	const queries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
-	const current = new Map(
-		queries.flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment])).map((d) => [d.id, d]),
-	);
-	const byResource = Map.groupBy(recent, (d) => d.resourceId);
-	// Deployments that started after the current one never replaced it, so their sizing never ran.
-	const known = (p: Placement) => {
-		const deployment = current.get(p.deploymentId);
-		const history = byResource.get(p.resource.id) ?? [];
-		if (deployment === undefined) return history;
-		const start = startedIn(deployment, p.region) ?? Infinity;
-		return [...history.filter((d) => (startedIn(d, p.region) ?? -Infinity) <= start), deployment];
-	};
-	// A placement whose known deployments all started inside the window needs the one running before it.
-	const startsInWindow = (p: Placement) => {
-		const starts = known(p).flatMap((d) => startedIn(d, p.region) ?? []);
-		return starts.length > 0 && starts.every((t) => t > from);
-	};
-	const earlierFor = [...new Set(rows.filter(startsInWindow).map((p) => p.resource.id))];
-	const endTime = timestampFromMs(Math.floor(from / HOUR_MS) * HOUR_MS);
-	const earlierQueries = useQueries({
-		queries: earlierFor.map((resourceId) =>
-			createQueryOptions(
-				listDeployments,
-				{ resourceId, environmentId, endTime, pageSize: EARLIER_DEPLOYS },
-				{ transport },
-			),
-		),
-	});
-	const earlier = new Map(earlierFor.map((id, i) => [id, earlierQueries[i]?.data?.deployments ?? []]));
-	const sizing = new Map<string, PlacementSizing>();
-	for (const p of rows) {
-		const deployment = current.get(p.deploymentId);
-		const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
-		const spec = p.resource.raw.spec?.spec;
-		const intent = spec?.case === "service" ? spec.value.regions[p.region] : undefined;
-		sizing.set(p.key, {
-			deployments: [...(earlier.get(p.resource.id) ?? []), ...known(p)],
-			target: deployed ?? intent,
-		});
-	}
-	return { sizing, isLoading: queries.some((q) => q.isLoading) || earlierQueries.some((q) => q.isLoading) };
-}
-
-/** The environment's deployments created from a day before the window through its end. */
-function useWindowDeployments(workspaceId: string, environmentId: string, from: number, to: number, live: boolean) {
-	const transport = useTransport();
-	const query = useQuery({
-		...workspaceDeploymentsOptions(transport, workspaceId, environmentId, {
-			sinceMs: Math.floor((from - DEPLOY_LEAD_MS) / HOUR_MS) * HOUR_MS,
-			untilMs: live ? undefined : Math.floor(to / MINUTE_MS) * MINUTE_MS + MINUTE_MS,
-		}),
-		placeholderData: keepPreviousData,
-		meta: { persist: false },
-	});
-	return query.data?.deployments ?? [];
-}
-
-function deployMarkersOf(
-	visible: ObsResource[],
-	deployments: Deployment[],
-	environmentId: string,
-	from: number,
-	to: number,
-): DeployMarker[] {
-	const byResource = Map.groupBy(deployments, (d) => d.resourceId);
-	const markers: DeployMarker[] = [];
-	visible.forEach((r) => {
-		for (const d of byResource.get(r.id) ?? []) {
-			const t = readyMs(d);
-			if (t === undefined || t < from || t > to || d.environmentId !== environmentId) continue;
-			const tag = formatShortId(d.id);
-			const label = `${r.raw.name} ${tag}`;
-			for (const p of d.placements) {
-				markers.push({
-					t,
-					label,
-					title: `Deployed ${label} in ${p.region}`,
-					color: r.color,
-					tag,
-					resourceId: r.id,
-					resourceName: r.raw.name,
-					region: p.region,
-				});
-			}
-		}
-	});
-	return markers;
-}
-
-function Meter({ value, format }: { value: { v: number; limit: number } | undefined; format: (v: number) => string }) {
-	if (value === undefined) return <span className="text-fg4">—</span>;
-	const percent = (value.v / value.limit) * PERCENT;
+function Choice({
+	label,
+	value,
+	choices,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	choices: string[];
+	onChange: (value: string) => void;
+}) {
 	return (
-		<span className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-			<span className="h-1 overflow-hidden rounded-[2px] bg-line2">
-				<span
-					className={cn("block h-full rounded-[2px]", percent >= WARN_PERCENT ? "bg-warn" : "bg-fg2")}
-					style={{ width: `${String(Math.min(PERCENT, percent))}%` }}
-				/>
-			</span>
-			<span className="text-right font-mono text-[12px] whitespace-nowrap text-fg2">
-				{format(value.v)} <span className="text-fg3">{formatPercent(percent)}</span>
-			</span>
-		</span>
+		<SegmentedChoice
+			label={label}
+			value={value}
+			options={choices.map((choice) => ({ value: choice, label: choice }))}
+			onChange={onChange}
+			className="flex w-auto grid-cols-none flex-wrap"
+		/>
 	);
 }
-
+function DeploymentDetails({ id, onClose }: { id: string; onClose: () => void }) {
+	const transport = useTransport();
+	const query = useQuery(createQueryOptions(getDeployment, { deploymentId: id }, { transport }));
+	const deployment = query.data?.deployment;
+	let content: ReactNode = (
+		<DialogContent>
+			<DialogTitle>Deployment</DialogTitle>
+			<Skeleton className="h-32" />
+		</DialogContent>
+	);
+	if (query.error !== null)
+		content = (
+			<DialogContent>
+				<DialogTitle>Deployment</DialogTitle>
+				<ErrorState error={query.error} what="deployment" rpc={getDeployment} onRetry={query.refetch} />
+			</DialogContent>
+		);
+	if (deployment !== undefined)
+		content = (
+			<SpecDialogContent
+				resourceName={deployment.resourceName}
+				deployments={[deployment]}
+				deploymentId={id}
+				compareId={null}
+				onChange={() => {}}
+			/>
+		);
+	return (
+		<Dialog
+			open
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
+			{content}
+		</Dialog>
+	);
+}
 export function MetricsView() {
-	const timePref = useTimePreferences();
-	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, goTo, setQuery, text } = useObs();
-	const navigate = useNavigate();
-	const [sort, setSort] = useQueryState("sort", metricSortParser);
-	const { active: environment, isLoading: environmentLoading } = useEnvironments();
-	const now = useNow(NOW_TICK_MS);
+	const { workspaceId, environmentId, environmentLoading, resourcesLoading, tokens, text, setQuery, range, goTo } =
+		useObs();
+	const transport = useTransport();
+	const [prefs, setPrefs] = useQueryStates(PREFS);
+	const [path, setPath] = useState("");
+	const [pathInput, setPathInput] = useState("");
+	const [deploymentId, setDeploymentId] = useState<string | null>(null);
+	const now = useNow(REFRESH_MS);
 	const { from, to } = resolveWindow(range, now.getTime());
 	const spanMs = windowSpan(range);
 	const endMs = range.kind === "absolute" ? range.to : undefined;
-	const visible = filteredResources("metrics", resources, tokens);
-	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
-	const recent = useWindowDeployments(workspaceId, environment?.id ?? "", from, to, range.kind === "relative");
-	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, recent, environment?.id ?? "", from);
-	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
-	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
-	const traffic = useTrafficSeries(rows, spanMs, endMs);
-	const deployMarkers = deployMarkersOf(visible, recent, environment?.id ?? "", from, to);
-	const [hoverKey, setHoverKey] = useState<string | null>(null);
-	const [focusTs] = useQueryState("at", msParser);
-	const markers: ChartMarker[] = [
-		...deployMarkers,
-		...(focusTs !== null && focusTs >= from && focusTs <= to
-			? [
-					{
-						t: focusTs,
-						label: `focus ${formatHourMinute(focusTs, timePref)}`,
-						title: "Selected time",
-						color: "var(--fg)",
-					},
-				]
-			: []),
+	const slugs = tokens.filter((t) => t.key === "resource" && !t.neg).map((t) => unquoteValue(t.value));
+	const regions = tokens.filter((t) => t.key === "region" && !t.neg).map((t) => unquoteValue(t.value));
+	const selectedQueries = useQueries({
+		queries: slugs.map((slug) => ({
+			...createQueryOptions(getResource, { key: { case: "slugKey", value: { workspaceId, slug } } }, { transport }),
+			enabled: !resourcesLoading,
+			refetchInterval: REFRESH_MS,
+		})),
+	});
+	const selected = selectedQueries.flatMap((q) => (q.data?.resource === undefined ? [] : [q.data.resource]));
+	const ready = !environmentLoading && !resourcesLoading;
+	const resolving = selectedQueries.some((q) => q.isPending);
+	const selectedError = selectedQueries.find((q) => q.error !== null)?.error ?? null;
+	const supported = tokens.every(isMetricToken) && text === "";
+	const selectionReady = !resolving && selectedError === null;
+	const scopeReady = ready && supported;
+	const resourceIds = selected.map((r) => r.id);
+	const single = selected.length === 1;
+	const statusRegions = selected[0]?.environmentStatuses
+		.find((status) => status.environmentId === environmentId)
+		?.regions.filter((status) => regions.length === 0 || regions.includes(status.region));
+	const readyReplicas = statusRegions?.reduce((total, status) => total + status.readyReplicas, 0);
+	const desiredReplicas = statusRegions?.reduce((total, status) => total + status.desiredReplicas, 0);
+	const current = useCurrentDeployments(single ? selected : [], environmentId)[0] ?? [];
+	const worker = single && isWorker(selected[0]!, current);
+	const pathGrouping = single && prefs.latency === "By path";
+	const pathMode = !worker && pathGrouping;
+	const visibility = [true, true, !worker, !worker && prefs.traffic === "5xx", !worker && !pathMode, single, single];
+	const perPod = single && prefs.replicas === "Per replica";
+	const combineResources = slugs.length === 0 || prefs.comparison === "Combine";
+	const percent = prefs.units === "% of limit";
+	const regionQuery = useQuery({
+		...createQueryOptions(
+			listWorkspaceResources,
+			{ workspaceId, environmentId, resourceIds, pageSize: 1, includeFacets: true },
+			{ transport },
+		),
+		enabled: ready && selectionReady,
+	});
+	const hasResources = (regionQuery.data?.resources.length ?? 0) > 0;
+	const selectionEnabled = scopeReady && selectionReady;
+	const enabled = selectionEnabled && hasResources;
+	const selectionLoading = !ready || resolving;
+	const pageLoading = selectionLoading || regionQuery.isPending;
+	const common = {
+		workspaceId,
+		environmentId,
+		resourceIds,
+		spanMs,
+		endMs,
+		regions,
+		byRegion: true,
+		readableResources: true,
+		combineResources,
+		enabled,
+	};
+	const definitions = [
+		{
+			metricName: percent ? "k8s.pod.cpu_limit_utilization" : "k8s.pod.cpu.usage",
+			aggregation: percent ? "max" : "avg",
+			sumPods: !percent && !perPod,
+			byPod: perPod,
+		},
+		{
+			metricName: percent ? "k8s.pod.memory.working_set_limit_utilization" : "k8s.pod.memory.working_set",
+			aggregation: percent ? "max" : "avg",
+			sumPods: !percent && !perPod,
+			byPod: perPod,
+		},
+		TRAFFIC_METRICS[0],
+		TRAFFIC_METRICS[1],
+		{ ...TRAFFIC_METRICS[3], aggregation: prefs.percentile },
+		{
+			metricName: "k8s.pod.network.io",
+			aggregation: "rate",
+			attributes: { direction: "receive" },
+		},
+		{
+			metricName: "k8s.pod.network.io",
+			aggregation: "rate",
+			attributes: { direction: "transmit" },
+		},
 	];
+	const queries = useQueries({
+		queries: definitions.map((def, index) =>
+			metricsQueryOptions(transport, {
+				...common,
+				...def,
+				enabled: enabled && (visibility[index] ?? false),
+				combineResources: perPod && index < 2 ? false : combineResources,
+			}),
+		),
+	});
+
+	const pathQuery = useQuery({
+		...createQueryOptions(
+			queryRequestMetrics,
+			{
+				workspaceId,
+				environmentId,
+				resourceId: selected[0]?.id ?? "",
+				startTime: msToTimestamp(from),
+				endTime: msToTimestamp(to),
+				intervalSeconds: stepSeconds(spanMs),
+				regions,
+				path,
+			},
+			{ transport },
+		),
+		enabled: enabled && pathMode,
+		refetchInterval: endMs === undefined ? REFRESH_MS : false,
+	});
+	const regionNames = [
+		...new Set([
+			...(regionQuery.data?.facets?.regions.map((r) => r.region) ?? []),
+			...queries.flatMap((q) => q.data?.map((s) => s.labels[REGION_LABEL] ?? "") ?? []),
+			...(pathQuery.data?.buckets.map((b) => b.region) ?? []),
+			...regions,
+		]),
+	]
+		.filter(Boolean)
+		.toSorted();
+	const colors = regionalColors(regionNames);
+	const names = new Map(selected.filter(() => selected.length > 1).map((r) => [r.id, r.name]));
+	const series = queries.map((q, i) => {
+		let divisor = 1;
+		if (i < 2 && percent) divisor = 0.01;
+		else if (i === 1) divisor = BYTES_PER_MI;
+		return regionalSeries(q.data ?? [], names, colors, divisor);
+	});
+	const deploymentQuery = useQuery({
+		...createQueryOptions(
+			queryDeploymentBuckets,
+			{
+				workspaceId,
+				environmentId,
+				resourceIds,
+				startTime: msToTimestamp(from),
+				endTime: msToTimestamp(to),
+				bucketCount: 200,
+			},
+			{ transport },
+		),
+		enabled: enabled && resourceIds.length <= 100,
+		refetchInterval: endMs === undefined ? REFRESH_MS : false,
+	});
+	const buckets = deploymentQuery.data?.buckets ?? [];
+	const markers: ChartMarker[] = buckets.flatMap((b) =>
+		b.meanCreatedAt === undefined
+			? []
+			: [
+					{
+						t: Number(b.meanCreatedAt.seconds) * 1000,
+						label: `${b.deploymentCount.toString()} deployment${b.deploymentCount === 1 ? "" : "s"}`,
+						title: "Deployment",
+						color: "var(--fg3)",
+					},
+				],
+	);
 	const actions = (t: number): PinAction[] => {
-		const around = aroundWindow(t, Date.now());
-		const near = deployMarkers.filter((m) => Math.abs(m.t - t) <= (to - from) * DEPLOY_PICK_SHARE);
-		return [
+		const near = buckets.find((b) => Math.abs(Number(b.meanCreatedAt?.seconds ?? 0) * 1000 - t) < (to - from) * 0.02);
+		const result: PinAction[] = [
 			{
 				key: "logs",
 				icon: <ScrollTextIcon />,
-				label: `Logs around ${formatHourMinute(t, timePref)}`,
-				sub: "±5 minutes, same filters",
+				label: "View logs",
 				run: () => {
-					goTo("logs", { range: around, focusTs: t });
+					goTo("logs", { range: aroundWindow(t, now.getTime()), focusTs: t });
 				},
 			},
-			{
-				key: "traces",
-				icon: <WaypointsIcon />,
-				label: `Traces around ${formatHourMinute(t, timePref)}`,
-				sub: "±5 minutes, same filters",
-				run: () => {
-					goTo("traces", { range: around });
-				},
-			},
-			{
-				key: "events",
-				icon: <BellIcon />,
-				label: `Events around ${formatHourMinute(t, timePref)}`,
-				sub: "deploys, restarts, scaling",
-				run: () => {
-					goTo("events", { range: around });
-				},
-			},
-			...near.map((m, i) => ({
-				separated: i === 0,
-				key: `deploy-${m.resourceId}-${String(m.t)}`,
-				icon: <RocketIcon />,
-				label: `Deploy ${m.tag}`,
-				sub: `${m.resourceName}, ${m.region}, ${formatHourMinute(m.t, timePref)}`,
-				run: () => {
-					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
-				},
-			})),
 		];
+		const deployment = near?.onlyDeployment;
+		if (deployment !== undefined)
+			result.push({
+				key: "deployment",
+				icon: <RocketIcon />,
+				label: "View deployment",
+				run: () => {
+					setDeploymentId(deployment.id);
+				},
+			});
+		return result;
 	};
-	const error = cpu.error ?? mem.error ?? traffic.error;
-	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
-	const sorting = [sort];
-	const table = useDataTable("metrics-placements", {
-		columns: placementColumns(cpu.latest, mem.latest, traffic.series),
-		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
-		getRowId: (p) => p.key,
-		state: { sorting },
-		onSortingChange: (updater) => {
-			const next = functionalUpdate(updater, sorting)[0];
-			const id = SORT_KEYS.find((key) => key === next?.id);
-			if (next !== undefined && id !== undefined) void setSort({ id, desc: next.desc });
-		},
-	});
-
-	if (!loading && error !== null && isUnimplemented(error)) {
-		return (
-			<>
-				<ViewHeader />
-				<ObsHero
-					view="metrics"
-					title="Metrics aren't available here yet"
-					body="This installation has no metrics store connected. CPU and memory appear once it does."
-				/>
-			</>
-		);
-	}
-	if (!loading && error !== null) {
-		return (
-			<>
-				<ViewHeader />
-				<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
-				<ErrorState
-					error={error}
-					what="metrics"
-					rpc={queryMetrics}
-					onRetry={async () => await Promise.all([cpu.refetch(), mem.refetch(), traffic.refetch()])}
-				/>
-			</>
-		);
-	}
-	const focusRow = (p: Placement) => {
+	const changeFilter = (key: "resource" | "region", values: string[]) => {
 		setQuery(
 			[
-				...tokens.filter((t) => t.key !== "resource" && t.key !== "region"),
-				{ neg: false, key: "resource", value: p.resource.slug },
-				{ neg: false, key: "region", value: p.region },
+				...tokens.filter((t) => t.key !== key),
+				...values.map((value) => ({ key, value: quoteValue(value), neg: false }) satisfies Token),
 			],
 			text,
 		);
 	};
-
-	const cards = [
-		{ def: CPU, result: cpu },
-		{ def: MEMORY, result: mem },
-	];
-	const trafficCards = TRAFFIC_CARDS.filter((card) => traffic.series[card.key].length > 0);
+	const selectResources = (resources: Resource[]) => {
+		changeFilter(
+			"resource",
+			resources.map((r) => r.slug),
+		);
+	};
+	const renderCard = (
+		index: number,
+		title: string,
+		unit: string,
+		format: (v: number) => string,
+		controls?: ReactNode,
+		override?: ChartSeries[],
+		dependencies: number[] = [],
+	) => {
+		const results = [queries[index]!, ...dependencies.map((dependency) => queries[dependency]!)];
+		return (
+			<MetricCard
+				title={title}
+				series={override ?? series[index] ?? []}
+				loading={pageLoading || results.some((query) => query.isLoading)}
+				fetching={results.some((query) => query.isFetching)}
+				error={results.find((query) => query.error !== null)?.error ?? null}
+				retry={async () => await Promise.all(results.map(async (q) => await q.refetch()))}
+				from={from}
+				to={to}
+				unit={unit}
+				format={format}
+				markers={markers}
+				actions={actions}
+				controls={controls}
+			/>
+		);
+	};
+	const latencySeries = pathMode
+		? pathLatencySeries(pathQuery.data?.buckets ?? [], prefs.percentile, colors)
+		: (series[4] ?? []);
+	const latencyQuery = pathMode ? pathQuery : queries[4]!;
+	let selectionError: ReactNode;
+	if (selectedError !== null)
+		selectionError = (
+			<p role="alert" className="text-sm text-bad-fg">
+				{getErrorMessage(selectedError, "Could not load selected resources")}
+			</p>
+		);
+	if (!supported)
+		selectionError = (
+			<p role="alert" className="text-sm text-fg3">
+				These filters are not supported for metrics.{" "}
+				<Button
+					variant="link"
+					onClick={() => {
+						setQuery([], "");
+					}}
+				>
+					Clear filters
+				</Button>
+			</p>
+		);
+	if (regionQuery.error !== null) {
+		return (
+			<>
+				<ViewHeader />
+				<ErrorState
+					error={regionQuery.error}
+					what="resources"
+					rpc={listWorkspaceResources}
+					onRetry={regionQuery.refetch}
+				/>
+			</>
+		);
+	}
+	if (regionQuery.data?.resources.length === 0) {
+		return (
+			<>
+				<ViewHeader />
+				<EmptyWorkspace wholeWorkspace />
+			</>
+		);
+	}
 
 	return (
 		<>
 			<ViewHeader />
-			<QueryBar valueCounts={(key) => valueCounts(key, resources)} />
-			<Section title="Compute" card={false}>
-				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-					{cards.map(({ def, result }) => (
-						<section
-							key={def.key}
-							aria-label={def.title}
-							className="flex min-w-0 flex-col gap-3.5 rounded-card bg-panel px-5 pt-[18px] pb-4"
-						>
-							<div className="flex items-baseline gap-2">
-								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
-								<span className="font-mono text-[12px] text-fg3">% of limit, peak per bucket</span>
-							</div>
-							{result.isLoading || environmentLoading ? (
-								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
-							) : result.series.length === 0 ? (
-								<div
-									className="flex items-center justify-center rounded-lg border border-dashed border-line2 text-sm text-fg3"
-									style={{ height: CHART_HEIGHT }}
-								>
-									No data in this range
-								</div>
-							) : (
-								<MetricChart
-									title={def.title}
-									series={result.series}
-									from={from}
-									to={to}
-									fmt={def.format}
-									highlight={hoverKey}
-									markers={markers}
-									height={CHART_HEIGHT}
-									actions={actions}
-									markerMenu
-								/>
-							)}
-						</section>
-					))}
+			<div className="flex flex-wrap items-center gap-2">
+				<MetricResources
+					workspaceId={workspaceId}
+					environmentId={environmentId}
+					selected={selected}
+					ready={ready}
+					pending={resolving}
+					onChange={selectResources}
+				/>
+				<MetricRegions
+					regions={regionNames}
+					selected={regions}
+					colors={colors}
+					onChange={(values) => {
+						changeFilter("region", values);
+					}}
+				/>
+				{selected.length > 1 && (
+					<Choice
+						label="Resource comparison"
+						value={prefs.comparison}
+						choices={["Combine", "Compare"]}
+						onChange={(comparison) =>
+							void setPrefs({
+								comparison: comparison as typeof prefs.comparison,
+							})
+						}
+					/>
+				)}
+			</div>
+			{single && (
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+					<span className="text-[18px] tracking-tight">{selected[0]!.name}</span>
+					{readyReplicas !== undefined && (
+						<span className="text-[12px] text-fg3">
+							{readyReplicas} / {desiredReplicas} replicas ready
+						</span>
+					)}
+					<Button
+						variant="link"
+						className="ml-auto"
+						onClick={() => {
+							goTo("logs");
+						}}
+					>
+						View logs
+					</Button>
 				</div>
-			</Section>
-
-			{trafficCards.length > 0 && (
+			)}
+			{selectionError}
+			{!worker && (
 				<Section title="Traffic" card={false}>
-					<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-						{trafficCards.map((card) => (
-							<section
-								key={card.key}
-								aria-label={card.title}
-								className="flex min-w-0 flex-col gap-3.5 rounded-card bg-panel px-5 pt-[18px] pb-4"
-							>
-								<div className="flex items-baseline gap-2">
-									<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{card.title}</h3>
-									<span className="font-mono text-[12px] text-fg3">{card.unit}</span>
+					<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+						{renderCard(
+							2,
+							prefs.traffic === "Requests" ? "Requests" : "Server errors",
+							prefs.traffic === "Requests" ? "req/s" : "%",
+							(v) => trafficValue(v, prefs.traffic === "Requests" ? "req/s" : "%"),
+							<Choice
+								label="Traffic metric"
+								value={prefs.traffic}
+								choices={["Requests", "5xx"]}
+								onChange={(traffic) => void setPrefs({ traffic: traffic as typeof prefs.traffic })}
+							/>,
+							prefs.traffic === "5xx" ? errorPercentSeries(series[2] ?? [], series[3] ?? []) : undefined,
+							prefs.traffic === "5xx" ? [3] : [],
+						)}
+						<MetricCard
+							title="Response time"
+							rpc={pathMode ? queryRequestMetrics : queryMetrics}
+							filter={
+								pathMode && (
+									<form
+										className="flex gap-2"
+										onSubmit={(event) => {
+											event.preventDefault();
+											setPath(pathInput);
+										}}
+									>
+										<Input
+											aria-label="Filter paths"
+											placeholder="Filter paths…"
+											value={pathInput}
+											onChange={(event) => {
+												setPathInput(event.target.value);
+											}}
+											maxLength={256}
+										/>
+										<Button type="submit" variant="outline">
+											Apply
+										</Button>
+									</form>
+								)
+							}
+							series={latencySeries}
+							loading={pageLoading || latencyQuery.isLoading}
+							fetching={latencyQuery.isFetching}
+							error={latencyQuery.error}
+							retry={latencyQuery.refetch}
+							from={from}
+							to={to}
+							unit="ms"
+							format={(v) => trafficValue(v, "ms")}
+							markers={markers}
+							actions={actions}
+							controls={
+								<div className="flex flex-wrap gap-2">
+									<Choice
+										label="Latency percentile"
+										value={prefs.percentile}
+										choices={["p50", "p95", "p99"]}
+										onChange={(percentile) =>
+											void setPrefs({
+												percentile: percentile as typeof prefs.percentile,
+											})
+										}
+									/>
+									{single && (
+										<Choice
+											label="Group latency by"
+											value={prefs.latency}
+											choices={["Combined", "By path"]}
+											onChange={(latency) =>
+												void setPrefs({
+													latency: latency as typeof prefs.latency,
+												})
+											}
+										/>
+									)}
 								</div>
-								<MetricChart
-									title={card.title}
-									series={traffic.series[card.key]}
-									from={from}
-									to={to}
-									fmt={card.format}
-									unit={card.axisUnit}
-									highlight={hoverKey}
-									markers={markers}
-									height={TRAFFIC_HEIGHT}
-									actions={actions}
-								/>
-								<ul className="m-0 flex list-none flex-wrap gap-x-3.5 gap-y-1 p-0 text-[12px] text-fg2">
-									{traffic.series[card.key].map((s) => (
-										<li key={s.key} className="flex items-center gap-1.5">
-											<span
-												className={cn("w-3 border-t-2", s.dashed && "border-dashed")}
-												style={{ borderColor: s.color }}
-											/>
-											{s.name}
-											<span className="font-mono text-fg3">{card.format(s.points.at(-1)?.v ?? 0)}</span>
-										</li>
-									))}
-								</ul>
-							</section>
-						))}
+							}
+						/>
 					</div>
 				</Section>
 			)}
-
-			<Section title="By resource and region" card={false}>
-				<div className="min-w-0 rounded-card bg-panel">
-					<DataTable
-						table={table}
-						label="By resource and region"
-						band
-						tail
-						separators
-						className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
-						empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
-						onRowClick={(row) => {
-							focusRow(row.original);
-						}}
-						onRowHover={(row) => {
-							setHoverKey(row?.original.key ?? null);
-						}}
-					/>
+			<Section
+				title="Compute"
+				card={false}
+				actions={
+					<div className="flex flex-wrap gap-2">
+						{percent && <span className="self-center text-[11px] text-fg3">Busiest replica</span>}
+						<Choice
+							label="Compute units"
+							value={prefs.units}
+							choices={["Usage", "% of limit"]}
+							onChange={(units) => void setPrefs({ units: units as typeof prefs.units })}
+						/>
+						{single && (
+							<Choice
+								label="Replica view"
+								value={prefs.replicas}
+								choices={["Total", "Per replica"]}
+								onChange={(replicas) => void setPrefs({ replicas: replicas as typeof prefs.replicas })}
+							/>
+						)}
+					</div>
+				}
+			>
+				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+					{renderCard(0, "CPU", percent ? "%" : "vCPU", percent ? formatPercent : (v) => formatCpu(v * MILLI_PER_CORE))}
+					{renderCard(1, "Memory", percent ? "%" : "MiB", percent ? formatPercent : formatMemory)}
 				</div>
-				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-					Ready replicas over time
-					<SoonTag />
-				</span>
 			</Section>
+			{single && (
+				<Section title="Network & health" card={false}>
+					<div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+						{renderCard(
+							5,
+							"Network",
+							"B/s",
+							(v) => trafficValue(v, "B/s"),
+							undefined,
+							[
+								...(series[5] ?? []).map((s) => ({
+									...s,
+									key: `receive-${s.key}`,
+									name: `Received · ${s.name}`,
+								})),
+								...(series[6] ?? []).map((s) => ({
+									...s,
+									key: `transmit-${s.key}`,
+									name: `Sent · ${s.name}`,
+									dash: "7 3",
+								})),
+							],
+							[6],
+						)}
+						<MetricActivity resourceId={selected[0]!.id} regions={regions} from={from} to={to} />
+					</div>
+				</Section>
+			)}
+			{deploymentId !== null && (
+				<DeploymentDetails
+					id={deploymentId}
+					onClose={() => {
+						setDeploymentId(null);
+					}}
+				/>
+			)}
 		</>
 	);
-}
-
-type Latest = Map<string, { v: number; limit: number }>;
-
-function placementColumns(
-	cpu: Latest,
-	mem: Latest,
-	traffic: Record<TrafficKey, ChartSeries[]>,
-): DataColumn<Placement>[] {
-	return [
-		{
-			id: "resource",
-			accessorFn: (p) => p.resource.raw.name,
-			sortFn: (a, b) => a.original.resource.raw.name.localeCompare(b.original.resource.raw.name),
-			header: "Resource",
-			size: 150,
-			cell: ({ row: { original: p } }) => (
-				<span className="flex min-w-0 items-center gap-1.5">
-					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: p.resource.color }} />
-					<CellText text={p.resource.raw.name} />
-				</span>
-			),
-		},
-		{
-			id: "region",
-			accessorFn: (p) => p.region,
-			sortFn: (a, b) => a.original.region.localeCompare(b.original.region),
-			header: "Region",
-			size: 130,
-			cell: ({ row }) => <CellText text={row.original.region} className="font-mono text-fg2" />,
-		},
-		{
-			id: "replicas",
-			accessorFn: (p) => p.ready ?? -1,
-			header: "Replicas",
-			size: 110,
-			sortDescFirst: true,
-			cell: ({ row: { original: p } }) => {
-				const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
-				return (
-					<span className={cn("truncate font-mono", short ? "text-warn-fg" : "text-fg2")}>
-						{p.ready !== null && p.desired !== null ? `${String(p.ready)} of ${String(p.desired)}` : "—"}
-					</span>
-				);
-			},
-		},
-		{
-			id: "cpu",
-			accessorFn: (p) => cpu.get(p.key)?.v ?? -1,
-			header: "CPU (latest)",
-			size: 230,
-			sortDescFirst: true,
-			cell: ({ row }) => <Meter value={cpu.get(row.original.key)} format={CPU.format} />,
-		},
-		{
-			id: "mem",
-			accessorFn: (p) => mem.get(p.key)?.v ?? -1,
-			header: "Memory (latest)",
-			size: 220,
-			sortDescFirst: true,
-			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
-		},
-		...TRAFFIC_CARDS.map((card): DataColumn<Placement> => {
-			const latest = (p: Placement) => traffic[card.key].find((s) => s.key === p.key)?.points.at(-1)?.v;
-			return {
-				id: card.key,
-				accessorFn: (p) => latest(p) ?? -1,
-				header: card.column,
-				size: card.width,
-				sortDescFirst: true,
-				cell: ({ row }) => {
-					const value = latest(row.original);
-					return (
-						<span className={cn("font-mono", value === undefined ? "text-fg4" : "text-fg2")}>
-							{value === undefined ? "—" : card.format(value)}
-						</span>
-					);
-				},
-			};
-		}),
-	];
-}
-
-function valueCounts(key: string, resources: ObsResource[]): [string, number][] {
-	if (key === "resource") return resources.map((r) => [r.slug, 0]);
-	if (key === "region") return [...new Set(resources.flatMap((r) => r.regions))].map((g) => [g, 0]);
-	return [];
 }

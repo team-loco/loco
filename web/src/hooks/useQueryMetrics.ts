@@ -1,5 +1,4 @@
 import { createClient, type Transport } from "@connectrpc/connect";
-import { keepPreviousData } from "@tanstack/react-query";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
 import { stepSeconds } from "@/lib/obs-time";
@@ -21,6 +20,11 @@ interface UseQueryMetricsOptions {
 	aggregation?: string;
 	attributes?: Record<string, string>;
 	byPod?: boolean;
+	combineResources?: boolean;
+	sumPods?: boolean;
+	byRegion?: boolean;
+	readableResources?: boolean;
+	regions?: string[];
 	enabled?: boolean;
 }
 export function metricsQueryOptions(
@@ -37,6 +41,11 @@ export function metricsQueryOptions(
 		aggregation = "avg",
 		attributes = {},
 		byPod = false,
+		combineResources = false,
+		sumPods = false,
+		byRegion = false,
+		readableResources = false,
+		regions = [],
 		enabled = true,
 	}: UseQueryMetricsOptions,
 ) {
@@ -50,6 +59,11 @@ export function metricsQueryOptions(
 		aggregation,
 		attributes,
 		byPod,
+		combineResources,
+		sumPods,
+		byRegion,
+		readableResources,
+		regions,
 		intervalSeconds: stepSeconds(spanMs),
 	};
 	return {
@@ -77,7 +91,6 @@ export function metricsQueryOptions(
 		},
 		enabled: enabled && scopeReady({ workspaceId, environmentId, installation }),
 		staleTime: REFRESH_MS,
-		placeholderData: keepPreviousData,
 		refetchInterval: endMs === undefined ? REFRESH_MS : (false as const),
 	};
 }

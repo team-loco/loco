@@ -315,6 +315,9 @@ message ListWorkspaceResourcesRequest {
     (buf.validate.field).string.uuid = true
   ];
   // Only these resources. They also limit the resources the facets count.
+  // Counts visible resources with active runtime problems in this environment,
+  // ignoring paging, query and facet filters.
+  bool include_attention_count = 17;
   repeated string resource_ids = 16 [(buf.validate.field).repeated = {
     max_items: 100
     items: {
@@ -332,6 +335,8 @@ message ListWorkspaceResourcesResponse {
   int32 total_count = 3;
   // Set when include_facets is.
   ResourceFacets facets = 4;
+  // Set with include_attention_count. Capped like total_count.
+  int32 attention_count = 5;
 }
 
 // ResourceFacets counts the resources per value of the status, region and type filters, over the

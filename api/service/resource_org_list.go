@@ -38,7 +38,7 @@ func (s *ResourceServer) ListOrgResources(
 		return nil, err
 	}
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
-	resourceIDs, err := s.grantedReadableResources(ctx, p)
+	resourceIDs, err := grantedReadableResources(ctx, s.authz, p)
 	if err != nil {
 		return nil, err
 	}

@@ -89,6 +89,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "recharts@3.10.1": "patches/recharts@3.10.1.patch",
+  },
   "overrides": {
     "minimatch": "11.0.5",
   },

@@ -148,6 +148,7 @@ func TestObservability(t *testing.T) {
 	t.Run("QueryLogBuckets counts application logs", o.logBuckets)
 
 	t.Run("gateway access logs carry the tenancy", o.accessLogs)
+	t.Run("path metrics read gateway access logs", o.requestMetrics)
 
 	t.Run("Envoy metrics carry the tenancy", o.envoyMetrics)
 
@@ -1359,5 +1360,60 @@ func restoreCollector(t *testing.T, original *corev1.ConfigMap) {
 		if _, err := p.Kubectl(ctx, args...); err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func (o *observed) requestMetrics(t *testing.T) {
+	path := "/metrics-path-" + platform.RandomHex(6)
+	for range requestCount {
+		if status, err := gatewayStatus(
+			t.Context(),
+			o.host,
+			path+"?secret=not-a-dimension",
+			"",
+		); err != nil ||
+			status != http.StatusOK {
+			t.Fatalf("gateway status=%d, error=%v", status, err)
+		}
+	}
+	request := &observabilityv1.QueryRequestMetricsRequest{
+		WorkspaceId:     o.w.ID,
+		ResourceId:      o.resourceID,
+		EnvironmentId:   o.tenant.EnvironmentID,
+		StartTime:       timestamppb.New(o.trafficStarted),
+		EndTime:         timestamppb.Now(),
+		IntervalSeconds: metricInterval,
+		Path:            path,
+	}
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"gateway paths available through QueryRequestMetrics",
+		func(ctx context.Context) error {
+			request.EndTime = timestamppb.Now()
+			response, err := o.own.Observability.QueryRequestMetrics(ctx, request)
+			if err != nil {
+				return err
+			}
+			var count uint64
+			for _, bucket := range response.GetBuckets() {
+				if bucket.GetPath() != path || bucket.GetRegion() == "" {
+					return fmt.Errorf("unexpected bucket: %v", bucket)
+				}
+				count += bucket.GetRequests()
+			}
+			if count < requestCount {
+				return fmt.Errorf("requests=%d, want at least %d", count, requestCount)
+			}
+			return nil
+		},
+	)
+	if _, err := o.other.Observability.QueryRequestMetrics(
+		t.Context(),
+		request,
+	); connect.CodeOf(
+		err,
+	) != connect.CodePermissionDenied {
+		t.Fatalf("other workspace error=%v", err)
 	}
 }

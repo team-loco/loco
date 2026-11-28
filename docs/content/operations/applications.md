@@ -15,6 +15,16 @@ loco resource events --help
 
 `loco resource logs --query` prints only the lines that match a [log query](../reference/log-queries.md), such as `loco resource logs api --query '@level:error -@path:/healthz'`.
 
+## Metrics
+
+The dashboard's Metrics page shows traffic and compute charts for the selected environment. Search the resource selector to choose services, or leave All resources selected to combine their metrics within each region. Regions always use separate lines and colors. Multiple selected resources can be compared or combined; selecting one resource also enables per-replica compute charts, network traffic and recent replica activity.
+
+CPU usage is in vCPU and memory shows the working set. Total usage sums each pod's average within the time bucket. The percentage view shows the busiest replica's share of its limit, rather than adding percentages across replicas. Traffic shows requests per second, the percentage of responses with a 5xx status, and p50, p95 or p99 response time. Combined latency is calculated from merged histogram counts.
+
+For one resource, select By path on the response-time chart to read a breakdown from gateway access logs. Paths keep literal IDs and remove query strings; they are not application route templates. Apply a path substring to narrow the query. Path breakdowns run only when selected and are limited by time, rows read, memory and the number of time/region/path groups. A query that exceeds a limit fails instead of showing a truncated set of paths. Path data is available only while the gateway logs are retained.
+
+Select a chart point and choose View logs to carry the resource, region and surrounding time into the log view. Deployment markers show when deployments were requested, and a marker containing one deployment can open its recorded configuration.
+
 ## Scale
 
 `loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out one new deployment to every region the service runs in there, or only to the region `--region` names; the other regions keep their deployment. Regions that run different deployments, such as after a scale of one region, each get a copy of their own deployment. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. `--replicas` sets a fixed replica count and disables autoscaling; changing only CPU or memory preserves autoscaling. Configure autoscaling per region in [loco.yaml](../deployment/loco-yaml.md). The dashboard's Settings tab scales the environment selected in the breadcrumb.

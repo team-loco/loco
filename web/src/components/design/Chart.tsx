@@ -1,3 +1,4 @@
+import { useTheme } from "@/lib/use-theme";
 import { ChartContainer as ChartContainerBase } from "@/components/ui/chart";
 
 // Recharts closes its tooltip on mouseout; a page scroll under a still pointer never sends one.
@@ -15,7 +16,8 @@ function closeTooltipOnScroll(node: HTMLDivElement | null) {
 }
 
 function ChartContainer(props: React.ComponentProps<typeof ChartContainerBase>) {
-	return <ChartContainerBase ref={closeTooltipOnScroll} {...props} />;
+	const { color } = useTheme();
+	return <ChartContainerBase key={color} ref={closeTooltipOnScroll} {...props} />;
 }
 
 export { ChartContainer };

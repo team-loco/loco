@@ -4072,6 +4072,68 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityService/QueryRequestMetrics": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityService"
+        ],
+        "summary": "QueryRequestMetrics",
+        "description": "On-demand HTTP path statistics from gateway access logs, for one resource.",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryRequestMetrics",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.QueryRequestMetricsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.QueryRequestMetricsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityService/QueryTraceBuckets": {
       "post": {
         "tags": [
@@ -13973,7 +14035,7 @@
               "type": "string",
               "title": "value"
             },
-            "description": "Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,\n and is_monotonic=true/false. Gauge series preserve empty labels."
+            "description": "Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,\n and is_monotonic=true/false. by_region and by_pod add their identity labels."
           },
           "points": {
             "type": "array",
@@ -14205,7 +14267,7 @@
             "type": "string",
             "title": "metric_name",
             "minLength": 1,
-            "description": "Metric name to query (e.g., \"k8s.pod.cpu_limit_utilization\", \"k8s.pod.memory_usage\")."
+            "description": "Metric name to query (e.g., \"k8s.pod.cpu_limit_utilization\", \"k8s.pod.memory.working_set\")."
           },
           "intervalSeconds": {
             "type": "integer",
@@ -14242,6 +14304,35 @@
             "type": "boolean",
             "title": "by_pod",
             "description": "Returns one series per pod of a single resource, labelled with k8s.pod.name."
+          },
+          "combineResources": {
+            "type": "boolean",
+            "title": "combine_resources",
+            "description": "Combines resources before returning rates or calculating histogram percentiles."
+          },
+          "sumPods": {
+            "type": "boolean",
+            "title": "sum_pods",
+            "description": "For gauges, first averages each pod's samples in the bucket, then sums the pods.\n This keeps usage independent of the collection frequency."
+          },
+          "byRegion": {
+            "type": "boolean",
+            "title": "by_region",
+            "description": "Keeps regions in separate series, labelled with loco.region."
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 63
+            },
+            "title": "regions",
+            "description": "Region subset. Empty selects all; mutually exclusive with region."
+          },
+          "readableResources": {
+            "type": "boolean",
+            "title": "readable_resources",
+            "description": "With no resource_ids, reads only resources the caller may read in this workspace."
           }
         },
         "title": "QueryMetricsRequest",
@@ -14250,7 +14341,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\nby_pod.needs_one_resource // by_pod needs exactly one resource_id\nscope.workspace_xor_installation // set workspace_id or installation, not both and not neither\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\nby_pod.needs_one_resource // by_pod needs exactly one resource_id\nmetrics.pod_grouping // by_pod cannot combine resources or sum pods\nmetrics.readable_workspace // readable_resources applies only to workspace metrics\nmetrics.region_filter // set region or regions, not both\nmetrics.sum_pods_gauge // sum_pods requires avg aggregation\nscope.workspace_xor_installation // set workspace_id or installation, not both and not neither\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryMetricsResponse": {
         "type": "object",
@@ -14261,12 +14352,82 @@
               "$ref": "#/components/schemas/loco.observability.v1.MetricSeries"
             },
             "title": "series",
-            "description": "Metric series (one per resource)."
+            "description": "Metric series, grouped by the requested resource, region and pod dimensions."
           }
         },
         "title": "QueryMetricsResponse",
         "additionalProperties": false,
         "description": "QueryMetricsResponse contains the aggregated metric data."
+      },
+      "loco.observability.v1.QueryRequestMetricsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "interval_seconds",
+            "minimum": 1,
+            "format": "int32"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 63
+            },
+            "title": "regions",
+            "description": "Empty selects every region; regions remain separate in the response."
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "maxLength": 256,
+            "description": "Case-sensitive path substring, after removing the query string. Empty matches all paths."
+          }
+        },
+        "title": "QueryRequestMetricsRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.QueryRequestMetricsResponse": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.RequestMetricBucket"
+            },
+            "title": "buckets"
+          }
+        },
+        "title": "QueryRequestMetricsResponse",
+        "additionalProperties": false
       },
       "loco.observability.v1.QueryTraceBucketsRequest": {
         "type": "object",
@@ -14324,6 +14485,87 @@
         "title": "QueryTraceBucketsResponse",
         "additionalProperties": false,
         "description": "QueryTraceBucketsResponse holds every bucket from the one containing start_time to the one\n containing end_time, in time order; a bucket without traces has zero counts and durations."
+      },
+      "loco.observability.v1.RequestMetricBucket": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "title": "timestamp",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "requests": {
+            "type": "string",
+            "title": "requests",
+            "format": "int64"
+          },
+          "serverErrors": {
+            "type": "string",
+            "title": "server_errors",
+            "format": "int64"
+          },
+          "p50Millis": {
+            "oneOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN",
+                  "Infinity",
+                  "-Infinity"
+                ]
+              }
+            ],
+            "title": "p50_millis"
+          },
+          "p95Millis": {
+            "oneOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN",
+                  "Infinity",
+                  "-Infinity"
+                ]
+              }
+            ],
+            "title": "p95_millis"
+          },
+          "p99Millis": {
+            "oneOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN",
+                  "Infinity",
+                  "-Infinity"
+                ]
+              }
+            ],
+            "title": "p99_millis"
+          }
+        },
+        "title": "RequestMetricBucket",
+        "additionalProperties": false,
+        "description": "Paths are literal URL paths without query strings, not inferred route templates."
       },
       "loco.observability.v1.TailLogsRequest": {
         "type": "object",
@@ -16504,6 +16746,11 @@
             "format": "uuid",
             "description": "The environment whose status, size and deployment time the STATUS, SIZE and DEPLOYED orders\n read, while query, the filters and the facets follow environment_id. Empty sorts by\n environment_id, or across environments without it."
           },
+          "includeAttentionCount": {
+            "type": "boolean",
+            "title": "include_attention_count",
+            "description": "Only these resources. They also limit the resources the facets count.\n Counts visible resources with active runtime problems in this environment,\n ignoring paging, query and facet filters."
+          },
           "resourceIds": {
             "type": "array",
             "items": {
@@ -16511,8 +16758,7 @@
               "format": "uuid"
             },
             "title": "resource_ids",
-            "maxItems": 100,
-            "description": "Only these resources. They also limit the resources the facets count."
+            "maxItems": 100
           }
         },
         "title": "ListWorkspaceResourcesRequest",
@@ -16544,6 +16790,12 @@
             "title": "facets",
             "description": "Set when include_facets is.",
             "$ref": "#/components/schemas/loco.resource.v1.ResourceFacets"
+          },
+          "attentionCount": {
+            "type": "integer",
+            "title": "attention_count",
+            "format": "int32",
+            "description": "Set with include_attention_count. Capped like total_count."
           }
         },
         "title": "ListWorkspaceResourcesResponse",

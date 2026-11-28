@@ -1322,9 +1322,12 @@ type ListWorkspaceResourcesRequest struct {
 	// environment_id, or across environments without it.
 	SortEnvironmentId string `protobuf:"bytes,15,opt,name=sort_environment_id,json=sortEnvironmentId,proto3" json:"sort_environment_id,omitempty"`
 	// Only these resources. They also limit the resources the facets count.
-	ResourceIds   []string `protobuf:"bytes,16,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Counts visible resources with active runtime problems in this environment,
+	// ignoring paging, query and facet filters.
+	IncludeAttentionCount bool     `protobuf:"varint,17,opt,name=include_attention_count,json=includeAttentionCount,proto3" json:"include_attention_count,omitempty"`
+	ResourceIds           []string `protobuf:"bytes,16,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ListWorkspaceResourcesRequest) Reset() {
@@ -1462,6 +1465,13 @@ func (x *ListWorkspaceResourcesRequest) GetSortEnvironmentId() string {
 	return ""
 }
 
+func (x *ListWorkspaceResourcesRequest) GetIncludeAttentionCount() bool {
+	if x != nil {
+		return x.IncludeAttentionCount
+	}
+	return false
+}
+
 func (x *ListWorkspaceResourcesRequest) GetResourceIds() []string {
 	if x != nil {
 		return x.ResourceIds
@@ -1478,9 +1488,11 @@ type ListWorkspaceResourcesResponse struct {
 	// Exact up to 10,000; 10,001 means more than 10,000.
 	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	// Set when include_facets is.
-	Facets        *ResourceFacets `protobuf:"bytes,4,opt,name=facets,proto3" json:"facets,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Facets *ResourceFacets `protobuf:"bytes,4,opt,name=facets,proto3" json:"facets,omitempty"`
+	// Set with include_attention_count. Capped like total_count.
+	AttentionCount int32 `protobuf:"varint,5,opt,name=attention_count,json=attentionCount,proto3" json:"attention_count,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListWorkspaceResourcesResponse) Reset() {
@@ -1539,6 +1551,13 @@ func (x *ListWorkspaceResourcesResponse) GetFacets() *ResourceFacets {
 		return x.Facets
 	}
 	return nil
+}
+
+func (x *ListWorkspaceResourcesResponse) GetAttentionCount() int32 {
+	if x != nil {
+		return x.AttentionCount
+	}
+	return 0
 }
 
 // ResourceFacets counts the resources per value of the status, region and type filters, over the
@@ -3376,7 +3395,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\bslug_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceSlugKeyH\x00R\aslugKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\xae\b\n" +
+	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\xe6\b\n" +
 	"\x1dListWorkspaceResourcesRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
@@ -3397,16 +3416,18 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"descending\x12.\n" +
 	"\x13include_total_count\x18\r \x01(\bR\x11includeTotalCount\x12%\n" +
 	"\x0einclude_facets\x18\x0e \x01(\bR\rincludeFacets\x12;\n" +
-	"\x13sort_environment_id\x18\x0f \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x11sortEnvironmentId\x122\n" +
+	"\x13sort_environment_id\x18\x0f \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x11sortEnvironmentId\x126\n" +
+	"\x17include_attention_count\x18\x11 \x01(\bR\x15includeAttentionCount\x122\n" +
 	"\fresource_ids\x18\x10 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds:\x96\x02\xbaH\x92\x02\x1az\n" +
 	" resources.status_or_not_deployed\x12.status and not_deployed are mutually exclusive\x1a&this.status == 0 || !this.not_deployed\x1a\x93\x01\n" +
-	"1resources.environment_scoped_requires_environment\x12'environment_scoped needs environment_id\x1a5!this.environment_scoped || this.environment_id != ''\"\xdd\x01\n" +
+	"1resources.environment_scoped_requires_environment\x12'environment_scoped needs environment_id\x1a5!this.environment_scoped || this.environment_id != ''\"\x86\x02\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
 	"totalCount\x128\n" +
-	"\x06facets\x18\x04 \x01(\v2 .loco.resource.v1.ResourceFacetsR\x06facets\"\xf2\x01\n" +
+	"\x06facets\x18\x04 \x01(\v2 .loco.resource.v1.ResourceFacetsR\x06facets\x12'\n" +
+	"\x0fattention_count\x18\x05 \x01(\x05R\x0eattentionCount\"\xf2\x01\n" +
 	"\x0eResourceFacets\x12A\n" +
 	"\bstatuses\x18\x01 \x03(\v2%.loco.resource.v1.ResourceStatusCountR\bstatuses\x12!\n" +
 	"\fnot_deployed\x18\x02 \x01(\x05R\vnotDeployed\x12?\n" +

@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/buildinfo"
+	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/workloadplatform"
@@ -122,6 +123,9 @@ const (
 	defaultObservabilityMaxLimit     = 10000
 	defaultObservabilityMaxTimeRange = 24 * time.Hour
 	defaultObservabilityMaxBuckets   = 1440
+	defaultRequestMetricsMaxGroups   = 10000
+	defaultRequestMetricsMaxRowsRead = 10000000
+	defaultRequestMetricsMaxMemory   = 256 * 1024 * 1024
 	defaultObservabilityMaxTail      = 30 * time.Minute
 
 	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
@@ -417,6 +421,11 @@ func newClickHouseConfig() ClickHouseConfig {
 
 func newObservabilityConfig() service.ObservabilityConfig {
 	return service.ObservabilityConfig{
+		RequestMetricsLimits: chClient.RequestMetricsLimits{
+			MaxGroups:      positiveInt32Env("LOCO_REQUEST_METRICS_MAX_GROUPS", defaultRequestMetricsMaxGroups),
+			MaxMemoryBytes: positiveInt32Env("LOCO_REQUEST_METRICS_MAX_MEMORY_BYTES", defaultRequestMetricsMaxMemory),
+			MaxRowsRead:    positiveInt32Env("LOCO_REQUEST_METRICS_MAX_ROWS_READ", defaultRequestMetricsMaxRowsRead),
+		},
 		Limits: guardrails.Limits{
 			DefaultLimit: positiveInt32Env("LOCO_OBSERVABILITY_DEFAULT_LIMIT", defaultObservabilityLimit),
 			MaxLimit:     positiveInt32Env("LOCO_OBSERVABILITY_MAX_LIMIT", defaultObservabilityMaxLimit),

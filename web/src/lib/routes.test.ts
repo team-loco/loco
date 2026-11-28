@@ -52,8 +52,8 @@ test("resourcePath and withEnv carry the environment and keep the path's other p
 	expect(resourcePath("o1", "w1", "r1", { tab: "settings", env: "staging" })).toBe(
 		"/org/o1/wks/w1/resource/r1?tab=settings&env=staging",
 	);
-	expect(withEnv("/org/o1/wks/w1/resources?view=map", "prod east")).toBe(
-		"/org/o1/wks/w1/resources?view=map&env=prod+east",
+	expect(withEnv("/org/o1/wks/w1/resources?cols=name", "prod east")).toBe(
+		"/org/o1/wks/w1/resources?cols=name&env=prod+east",
 	);
 	expect(withEnv("/org/o1/wks/w1?env=staging", null)).toBe("/org/o1/wks/w1");
 });

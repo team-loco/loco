@@ -20,7 +20,7 @@ func (s *ResourceServer) GetEnvironmentAllocation(
 	if err != nil {
 		return nil, err
 	}
-	readable, err := s.readableResources(ctx, wsID)
+	readable, err := readableWorkspaceResources(ctx, s.authz, s.queries, wsID)
 	if err != nil {
 		return nil, err
 	}

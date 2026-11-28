@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
@@ -24,6 +25,8 @@ import (
 // maxResourceReadChecks bounds the permission checks one request naming resources can cause.
 const maxResourceReadChecks = 100
 
+const publicPathBreakdownTooBroad = "Path breakdown is too broad. Shorten the time range or filter paths."
+
 // systemScopeWorkspaceOnly names what a system-scope request cannot filter by.
 const systemScopeWorkspaceOnly = "resource_ids and environment_id apply to workspaces, not to the installation scope"
 
@@ -33,8 +36,9 @@ var _ observabilityv1connect.ObservabilityServiceHandler = (*ObservabilityServer
 
 // ObservabilityConfig bounds the logs, metrics and traces one request can read.
 type ObservabilityConfig struct {
-	Limits          guardrails.Limits
-	MaxTailDuration time.Duration
+	Limits               guardrails.Limits
+	MaxTailDuration      time.Duration
+	RequestMetricsLimits chClient.RequestMetricsLimits
 }
 
 // ObservabilityServer reads the telemetry the observability proxy writes to ClickHouse.
@@ -186,17 +190,58 @@ func (s *ObservabilityServer) QueryMetrics(
 	if err := guardrails.ValidateMetricsRequest(req, s.cfg.Limits); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-	if err := s.authorizeRead(
+	if req.GetWorkspaceId() == systemtenant.WorkspaceID {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).
+			WithCause(authz.ErrEntityNotFound)
+	}
+	query := proto.CloneOf(req)
+	if req.GetReadableResources() && len(req.GetResourceIds()) == 0 {
+		if s.clickhouse == nil {
+			return nil, rpcerr.New(connect.CodeUnavailable, errObservabilityUnavailable)
+		}
+		workspace := uuid.MustParse(req.GetWorkspaceId())
+		ids, err := readableWorkspaceResources(ctx, s.authz, s.queries, workspace)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			query.ResourceIds = append(query.ResourceIds, id.String())
+		}
+	} else if err := s.authorizeRead(
 		ctx, req.GetWorkspaceId(), req.GetInstallation(), req.GetEnvironmentId(), req.GetResourceIds(),
 	); err != nil {
 		return nil, err
 	}
-	req.WorkspaceId = queryWorkspace(req.GetWorkspaceId(), req.GetInstallation())
-	series, err := s.clickhouse.QueryMetrics(ctx, req)
+	query.WorkspaceId = queryWorkspace(req.GetWorkspaceId(), req.GetInstallation())
+	series, err := s.clickhouse.QueryMetrics(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query metrics: %w", err)
 	}
 	return &observabilityv1.QueryMetricsResponse{Series: series}, nil
+}
+
+func (s *ObservabilityServer) QueryRequestMetrics(
+	ctx context.Context,
+	req *observabilityv1.QueryRequestMetricsRequest,
+) (*observabilityv1.QueryRequestMetricsResponse, error) {
+	if err := guardrails.ValidateRequestMetricsRequest(req, s.cfg.Limits); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+	if err := s.authorizeRead(
+		ctx,
+		req.GetWorkspaceId(),
+		false,
+		req.GetEnvironmentId(),
+		[]string{req.GetResourceId()},
+	); err != nil {
+		return nil, err
+	}
+	response, err := s.clickhouse.QueryRequestMetrics(ctx, req, s.cfg.RequestMetricsLimits)
+	if errors.Is(err, chClient.ErrRequestMetricsTooBroad) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, publicPathBreakdownTooBroad).
+			WithCause(err)
+	}
+	return response, err
 }
 
 func (s *ObservabilityServer) ListTraces(

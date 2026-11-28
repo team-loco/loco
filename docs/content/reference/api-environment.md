@@ -157,6 +157,9 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | `LOCO_OBSERVABILITY_MAX_LIMIT` | `10000` | Most rows a query may request. |
 | `LOCO_OBSERVABILITY_MAX_TIME_RANGE` | `24h` | Longest time range of a query. |
 | `LOCO_OBSERVABILITY_MAX_BUCKETS` | `1440` | Most buckets of a bucketed query. |
+| `LOCO_REQUEST_METRICS_MAX_GROUPS` | `10000` | Most time/region/path groups a path breakdown may produce. The query fails if it exceeds the limit. |
+| `LOCO_REQUEST_METRICS_MAX_MEMORY_BYTES` | `268435456` | ClickHouse memory limit for one path breakdown. |
+| `LOCO_REQUEST_METRICS_MAX_ROWS_READ` | `10000000` | Most log rows one path breakdown may scan. |
 | `LOCO_OBSERVABILITY_MAX_TAIL_DURATION` | `30m` | How long a log tail stays open. |
 
 ## Events and webhooks

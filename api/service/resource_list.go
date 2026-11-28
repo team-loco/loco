@@ -13,10 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/team-loco/loco/api/authz/actions"
 	apiDb "github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -31,7 +29,7 @@ const resourceListSQL = `WITH ws AS MATERIALIZED (
   FROM resources r WHERE r.workspace_id = $1 AND ($11::uuid[] IS NULL OR r.id = ANY($11::uuid[]))
 ),
 regions AS MATERIALIZED (
-  SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas,
+  SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas, i.placement_status,
     d.id AS deployment_id, d.created_at AS deployment_created_at, d.spec AS deployment_spec,
     d.spec->'build'->>'image' AS image,
     region_status(region_status_cause(
@@ -92,6 +90,14 @@ matched AS (
       OR EXISTS (SELECT 1 FROM deployments d WHERE d.resource_id = f.id AND d.environment_id = $3::uuid)
       OR NOT EXISTS (SELECT 1 FROM deployments d WHERE d.resource_id = f.id))
 )`
+
+const resourceAttentionCountSQL = resourceListSQL + ` SELECT count(*) FROM (
+    SELECT DISTINCT resource_id FROM regions
+    WHERE ($3::uuid IS NULL OR environment_id=$3::uuid)
+     AND (status IN ('RESOURCE_STATUS_DEGRADED','RESOURCE_STATUS_UNAVAILABLE','RESOURCE_STATUS_UNKNOWN')
+       OR placement_status IN ('failed','crashed')
+       OR (status='RESOURCE_STATUS_DEPLOYING' AND placement_status NOT IN ('pending','deploying')))
+    LIMIT $12) capped`
 
 // The sort keys of each order as k1, k2 and kt; every order then sorts by name_key and id.
 var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
@@ -160,7 +166,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, err
 	}
-	readable, err := s.readableResources(ctx, wsID)
+	readable, err := readableWorkspaceResources(ctx, s.authz, s.queries, wsID)
 	if err != nil {
 		return nil, err
 	}
@@ -209,48 +215,24 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, fmt.Errorf("count resources: %w", err)
 	}
+	if req.GetIncludeAttentionCount() {
+		countAttention := func(ctx context.Context, limit int32) (int64, error) {
+			var n int64
+			query := apiDb.Named("CountWorkspaceResourceAttention", resourceAttentionCountSQL)
+			scanErr := s.db.QueryRow(ctx, query, append(filter.args(), limit)...).Scan(&n)
+			return n, scanErr
+		}
+		response.AttentionCount, err = totalCount(ctx, true, countAttention)
+		if err != nil {
+			return nil, fmt.Errorf("count resource attention: %w", err)
+		}
+	}
 	if req.GetIncludeFacets() {
 		if response.Facets, err = s.resourceFacets(ctx, filter); err != nil {
 			return nil, err
 		}
 	}
 	return response, nil
-}
-
-// readableResources is nil for a caller who can list the workspace's resources, else the
-// resources of the workspace GetResource would return to the caller. A caller who can read none of
-// them is denied. Without workspace read, only a grant on the resource itself passes GetResource's
-// check, so only the caller's resource grants are checked.
-func (s *ResourceServer) readableResources(ctx context.Context, wsID uuid.UUID) ([]uuid.UUID, error) {
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
-	denied := check(ctx, s.authz, p, actions.New(actions.ListResources, wsID))
-	if denied == nil || connect.CodeOf(denied) != connect.CodePermissionDenied {
-		return nil, denied
-	}
-	granted, err := s.grantedReadableResources(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-	if len(granted) == 0 {
-		return nil, denied
-	}
-	rows, err := s.queries.ListResourcesByIDs(ctx, granted)
-	if err != nil {
-		return nil, fmt.Errorf("list the granted resources: %w", err)
-	}
-	var readable []uuid.UUID
-	for _, row := range rows {
-		if row.WorkspaceID == wsID {
-			readable = append(readable, row.ID)
-		}
-	}
-	if len(readable) == 0 {
-		return nil, denied
-	}
-	return readable, nil
 }
 
 // requestedResources narrows readable, nil for every resource, to the requested IDs when there are
@@ -478,20 +460,6 @@ func (s *ResourceServer) resourceFacets(
 		facets.Types = append(facets.Types, &resourcev1.ResourceTypeCount{Type: resourceType, Count: c.count})
 	}
 	return facets, nil
-}
-
-// grantedReadableResources are the resources granted to the caller directly that GetResource lets it read.
-func (s *ResourceServer) grantedReadableResources(ctx context.Context, p reqctx.Principal) ([]uuid.UUID, error) {
-	var granted []uuid.UUID
-	for _, id := range grantedResourceIDs(p.Scopes) {
-		checkErr := check(ctx, s.authz, p, actions.New(actions.GetResource, id))
-		if checkErr == nil {
-			granted = append(granted, id)
-		} else if connect.CodeOf(checkErr) != connect.CodePermissionDenied {
-			return nil, checkErr
-		}
-	}
-	return granted, nil
 }
 
 // resourceTypeProto converts a database resource type name.

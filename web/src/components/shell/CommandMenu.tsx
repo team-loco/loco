@@ -1,3 +1,4 @@
+import { useQueryState } from "nuqs";
 import { useInSystem } from "@/hooks/useInSystem";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
@@ -10,12 +11,10 @@ import {
 	CopyIcon,
 	KeyboardIcon,
 	SunMoonIcon,
-	TableIcon,
 	ChartLineIcon,
 	CornerDownLeftIcon,
 	KeyRoundIcon,
 	LayersIcon,
-	NetworkIcon,
 	PaletteIcon,
 	PlusIcon,
 	ScrollTextIcon,
@@ -27,7 +26,6 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useQueryState } from "nuqs";
 import { useLocation, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -61,8 +59,6 @@ import {
 	observabilityPath,
 	orgSettingsPath,
 	resourcePath,
-	resourcesPath,
-	resourceViewParser,
 	switchWorkspacePath,
 	type ObservabilityView,
 } from "@/lib/routes";
@@ -127,10 +123,24 @@ interface PaletteItem {
 
 export type PageCommand = Omit<PaletteItem, "group" | "list" | "searchOnly">;
 
-const MODE_LIST: SubList = { id: "mode", crumb: "Mode", heading: "Mode", placeholder: "Choose a mode" };
-const THEME_LIST: SubList = { id: "theme", crumb: "Theme", heading: "Theme", placeholder: "Choose a theme" };
+const MODE_LIST: SubList = {
+	id: "mode",
+	crumb: "Mode",
+	heading: "Mode",
+	placeholder: "Choose a mode",
+};
+const THEME_LIST: SubList = {
+	id: "theme",
+	crumb: "Theme",
+	heading: "Theme",
+	placeholder: "Choose a theme",
+};
 
-const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode }[] = [
+const RESOURCE_VIEWS: {
+	view: ObservabilityView;
+	label: string;
+	icon: ReactNode;
+}[] = [
 	{ view: "logs", label: "Logs", icon: <ScrollTextIcon /> },
 	{ view: "metrics", label: "Metrics", icon: <ChartLineIcon /> },
 	{ view: "traces", label: "Traces", icon: <WaypointsIcon /> },
@@ -142,7 +152,6 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 	const openShortcuts = useOpenShortcuts();
 	const { pathname } = useLocation();
 	const [env] = useQueryState("env");
-	const [, setResourceView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
 	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
@@ -172,30 +181,6 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
 		const orgId = activeOrgId;
 		const workspaceId = activeWorkspaceId;
-		if (pathname === resourcesPath(orgId, workspaceId)) {
-			items.push(
-				{
-					id: "page-show-map",
-					group: "This page",
-					label: "Show Map",
-					keywords: "view diagram graph",
-					icon: <NetworkIcon />,
-					run: () => {
-						void setResourceView("map");
-					},
-				},
-				{
-					id: "page-show-table",
-					group: "This page",
-					label: "Show Table",
-					keywords: "view list",
-					icon: <TableIcon />,
-					run: () => {
-						void setResourceView(null);
-					},
-				},
-			);
-		}
 		items.push({
 			id: "action-new-resource",
 			group: "Actions",
@@ -262,7 +247,12 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 					label: `${v.label} for ${r.name}`,
 					keywords: `${v.view} ${r.slug}`,
 					icon: v.icon,
-					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.slug] })),
+					run: go(
+						observabilityPath(orgId, workspaceId, v.view, {
+							...envParams,
+							r: [r.slug],
+						}),
+					),
 					searchOnly: true,
 				});
 			}
@@ -274,7 +264,12 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 					searchOnly: true,
 				});
 			const sub = (key: string, item: Omit<PaletteItem, "id" | "group" | "list">) => {
-				items.push({ id: `resource-${r.id}-sub-${key}`, group: "Resources", list: list.id, ...item });
+				items.push({
+					id: `resource-${r.id}-sub-${key}`,
+					group: "Resources",
+					list: list.id,
+					...item,
+				});
 			};
 			sub("open", {
 				label: `Open ${r.name}`,
@@ -286,7 +281,12 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 				sub(v.view, {
 					label: v.label,
 					icon: v.icon,
-					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.slug] })),
+					run: go(
+						observabilityPath(orgId, workspaceId, v.view, {
+							...envParams,
+							r: [r.slug],
+						}),
+					),
 				});
 			sub("settings", {
 				label: "Settings",
@@ -294,7 +294,10 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 				icon: <Settings2Icon />,
 				run: go(resourcePath(orgId, workspaceId, r.id, { tab: "settings", env })),
 			});
-			sub("copy-id", { ...copyItem(`${r.name} resource ID`, r.id, ""), label: "Copy resource ID" });
+			sub("copy-id", {
+				...copyItem(`${r.name} resource ID`, r.id, ""),
+				label: "Copy resource ID",
+			});
 			if (copyEnv !== undefined) sub("copy-environment-id", copyEnv);
 		}
 	}
@@ -495,14 +498,21 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 				(item) =>
 					item.group === group && (item.list ?? null) === (list?.id ?? null) && !(browsing && item.searchOnly === true),
 			);
-			if (browsing) return { group, items: group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+			if (browsing)
+				return {
+					group,
+					items: group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup,
+				};
 			if (list !== null) return { group, items: inGroup };
 			const scored = inGroup.map((item) => ({
 				item,
 				score: scorePaletteItem(item.id, query, [item.label, item.keywords ?? ""]),
 			}));
 			const best = scored.filter((entry) => entry.score > 0).toSorted((a, b) => b.score - a.score);
-			return { group, items: best.slice(0, SEARCH_LIMIT).map((entry) => entry.item) };
+			return {
+				group,
+				items: best.slice(0, SEARCH_LIMIT).map((entry) => entry.item),
+			};
 		});
 
 	return (
@@ -618,7 +628,13 @@ export function PageCommands({ items }: { items: readonly PageCommand[] }) {
 	const setPageItems = use(PageItemsContext);
 	if (setPageItems === null) throw new Error("PageCommands must be used inside CommandPaletteProvider");
 	useEffect(() => {
-		setPageItems(items.map((item) => ({ ...item, id: `this-page-${item.id}`, group: "This page" })));
+		setPageItems(
+			items.map((item) => ({
+				...item,
+				id: `this-page-${item.id}`,
+				group: "This page",
+			})),
+		);
 		return () => {
 			setPageItems([]);
 		};

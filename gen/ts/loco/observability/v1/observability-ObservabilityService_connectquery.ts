@@ -24,6 +24,13 @@ export const queryLogBuckets = ObservabilityService.method.queryLogBuckets;
 export const queryMetrics = ObservabilityService.method.queryMetrics;
 
 /**
+ * On-demand HTTP path statistics from gateway access logs, for one resource.
+ *
+ * @generated from rpc loco.observability.v1.ObservabilityService.QueryRequestMetrics
+ */
+export const queryRequestMetrics = ObservabilityService.method.queryRequestMetrics;
+
+/**
  * @generated from rpc loco.observability.v1.ObservabilityService.ListTraces
  */
 export const listTraces = ObservabilityService.method.listTraces;
