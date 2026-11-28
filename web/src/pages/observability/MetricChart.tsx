@@ -346,6 +346,7 @@ export function MetricChart({
 								allowDataOverflow
 								ticks={ticks}
 								interval="preserveStartEnd"
+								minTickGap={24}
 								tickLine={false}
 								height={X_AXIS_HEIGHT}
 								axisLine={{ stroke: "var(--line)" }}

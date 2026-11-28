@@ -2249,6 +2249,28 @@ def metrics(page):
             + "/observability?env=production&view=metrics&q=%40resource%3Acontrols-pilot"
         )
     expect(page.get_by_role("heading", name="Traffic", exact=True)).to_be_visible()
+    # Date-and-time labels must fit at phone width when the range crosses midnight.
+    end = datetime.now(UTC).replace(
+        hour=0, minute=30, second=0, microsecond=0
+    ) - timedelta(days=1)
+    end_ms = int(end.timestamp() * 1000)
+    page.set_viewport_size(evidence.NARROW)
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?env=production&view=metrics&from={end_ms - 3600000}&to={end_ms}"
+    )
+    expect(
+        page.locator('[aria-label="CPU over time"] text')
+        .filter(has_text=re.compile(r"\d{1,2}:\d{2}"))
+        .first
+    ).to_be_visible()
+    page.wait_for_function("""() => {
+        const labels = [...document.querySelectorAll('[aria-label="CPU over time"] text')]
+            .filter(node => node.textContent.includes(":"))
+            .map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+        return labels.length >= 2 && labels.every((label, i) => i === 0 || labels[i - 1].right + 1 <= label.left);
+    }""")
     page.unroute(resource_url, configured_worker)
     page.unroute(deployment_url, deployed_web)
     page.unroute(metric_url, regional)
