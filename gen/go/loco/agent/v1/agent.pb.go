@@ -356,7 +356,7 @@ type SyncRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Message:
 	//
-	//	*SyncRequest_Inventory
+	//	*SyncRequest_InventoryChunk
 	//	*SyncRequest_Applied
 	//	*SyncRequest_Status
 	//	*SyncRequest_BuildStatus
@@ -403,10 +403,10 @@ func (x *SyncRequest) GetMessage() isSyncRequest_Message {
 	return nil
 }
 
-func (x *SyncRequest) GetInventory() *Inventory {
+func (x *SyncRequest) GetInventoryChunk() *Inventory {
 	if x != nil {
-		if x, ok := x.Message.(*SyncRequest_Inventory); ok {
-			return x.Inventory
+		if x, ok := x.Message.(*SyncRequest_InventoryChunk); ok {
+			return x.InventoryChunk
 		}
 	}
 	return nil
@@ -452,8 +452,8 @@ type isSyncRequest_Message interface {
 	isSyncRequest_Message()
 }
 
-type SyncRequest_Inventory struct {
-	Inventory *Inventory `protobuf:"bytes,1,opt,name=inventory,proto3,oneof"`
+type SyncRequest_InventoryChunk struct {
+	InventoryChunk *Inventory `protobuf:"bytes,6,opt,name=inventory_chunk,json=inventoryChunk,proto3,oneof"`
 }
 
 type SyncRequest_Applied struct {
@@ -472,7 +472,7 @@ type SyncRequest_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,5,opt,name=heartbeat,proto3,oneof"`
 }
 
-func (*SyncRequest_Inventory) isSyncRequest_Message() {}
+func (*SyncRequest_InventoryChunk) isSyncRequest_Message() {}
 
 func (*SyncRequest_Applied) isSyncRequest_Message() {}
 
@@ -483,9 +483,11 @@ func (*SyncRequest_BuildStatus) isSyncRequest_Message() {}
 func (*SyncRequest_Heartbeat) isSyncRequest_Message() {}
 
 type Inventory struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entries       []*InventoryEntry      `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	Builds        []*InventoryBuild      `protobuf:"bytes,2,rep,name=builds,proto3" json:"builds,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Entries []*InventoryEntry      `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Builds  []*InventoryBuild      `protobuf:"bytes,2,rep,name=builds,proto3" json:"builds,omitempty"`
+	// Only the final chunk completes the snapshot. A disconnected partial snapshot is discarded.
+	Complete      bool `protobuf:"varint,4,opt,name=complete,proto3" json:"complete,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -532,6 +534,13 @@ func (x *Inventory) GetBuilds() []*InventoryBuild {
 		return x.Builds
 	}
 	return nil
+}
+
+func (x *Inventory) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
 }
 
 type InventoryEntry struct {
@@ -1928,17 +1937,18 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12H\n" +
-	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\xbb\x02\n" +
-	"\vSyncRequest\x128\n" +
-	"\tinventory\x18\x01 \x01(\v2\x18.loco.agent.v1.InventoryH\x00R\tinventory\x122\n" +
+	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\xd7\x02\n" +
+	"\vSyncRequest\x12C\n" +
+	"\x0finventory_chunk\x18\x06 \x01(\v2\x18.loco.agent.v1.InventoryH\x00R\x0einventoryChunk\x122\n" +
 	"\aapplied\x18\x02 \x01(\v2\x16.loco.agent.v1.AppliedH\x00R\aapplied\x128\n" +
 	"\x06status\x18\x03 \x01(\v2\x1e.loco.agent.v1.PlacementStatusH\x00R\x06status\x12?\n" +
 	"\fbuild_status\x18\x04 \x01(\v2\x1a.loco.agent.v1.BuildStatusH\x00R\vbuildStatus\x128\n" +
 	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
-	"\amessage\"\x90\x01\n" +
+	"\amessageJ\x04\b\x01\x10\x02R\tinventory\"\xac\x01\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
-	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06buildsJ\x04\b\x03\x10\x04R\rworkspace_ids\"}\n" +
+	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\x12\x1a\n" +
+	"\bcomplete\x18\x04 \x01(\bR\bcompleteJ\x04\b\x03\x10\x04R\rworkspace_ids\"}\n" +
 	"\x0eInventoryEntry\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12,\n" +
@@ -2130,7 +2140,7 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	25, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
 	3,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
 	26, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
-	6,  // 4: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
+	6,  // 4: loco.agent.v1.SyncRequest.inventory_chunk:type_name -> loco.agent.v1.Inventory
 	10, // 5: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
 	11, // 6: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
 	9,  // 7: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
@@ -2176,7 +2186,7 @@ func file_loco_agent_v1_agent_proto_init() {
 		return
 	}
 	file_loco_agent_v1_agent_proto_msgTypes[3].OneofWrappers = []any{
-		(*SyncRequest_Inventory)(nil),
+		(*SyncRequest_InventoryChunk)(nil),
 		(*SyncRequest_Applied)(nil),
 		(*SyncRequest_Status)(nil),
 		(*SyncRequest_BuildStatus)(nil),

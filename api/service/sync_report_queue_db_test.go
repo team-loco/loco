@@ -63,7 +63,11 @@ func skipKeptWorkspaces(send func(*agentv1.SyncResponse) error) func(*agentv1.Sy
 
 // reconcileInventory applies and settles an inventory as a sync stream does.
 func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}})
+	inventory.Complete = true
+	return ss.handleNow(
+		ctx,
+		&agentv1.SyncRequest{Message: &agentv1.SyncRequest_InventoryChunk{InventoryChunk: inventory}},
+	)
 }
 
 // handleNow handles a message, then applies and settles what it queued, as a sync stream does.
@@ -100,7 +104,9 @@ func openReportStreamReceiving(
 	if err != nil {
 		t.Fatal(err)
 	}
-	inventory := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: &agentv1.Inventory{}}}
+	inventory := &agentv1.SyncRequest{
+		Message: &agentv1.SyncRequest_InventoryChunk{InventoryChunk: &agentv1.Inventory{Complete: true}},
+	}
 	if err := stream.Send(inventory); err != nil {
 		t.Fatalf("send inventory: %v", err)
 	}
@@ -269,8 +275,8 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 			lock: lockPlacement,
 			report: func(p genDb.Placement, _ string) *agentv1.SyncRequest {
 				entry := &agentv1.InventoryEntry{PlacementId: p.ID.String(), Revision: p.DesiredRevision}
-				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{
-					Inventory: &agentv1.Inventory{Entries: []*agentv1.InventoryEntry{entry}},
+				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_InventoryChunk{
+					InventoryChunk: &agentv1.Inventory{Complete: true, Entries: []*agentv1.InventoryEntry{entry}},
 				}}
 			},
 			done: placementApplied,
@@ -467,8 +473,8 @@ func TestAnInventoryMissingAPlacementResendsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	inventory := func(entries ...*agentv1.InventoryEntry) *agentv1.SyncRequest {
-		return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{
-			Inventory: &agentv1.Inventory{Entries: entries},
+		return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_InventoryChunk{
+			InventoryChunk: &agentv1.Inventory{Complete: true, Entries: entries},
 		}}
 	}
 	held := &agentv1.InventoryEntry{PlacementId: p.ID.String(), Revision: p.DesiredRevision}
