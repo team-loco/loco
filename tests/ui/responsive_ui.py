@@ -125,6 +125,14 @@ def mock_traffic(context):
 
     def query_metrics(route):
         body = route.request.post_data_json
+        samples = {
+            "k8s.pod.cpu.usage": ((50, 0.03), (30, 0.05), (10, 0.04)),
+            "k8s.pod.memory.working_set": (
+                (50, 48 * 1024 * 1024),
+                (30, 80 * 1024 * 1024),
+                (10, 64 * 1024 * 1024),
+            ),
+        }
         points = [
             {
                 "timestamp": (now - timedelta(minutes=minute))
@@ -132,7 +140,7 @@ def mock_traffic(context):
                 .replace("+00:00", "Z"),
                 "value": value,
             }
-            for minute, value in ((50, 3.0), (30, 5.0), (10, 4.0))
+            for minute, value in samples.get(body["metricName"], ())
         ]
         route.fulfill(
             json={
@@ -284,14 +292,16 @@ with session(out) as browser:
         context, page, errors = open_at(browser, 390, 844, mode, has_touch=True)
         mock_traffic(context)
         page.goto(PAGES["resource"])
-        chart = page.locator("[data-slot=chart]").first
-        expect(chart.locator("path.recharts-curve").first).to_be_visible()
+        chart = page.locator('[aria-label="CPU: average"]')
+        expect(page.get_by_text("0.04 vCPU", exact=True)).to_be_visible()
+        expect(chart).to_be_visible()
         chart.scroll_into_view_if_needed()
         page.wait_for_timeout(500)
         box = chart.bounding_box()
         page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         tooltip = page.locator(".recharts-tooltip-wrapper").first
         expect(tooltip).to_have_css("visibility", "visible")
+        expect(tooltip.get_by_text("us-ca-1 0.05 vCPU", exact=True)).to_be_visible()
         page.screenshot(path=out / f"{mode}-390-chart-tooltip.png")
         page.evaluate("window.scrollBy(0, 400)")
         expect(tooltip).to_have_css("visibility", "hidden")
