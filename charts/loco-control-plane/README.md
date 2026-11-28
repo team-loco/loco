@@ -183,6 +183,8 @@ Disabling `platformTelemetry.enabled` disables SDK telemetry and the default con
 
 The node collector runs in `loco-obs-control-plane`; change `nodeCollector.namespaceOverride` to use another namespace. That namespace permits the host log mounts, while the control-plane namespace can retain its restricted Pod Security policy. The cluster collector runs in `loco-obs-control-plane-cluster`, configured through `clusterCollector.namespaceOverride`. Images, resources, scheduling and persistent storage belong to these role values rather than the stdout collection switch.
 
+Collector namespaces are kept when a role is disabled or the release is uninstalled, so deleting the namespace cannot discard the cluster collector's queued exports. Re-enabling the same role reuses its queue claims. Drain queued exports before explicitly deleting a collector namespace.
+
 `platformTelemetry.region` is required when enabled and identifies the control plane’s physical region as `loco.region` on every signal. It is independent of `defaultRegion`, which selects where new services deploy. Each API and proxy pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` and `obsProxy.ingest.env` then cannot set.
 
 ```yaml

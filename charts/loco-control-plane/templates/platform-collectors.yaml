@@ -31,6 +31,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ $namespace }}
+  annotations:
+    # Retain queue claims when collection is disabled or delegated.
+    helm.sh/resource-policy: keep
   labels:
     pod-security.kubernetes.io/enforce: {{ ternary "privileged" "restricted" (eq $name "nodeCollector") }}
     pod-security.kubernetes.io/enforce-version: latest

@@ -58,6 +58,18 @@ tests:
               accessModes: [ReadWriteOnce]
               resources:
                 requests: {storage: 2Gi}
+  - it: retains the cluster namespace so disabling collection preserves queued exports
+    set:
+      platformTelemetry.enabled: true
+    template: templates/platform-collectors.yaml
+    documentSelector:
+      path: metadata.name
+      value: loco-obs-control-plane-cluster
+    asserts:
+      - equal: {path: kind, value: Namespace}
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
   - it: retains infrastructure collectors and SDK telemetry when stdout collection is off
     set:
       platformTelemetry.enabled: true
