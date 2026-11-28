@@ -18,7 +18,7 @@ run_id=$testres_id
 clickhouse=$run_id-clickhouse
 workdir=$testres_lease
 ready_attempts=60
-ports=$(testres_ports 4)
+ports=$(testres_ports 4) || exit $?
 read -r ingest_port ingest_grpc_port ingest_http_port control_plane_port <<<"$ports"
 failures=0
 

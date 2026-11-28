@@ -9,7 +9,7 @@ import (
 )
 
 func TestShellStopsBeforeCreatingAnUnregisteredResource(t *testing.T) {
-	for _, operation := range []string{"lease", "add"} {
+	for _, operation := range []string{"lease", "add", "ports"} {
 		t.Run(operation, func(t *testing.T) {
 			bin := t.TempDir()
 			goScript := `#!/bin/sh
@@ -21,15 +21,21 @@ esac
 			if err := os.WriteFile(filepath.Join(bin, "go"), []byte(goScript), 0o700); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.WriteFile(filepath.Join(bin, "docker"), []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+				t.Fatal(err)
+			}
 			marker := filepath.Join(t.TempDir(), "resource-created")
-			cmd := exec.CommandContext(t.Context(), "bash", "-c", `
+			script := `
 source mise-tasks/test/lib/testres.sh shell-test
 testres_add container "$testres_id"
-touch "$RESOURCE_MARKER"
-`)
+`
+			if operation == "ports" {
+				script = "source mise-tasks/test/lib/auth-stack.sh\n"
+			}
+			cmd := exec.CommandContext(t.Context(), "bash", "-c", script+`touch "$RESOURCE_MARKER"`)
 			cmd.Dir = "../.."
 			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"FAIL_OPERATION="+operation, "LEASE_DIRECTORY="+filepath.Join(t.TempDir(), "shell-test"),
+				"FAIL_OPERATION="+operation, "LEASE_DIRECTORY="+t.TempDir(),
 				"RESOURCE_MARKER="+marker)
 			output, err := cmd.CombinedOutput()
 			var exit *exec.ExitError
