@@ -392,7 +392,7 @@ func (s *DeploymentServer) createDeploymentOnce(
 		if len(regions) == 0 {
 			regions = enabledRegions(render.resourceSpec.GetService().GetRegions())
 		}
-		targets, targetErr := placementTargets(clusters, regions, string(s.defaults.TargetPlatform))
+		targets, targetErr := deploymentTargets(ctx, qtx, render, clusters, regions)
 		if targetErr != nil {
 			return targetErr
 		}

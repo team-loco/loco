@@ -1061,8 +1061,10 @@ func (x *CreateResourceRequest) GetSlug() string {
 
 // CreateResourceResponse is the response containing the created resource ID.
 type CreateResourceResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// The committed resource revision, for a following optimistic configuration update.
+	Revision      int64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1102,6 +1104,13 @@ func (x *CreateResourceResponse) GetResourceId() string {
 		return x.ResourceId
 	}
 	return ""
+}
+
+func (x *CreateResourceResponse) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 // GetResourceSlugKey looks up a resource by slug within a workspace.
@@ -3363,10 +3372,11 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\a_domainB\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_environment_idB\a\n" +
-	"\x05_slug\"9\n" +
+	"\x05_slug\"U\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\"^\n" +
+	"resourceId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\"^\n" +
 	"\x12GetResourceSlugKey\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04slug\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04slug\"\x81\x01\n" +

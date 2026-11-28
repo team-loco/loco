@@ -342,8 +342,9 @@ func TestDeploymentUpdatesTargetsAtomicallyAndReplaysWithoutChangingThem(t *test
 		t.Fatal(removeErr)
 	}
 	production := f.activeDeployments(t, f.envID)
-	if len(production) != 1 || production[0].ID.String() != last.GetDeploymentId() ||
-		production[0].Region != otherRegion {
+	onlyRequestedPlacement := len(production) == 1 && production[0].ID.String() == last.GetDeploymentId() &&
+		production[0].Region == otherRegion
+	if !onlyRequestedPlacement {
 		t.Fatalf("removed region still active: %v", production)
 	}
 	active := f.activeDeployments(t, other)

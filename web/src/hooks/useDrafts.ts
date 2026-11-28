@@ -21,10 +21,8 @@ export function useDrafts(orgId: string, workspaceId: string, environmentId: str
 	const scopes = useMyScopes();
 	const { user } = useAuth();
 	const canWrite = !scopes.isLoading && scopes.workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.WRITE);
-	const key =
-		canWrite && environmentId !== undefined && user !== null
-			? draftsKey(user.id, orgId, workspaceId, environmentId)
-			: null;
+	const scopeReady = environmentId !== undefined && user !== null;
+	const key = canWrite && scopeReady ? draftsKey(user.id, orgId, workspaceId, environmentId) : null;
 	const [drafts, update] = useStoredJSON(key, parseDrafts);
 	const change = (fn: (drafts: Draft[]) => Draft[]) =>
 		update((all) => {

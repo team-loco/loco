@@ -16126,6 +16126,12 @@
           "resourceId": {
             "type": "string",
             "title": "resource_id"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "The committed resource revision, for a following optimistic configuration update."
           }
         },
         "title": "CreateResourceResponse",

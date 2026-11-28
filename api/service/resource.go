@@ -163,6 +163,7 @@ func (s *ResourceServer) CreateResource(
 		Description: req.GetDescription(),
 	}
 	var resourceID uuid.UUID
+	var resourceRevision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if limitErr := checkWorkspaceLimit(
 			ctx, qtx, s.counts, limits.ResourcesPerWorkspace, workspaceID, qtx.CountWorkspaceResources,
@@ -188,6 +189,11 @@ func (s *ResourceServer) CreateResource(
 				return domainErr
 			}
 		}
+		created, readErr := qtx.GetResourceByID(ctx, resourceID)
+		if readErr != nil {
+			return fmt.Errorf("read created resource revision: %w", readErr)
+		}
+		resourceRevision = created.Revision
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.ResourceCreated,
 			WorkspaceID: new(workspaceID),
@@ -200,7 +206,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}, nil
+	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String(), Revision: resourceRevision}, nil
 }
 
 func (s *ResourceServer) createAppDomain(

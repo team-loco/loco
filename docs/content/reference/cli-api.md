@@ -112,3 +112,5 @@ Read a worker gateway’s load balancer address with `kubectl --context WORKER g
 `CreateResourceDomain` requires the target `environment_id`. Domains returned on a resource include their environment ID; clients show and edit domains for the selected environment. Updating or deleting a domain by its ID keeps the operation in the environment that owns it.
 
 For a new-service draft, `CreateDeployment.update_resource_targets` replaces the resource's region defaults in the same transaction as its deployment and retry receipt. Pass the loaded `resource_revision` to reject stale edits. Replays keep the original response and do not restore old defaults. Redeploys and rollbacks omit this flag and leave resource defaults and other environments' deployments unchanged.
+
+`CreateResource` returns its committed `revision` with the resource ID. A client can save a following deployment request before making another resource read.

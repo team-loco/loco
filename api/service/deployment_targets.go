@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -97,4 +99,34 @@ func saveResourceTargets(ctx context.Context, qtx *genDb.Queries, resource genDb
 			Data:        map[string]any{events.FieldPaths: []string{"regions"}},
 		},
 	)
+}
+
+// deploymentTargets checks assigned APP domains against the clusters this rollout will use.
+func deploymentTargets(ctx context.Context, qtx *genDb.Queries, render placementRenderer,
+	clusters []genDb.ListEligibleClustersRow, regions []string) ([]placementTarget, error) {
+	targets, err := placementTargets(clusters, regions, string(render.defaults.TargetPlatform))
+	if err != nil {
+		return nil, err
+	}
+	domains, err := qtx.ListResourceDomains(ctx, render.resource.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list deployment domains: %w", err)
+	}
+	available := regionClusters(clusters)
+	selected := make([]appdomain.Cluster, 0, len(targets))
+	for _, cluster := range available {
+		if slices.Contains(regions, cluster.Region) {
+			selected = append(selected, cluster)
+		}
+	}
+	for _, domain := range domains {
+		isAssignedApp := domain.EnvironmentID == render.environmentID && domain.DomainSource == genDb.DomainSourceApp
+		if !isAssignedApp {
+			continue
+		}
+		if _, _, checkErr := appdomain.Check(domain.Domain, available, selected); checkErr != nil {
+			return nil, checkErr
+		}
+	}
+	return targets, nil
 }

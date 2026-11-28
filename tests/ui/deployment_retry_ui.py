@@ -534,6 +534,154 @@ try:
                 )
             assert not errors, errors
             context.close()
+        context, page, errors = open_page(
+            browser,
+            state=state,
+            color_scheme="light",
+            storage={evidence.MODE_KEY: "light"},
+        )
+        name = "retry-resource-read"
+        page.goto(
+            state["ui_url"]
+            + f"/org/{org}/wks/{workspace}/resources?env=production&new=1"
+        )
+        ask = page.get_by_role("dialog", name="New resource", exact=True)
+        ask.get_by_role("textbox", name="Container image", exact=True).fill(
+            f"127.0.0.1:{registry.server_port}/retry:latest"
+        )
+        ask.get_by_role("textbox", name="Name", exact=True).fill(name)
+        ask.get_by_role("button", name="Continue", exact=True).click()
+        drawer = page.get_by_role("dialog", name=name, exact=True)
+        drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
+        expect(
+            drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+        ).to_be_visible()
+        expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(0)
+        created_requests, created_replies, failed_reads, submitted, recovered = (
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
+
+        def record_created(route, _request):
+            created_requests.append(route.request.post_data_json)
+            response = route.fetch()
+            assert response.status == 200, response.text()
+            created_replies.append(response.json())
+            route.fulfill(response=response)
+
+        def resource_read_failed(route, _request):
+            body = route.request.post_data_json
+            if (
+                not created_replies
+                or body.get("resourceId") != created_replies[0]["resourceId"]
+            ):
+                route.fallback()
+                return
+            key = f"loco:drafts:v2:{state['users']['owner']['id']}:{org}:{workspace}:{created_requests[0]['environmentId']}"
+            stored = page.evaluate("key => JSON.parse(localStorage.getItem(key))", key)
+            saved = None
+            if stored:
+                operation = stored[0].get("deployment")
+                if operation:
+                    saved = operation.get("request")
+            failed_reads.append({"request": body, "saved_request": saved})
+            route.abort("connectionfailed")
+
+        def recovered_deployment(route, _request):
+            submitted.append(route.request.post_data_json)
+            response = route.fetch()
+            assert response.status == 200, response.text()
+            recovered.append(response.json())
+            route.fulfill(response=response)
+
+        page.route("**/loco.resource.v1.ResourceService/CreateResource", record_created)
+        page.route(
+            "**/loco.resource.v1.ResourceService/GetResource", resource_read_failed
+        )
+        page.route(
+            "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+            recovered_deployment,
+        )
+        deploy = drawer.get_by_role("button", name="Deploy " + name, exact=True)
+        with expect_rpc(page, "CreateResource", lambda body: body.get("name") == name):
+            deploy.click()
+        expect(drawer.get_by_role("alert")).to_be_visible()
+        expect(deploy).to_be_enabled()
+        assert len(created_replies) == 1, created_replies
+        assert failed_reads, failed_reads
+        saved = failed_reads[0]["saved_request"]
+        assert isinstance(saved, dict), (
+            "created resource ownership was not saved before its first read"
+        )
+        assert saved["resourceId"] == created_replies[0]["resourceId"]
+        assert saved["resourceRevision"] == created_replies[0]["revision"]
+        assert (
+            sql(
+                state,
+                f"SELECT count(*) FROM resources WHERE workspace_id='{workspace}' AND slug='{name}';",
+            )
+            == "1"
+        )
+        assert (
+            sql(
+                state,
+                f"SELECT count(*) FROM deployments WHERE resource_id='{saved['resourceId']}';",
+            )
+            == "0"
+        )
+        page.screenshot(path=out / "resource-read-reply-lost.png")
+        page.unroute(
+            "**/loco.resource.v1.ResourceService/GetResource", resource_read_failed
+        )
+        page.reload()
+        expect(deploy).to_be_enabled()
+        expect(
+            drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+        ).to_be_visible()
+        with expect_rpc(
+            page,
+            "CreateDeployment",
+            lambda body: body.get("resourceId") == saved["resourceId"],
+        ):
+            deploy.click()
+        expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+        assert len(created_replies) == 1, created_replies
+        assert submitted == [saved], submitted
+        assert (
+            sql(
+                state,
+                f"SELECT count(*) FROM resources WHERE workspace_id='{workspace}' AND slug='{name}';",
+            )
+            == "1"
+        )
+        assert (
+            sql(
+                state,
+                f"SELECT count(*) FROM deployments WHERE resource_id='{saved['resourceId']}';",
+            )
+            == "1"
+        )
+        page.screenshot(path=out / "resource-read-recovered.png")
+        (out / "resource-read-recovery.json").write_text(
+            json.dumps(
+                {
+                    "create_requests": created_requests,
+                    "create_replies": created_replies,
+                    "failed_reads": failed_reads,
+                    "deployment_requests": submitted,
+                    "deployment_replies": recovered,
+                    "resource_rows": 1,
+                    "deployment_rows": 1,
+                },
+                indent=2,
+            )
+        )
+        assert not errors, errors
+        context.close()
+
 finally:
     registry.shutdown()
     thread.join()

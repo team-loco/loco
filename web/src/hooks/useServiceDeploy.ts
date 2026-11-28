@@ -11,7 +11,7 @@ import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { CreateDeploymentRequestSchema, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainService, DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
-import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceService, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
 import { DOMAIN_AVAILABILITY_KEY } from "@/hooks/useDomainAvailability";
 import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { deploymentOutcomeUnknown } from "@/lib/deployment-request";
@@ -98,8 +98,11 @@ export function useServiceDeploy(
 								image: form.image.trim(),
 							})
 						).image;
+			const resources = createClient(ResourceService, transport);
+			let resource: Resource | undefined;
+			let resourceRevision: bigint;
 			if (resourceId === undefined) {
-				const created = await createClient(ResourceService, transport).createResource({
+				const created = await resources.createResource({
 					workspaceId,
 					name: form.name,
 					type: ResourceType.SERVICE,
@@ -126,10 +129,12 @@ export function useServiceDeploy(
 					},
 				});
 				resourceId = created.resourceId;
+				resourceRevision = created.revision;
+			} else {
+				resource = (await resources.getResource({ key: { case: "resourceId", value: resourceId } })).resource;
+				if (resource === undefined) throw new Error("The created resource was not returned");
+				resourceRevision = resource.revision;
 			}
-			const resources = createClient(ResourceService, transport);
-			const { resource } = await resources.getResource({ key: { case: "resourceId", value: resourceId } });
-			if (resource === undefined) throw new Error("The created resource was not returned");
 
 			const envMap = Object.fromEntries(envVars(form.vars));
 			const request =
@@ -138,7 +143,7 @@ export function useServiceDeploy(
 					: create(CreateDeploymentRequestSchema, {
 							requestId: crypto.randomUUID(),
 							updateResourceTargets: true,
-							resourceRevision: resource.revision,
+							resourceRevision,
 							resourceId,
 							regions: form.regions,
 							environmentId: env.id,
@@ -174,6 +179,8 @@ export function useServiceDeploy(
 					},
 					resourceId,
 				};
+			resource ??= (await resources.getResource({ key: { case: "resourceId", value: resourceId } })).resource;
+			if (resource === undefined) throw new Error("The created resource was not returned");
 			const metadataChanged = resource.name !== form.name || resource.description !== form.description.trim();
 			if (metadataChanged) {
 				await resources.updateResource({
