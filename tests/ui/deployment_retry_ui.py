@@ -212,7 +212,13 @@ try:
                         f"{name}-new.apps.e2e.test is available", exact=True
                     )
                 ).to_be_visible()
-            with expect_rpc(page, "CreateDeployment"):
+            with expect_rpc(
+                page,
+                "CreateDeployment",
+                lambda body, resource_id=requests[0]["resourceId"]: (
+                    body.get("resourceId") == resource_id
+                ),
+            ):
                 deploy.click()
             expect(page).to_have_url(
                 re.compile(r"/resource/[0-9a-f-]+\?env=" + env_slug + "$")
