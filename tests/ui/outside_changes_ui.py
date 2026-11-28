@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import call, evidence, load_state, open_page, repo, session
+from harness import call, evidence, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -95,15 +95,16 @@ with session(out) as browser:
     expect(dialog.get_by_role("button", name="Cancel", exact=True)).to_be_disabled()
     page.keyboard.press("Escape")
     expect(dialog).to_be_visible()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListWorkspaceResources")
-            and response.request.post_data_json.get("pageSize") == 200
-            and response.status == 200
-        )
+    with expect_rpc(
+        page,
+        "ListWorkspaceResources",
+        lambda body: (
+            body.get("workspaceId") == workspace and body.get("pageSize") == 200
+        ),
     ) as refreshed_resources:
         held_lists.pop().continue_()
     context.unroute(list_rpc)
+    assert refreshed_resources.value.status == 200
     deleted_id = resources["acme/shared/own-delete"]
     assert deleted_id not in {
         item["id"] for item in refreshed_resources.value.json().get("resources", [])
