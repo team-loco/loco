@@ -121,7 +121,8 @@ func bootstrapWatcher(t *testing.T, ctx context.Context, count int) *appwatch.Wa
 	}
 	for i := range count {
 		apps.Items = append(apps.Items, locov1.Application{
-			Name: fmt.Sprintf("app-%d", i), Namespace: testAgentNamespace, Annotations: map[string]string{
+			Status: locov1.ApplicationStatus{ObservedDeploymentID: fmt.Sprintf("00000000-0000-0000-0000-%012d", i)},
+			Name:   fmt.Sprintf("app-%d", i), Namespace: testAgentNamespace, Annotations: map[string]string{
 				locov1.KeyPlacementID: fmt.Sprintf(
 					"00000000-0000-0000-0000-%012d",
 					i,

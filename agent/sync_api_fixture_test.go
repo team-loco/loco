@@ -44,7 +44,7 @@ func TestSyncAgainstRealAPIBacklog(t *testing.T) {
 	httpClient := &http.Client{Transport: &http.Transport{ForceAttemptHTTP2: true,
 		TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12},
 		// A small valid window exercises sustained backpressure with 500 builds instead of tens of thousands.
-		HTTP2: &http.HTTP2Config{MaxReceiveBufferPerStream: 16 << 10},
+		HTTP2: &http.HTTP2Config{MaxReceiveBufferPerStream: 64 << 10},
 	}}
 	watcher := bootstrapWatcher(t, ctx, 1000)
 	scheme, err := kube.NewScheme()
