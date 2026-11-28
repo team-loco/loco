@@ -357,7 +357,9 @@ func openSyncWithAssertion(
 	if err != nil {
 		t.Fatal(err)
 	}
-	inventory := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: &agentv1.Inventory{}}}
+	inventory := &agentv1.SyncRequest{
+		Message: &agentv1.SyncRequest_InventoryChunk{InventoryChunk: &agentv1.Inventory{Complete: true}},
+	}
 	if err := stream.Send(inventory); err != nil {
 		t.Fatalf("send inventory: %v", err)
 	}

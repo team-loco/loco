@@ -107,8 +107,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	}()
 
 	err = a.sendInventory(streamCtx, func(inventory *agentv1.Inventory) error {
-		request := inventoryRequest(inventory)
-		if sendErr := stream.Send(request); sendErr != nil {
+		if sendErr := sendInventoryChunks(inventory, stream.Send); sendErr != nil {
 			openErr := streamError(stream, sendErr)
 			return fmt.Errorf("open sync stream: %w", openErr)
 		}
@@ -199,9 +198,10 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 			return
 		case <-ticker.C:
 			err := a.sendInventory(ctx, func(inventory *agentv1.Inventory) error {
-				request := inventoryRequest(inventory)
-				session.enqueue(request)
-				return nil
+				return sendInventoryChunks(inventory, func(request *agentv1.SyncRequest) error {
+					session.enqueue(request)
+					return ctx.Err()
+				})
 			})
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to build inventory", "error", err)
@@ -254,7 +254,7 @@ func (a *Agent) runBuildOps(
 }
 
 func inventoryRequest(inventory *agentv1.Inventory) *agentv1.SyncRequest {
-	return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}}
+	return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_InventoryChunk{InventoryChunk: inventory}}
 }
 
 func submitPlacement(ctx context.Context, rec *reconciler.Reconciler, msg *agentv1.SyncResponse) {

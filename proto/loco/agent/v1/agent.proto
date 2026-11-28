@@ -53,8 +53,10 @@ message RegisterResponse {
 }
 
 message SyncRequest {
+  reserved 1;
+  reserved "inventory";
   oneof message {
-    Inventory inventory = 1;
+    Inventory inventory_chunk = 6;
     Applied applied = 2;
     PlacementStatus status = 3;
     BuildStatus build_status = 4;
@@ -67,6 +69,8 @@ message Inventory {
   repeated InventoryBuild builds = 2;
   reserved 3;
   reserved "workspace_ids";
+  // Only the final chunk completes the snapshot. A disconnected partial snapshot is discarded.
+  bool complete = 4;
 }
 
 message InventoryEntry {

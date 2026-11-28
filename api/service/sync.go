@@ -186,6 +186,8 @@ type syncSession struct {
 	finishing map[uuid.UUID]struct{}
 	// capabilities holds the newest heartbeat whose capabilities the worker has not stored; only handle sends.
 	capabilities chan *agentv1.Heartbeat
+	// inventory is owned by the report worker and discarded when this stream ends.
+	inventory *agentv1.Inventory
 }
 
 // settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
@@ -489,8 +491,8 @@ func (ss *syncSession) apply(ctx context.Context, msg *agentv1.SyncRequest) (set
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil, nil
-	case *agentv1.SyncRequest_Inventory:
-		return ss.applyInventory(ctx, m.Inventory)
+	case *agentv1.SyncRequest_InventoryChunk:
+		return ss.applyInventoryChunk(ctx, m.InventoryChunk)
 	case *agentv1.SyncRequest_Applied:
 		ss.server.recordApplied(ctx, ss.clusterID, m.Applied)
 		return ss.retryAfterFailedApply(m.Applied), nil
@@ -545,6 +547,21 @@ func diffInventory(rev placementRevision) inventoryAction {
 		return inventoryMarkApplied
 	}
 	return inventoryInSync
+}
+
+// applyInventoryChunk waits for a complete snapshot before treating an absent placement or build as missing.
+func (ss *syncSession) applyInventoryChunk(ctx context.Context, chunk *agentv1.Inventory) (settleFunc, error) {
+	if ss.inventory == nil {
+		ss.inventory = &agentv1.Inventory{}
+	}
+	ss.inventory.Entries = append(ss.inventory.Entries, chunk.GetEntries()...)
+	ss.inventory.Builds = append(ss.inventory.Builds, chunk.GetBuilds()...)
+	if !chunk.GetComplete() {
+		return nil, nil
+	}
+	inventory := ss.inventory
+	ss.inventory = nil
+	return ss.applyInventory(ctx, inventory)
 }
 
 // applyInventory records what the cluster holds; its settleFunc resends what it lacks and reconciles its builds.
