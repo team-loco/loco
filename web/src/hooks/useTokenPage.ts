@@ -12,6 +12,7 @@ const COUNT_REFRESH_MS = 60_000;
  * from its own one-row request per set of filters, which stays cached while the list is shown, so
  * paging never counts again; a list that polls refreshes its total once a minute, not on every poll.
  * countInput, input by default, is the request the total and any counts beside it answer.
+ * Pass null when another response already supplies the total.
  * onInvalidTokens, when given, runs while the API rejects tokens, such as an old link's, to go back
  * to the first page; until then the rejection is no error.
  */
@@ -20,7 +21,7 @@ export function useTokenPage<I extends DescMessage, O extends DescMessage>(
 	input: MessageInitShape<I>,
 	tokens: readonly string[],
 	options?: UseQueryOptions<O>,
-	countInput: MessageInitShape<I> = input,
+	countInput: MessageInitShape<I> | null = input,
 	onInvalidTokens?: () => void,
 ) {
 	const query = useQuery(schema, { ...input, pageToken: tokens.at(-1) ?? "" }, options);
@@ -35,9 +36,9 @@ export function useTokenPage<I extends DescMessage, O extends DescMessage>(
 	}, [invalid, onInvalidTokens]);
 	const counted = useQuery(
 		schema,
-		{ ...countInput, pageSize: 1, pageToken: "", includeTotalCount: true },
+		{ ...(countInput ?? input), pageSize: 1, pageToken: "", includeTotalCount: true },
 		{
-			enabled: options?.enabled ?? true,
+			enabled: countInput !== null && (options?.enabled ?? true),
 			...(options?.placeholderData === undefined ? {} : { placeholderData: options.placeholderData }),
 			staleTime: Infinity,
 			refetchInterval: options?.refetchInterval ? COUNT_REFRESH_MS : false,

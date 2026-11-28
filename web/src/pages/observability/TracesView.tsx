@@ -115,7 +115,7 @@ function TraceSession({
 		start: bounds.from,
 		end: bounds.to,
 	};
-	const counted = {
+	const request = {
 		scope: { workspaceId, installation, environmentId, resourceIds: filters.resourceIds },
 		startTime: msToTimestamp(bounds.from),
 		endTime: msToTimestamp(bounds.to),
@@ -123,10 +123,10 @@ function TraceSession({
 	};
 	const listed = useTokenPage(
 		listTraces,
-		{ ...counted, pageSize: params.size, orderBy, descending: !ascending },
+		{ ...request, pageSize: params.size, orderBy, descending: !ascending },
 		params.page,
 		{ enabled: scopeReady && runnable, staleTime: Infinity },
-		counted,
+		null,
 		resetPage,
 	);
 	const browse = listed.query;
@@ -161,7 +161,8 @@ function TraceSession({
 	});
 
 	const traces = scopeReady ? (browse.data?.summaries ?? []) : [];
-	const total = scopeReady && listed.counts !== undefined ? Number(listed.counts.totalCount) : undefined;
+	const traceCount = overview.data?.total?.traceCount;
+	const total = scopeReady && traceCount !== undefined ? Number(traceCount) : undefined;
 	const countLabel = (count: bigint | undefined) => (count === undefined ? undefined : formatCount(Number(count)));
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const pager = tokenPager(params.page, listed.nextPageToken, (page) => {
