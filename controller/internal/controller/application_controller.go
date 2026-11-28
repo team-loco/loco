@@ -90,7 +90,8 @@ var (
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
 	podEventsMu sync.Mutex
-	podEvents   map[types.UID]podEvent
+	// Group by owner so rollout observation never scans unrelated applications.
+	podEvents   map[types.NamespacedName][]podEvent
 	deletedMu   sync.Mutex
 	deletedPods map[types.NamespacedName]map[types.UID]deletedReplica
 	client.Client
@@ -140,11 +141,21 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
+	// Expire this owner's retained pods even if a read, validation or resource step exits early.
+	r.deletedMu.Lock()
+	r.pruneDeletedPods(req.NamespacedName, time.Now())
+	r.deletedMu.Unlock()
 
 	// The cache can lag a stop the previous reconcile recorded, and the objects applied follow it.
 	app := &locov1alpha1.Application{}
 	if err := r.APIReader.Get(ctx, req.NamespacedName, app); err != nil {
 		if apierrors.IsNotFound(err) {
+			r.podEventsMu.Lock()
+			delete(r.podEvents, req.NamespacedName)
+			r.podEventsMu.Unlock()
+			r.deletedMu.Lock()
+			delete(r.deletedPods, req.NamespacedName)
+			r.deletedMu.Unlock()
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("fetch application: %w", err)
@@ -163,6 +174,10 @@ func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request)
 	// validate early to prevent nil panics. Same validator the API runs before dispatching
 	// a deploy, so this only fires for Applications written directly against the cluster.
 	if err := app.Spec.Validate(); err != nil {
+		// Terminal validation errors have no automatic retry to expire these diagnostic copies.
+		r.deletedMu.Lock()
+		delete(r.deletedPods, req.NamespacedName)
+		r.deletedMu.Unlock()
 		original := app.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
 		observePlacementRevision(app)
@@ -1049,7 +1064,17 @@ func (r *ApplicationReconciler) podHandler(base handler.EventHandler) handler.Ev
 			q workqueue.TypedRateLimitingInterface[reconcile.Request],
 		) {
 			r.podEventsMu.Lock()
-			delete(r.podEvents, e.Object.GetUID())
+			for _, request := range applicationForObject(ctx, e.Object) {
+				events := r.podEvents[request.NamespacedName]
+				events = slices.DeleteFunc(events, func(recorded podEvent) bool {
+					return recorded.uid == e.Object.GetUID()
+				})
+				if len(events) == 0 {
+					delete(r.podEvents, request.NamespacedName)
+				} else {
+					r.podEvents[request.NamespacedName] = events
+				}
+			}
 			r.podEventsMu.Unlock()
 			if !e.DeleteStateUnknown {
 				if pod, ok := e.Object.(*corev1.Pod); ok {

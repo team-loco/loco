@@ -27,7 +27,7 @@ cleanup() {
     return "$status"
 }
 trap cleanup EXIT
-ports=$(testres_ports 4)
+ports=$(testres_ports 4) || exit $?
 read -r proxy_port otlp_grpc_port otlp_http_port control_plane_port <<<"$ports"
 
 wait_for() {

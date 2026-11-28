@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,7 +37,7 @@ const (
 
 // podEvent holds the newest image pull, liveness kill and readiness probe failure the kubelet reported for a pod.
 type podEvent struct {
-	application       types.NamespacedName
+	uid               types.UID
 	namespace         string
 	pull              string
 	pulledAt          metav1.Time
@@ -92,7 +93,13 @@ func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj 
 		return nil
 	}
 	at := eventTime(e)
-	recorded := r.podEvents[pod.UID]
+	application := requests[0].NamespacedName
+	events := r.podEvents[application]
+	index := slices.IndexFunc(events, func(recorded podEvent) bool { return recorded.uid == pod.UID })
+	recorded := podEvent{uid: pod.UID, namespace: e.Namespace}
+	if index >= 0 {
+		recorded = events[index]
+	}
 	switch {
 	case kill && at.After(recorded.livenessKill.Time):
 		recorded.livenessKill = at
@@ -104,10 +111,13 @@ func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj 
 		return nil
 	}
 	if r.podEvents == nil {
-		r.podEvents = make(map[types.UID]podEvent)
+		r.podEvents = make(map[types.NamespacedName][]podEvent)
 	}
-	recorded.application, recorded.namespace = requests[0].NamespacedName, e.Namespace
-	r.podEvents[pod.UID] = recorded
+	if index < 0 {
+		r.podEvents[application] = append(events, recorded)
+	} else {
+		events[index] = recorded
+	}
 	return requests
 }
 
@@ -147,18 +157,24 @@ func (r *ApplicationReconciler) listRolloutPods(
 		client.MatchingLabels{labelApp: loco.WorkloadName(app.Spec.ResourceID)}); err != nil {
 		return nil, nil, fmt.Errorf("list rollout replicas: %w", err)
 	}
+	application := client.ObjectKeyFromObject(app)
+	recorded := r.podEvents[application]
 	events := make(map[types.UID]podEvent, len(listed.Items))
+	listedUIDs := make(map[types.UID]bool, len(listed.Items))
 	for _, pod := range listed.Items {
-		if e, ok := r.podEvents[pod.UID]; ok {
-			events[pod.UID] = e
-		}
+		listedUIDs[pod.UID] = true
 	}
-	for uid, e := range r.podEvents {
-		if e.application == client.ObjectKeyFromObject(app) {
-			if _, ok := events[uid]; !ok {
-				delete(r.podEvents, uid)
-			}
+	recorded = slices.DeleteFunc(recorded, func(e podEvent) bool {
+		if !listedUIDs[e.uid] {
+			return true
 		}
+		events[e.uid] = e
+		return false
+	})
+	if len(recorded) == 0 {
+		delete(r.podEvents, application)
+	} else {
+		r.podEvents[application] = recorded
 	}
 	return listed.Items, events, nil
 }

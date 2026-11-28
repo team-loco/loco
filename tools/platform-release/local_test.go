@@ -205,7 +205,7 @@ func TestVersionChecksRejectStaleCRDs(t *testing.T) {
 		t,
 		os.WriteFile(
 			filepath.Join(tool.root, crdVersions),
-			encoded(object{"applications": "0.1.1", buildsName: fixtureVersion, gatewayName: fixtureVersion}),
+			encoded(object{applicationsName: "0.1.1", buildsName: fixtureVersion, gatewayName: fixtureVersion}),
 			0o644,
 		),
 	)

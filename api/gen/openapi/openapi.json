@@ -9301,6 +9301,11 @@
               "$ref": "#/components/schemas/loco.agent.v1.InventoryBuild"
             },
             "title": "builds"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "complete",
+            "description": "Only the final chunk completes the snapshot. A disconnected partial snapshot is discarded."
           }
         },
         "title": "Inventory",
@@ -9652,7 +9657,7 @@
               "anyOf": [
                 {
                   "required": [
-                    "inventory"
+                    "inventoryChunk"
                   ]
                 },
                 {
@@ -9682,7 +9687,7 @@
                 "oneOf": [
                   {
                     "required": [
-                      "inventory"
+                      "inventoryChunk"
                     ]
                   },
                   {
@@ -9711,8 +9716,8 @@
           ]
         },
         "properties": {
-          "inventory": {
-            "title": "inventory",
+          "inventoryChunk": {
+            "title": "inventory_chunk",
             "$ref": "#/components/schemas/loco.agent.v1.Inventory"
           },
           "applied": {
@@ -9734,7 +9739,7 @@
         },
         "title": "SyncRequest",
         "additionalProperties": false,
-        "description": "At most one of `inventory`, `applied`, `status`, `buildStatus`, `heartbeat` may be set."
+        "description": "At most one of `inventoryChunk`, `applied`, `status`, `buildStatus`, `heartbeat` may be set."
       },
       "loco.agent.v1.SyncResponse": {
         "type": "object",

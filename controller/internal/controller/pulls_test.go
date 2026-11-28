@@ -43,14 +43,14 @@ func TestPullEvents(t *testing.T) {
 	e.EventTime = metav1.NewMicroTime(now.Add(-time.Second))
 	e.Reason = pullReasonFailed
 	r.applicationForPodEvent(t.Context(), e)
-	if got := r.podEvents[pod.UID]; got.pull != pullReasonPulling {
+	if got := r.podEvents[client.ObjectKeyFromObject(app)][0]; got.pull != pullReasonPulling {
 		t.Fatalf("older replaced newest: %+v", got)
 	}
 	e.Reason = pullReasonPulled
 	e.Note = "Successfully pulled image in 2s. Image size: 42 bytes."
 	e.Series = &eventsv1.EventSeries{LastObservedTime: metav1.NewMicroTime(now.Add(time.Second)), Count: 2}
 	r.applicationForPodEvent(t.Context(), e)
-	if got := r.podEvents[pod.UID]; got.pull != pullReasonPulled ||
+	if got := r.podEvents[client.ObjectKeyFromObject(app)][0]; got.pull != pullReasonPulled ||
 		!got.pulledAt.Time.Equal(e.Series.LastObservedTime.Time) {
 		t.Fatalf("series update = %+v", got)
 	}
@@ -75,10 +75,10 @@ func TestPullEvents(t *testing.T) {
 	if _, err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := r.podEvents[pod.UID]; ok {
+	if len(r.podEvents[client.ObjectKeyFromObject(app)]) != 0 {
 		t.Fatal("unlisted pod retained")
 	}
-	if _, ok := r.podEvents[other.UID]; !ok {
+	if len(r.podEvents[client.ObjectKeyFromObject(workspaceApp("second-pod", "second-pod"))]) != 1 {
 		t.Fatal("other application's event removed")
 	}
 	q := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())

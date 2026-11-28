@@ -14,6 +14,7 @@ const (
 	imageAgent         = "agent"
 	imageAPI           = "api"
 	artifactsName      = "artifacts"
+	applicationsName   = "applications"
 	certManagerName    = "cert-manager"
 	controlPlaneName   = "control-plane"
 	crdsName           = "crds"
@@ -171,7 +172,7 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		},
 	})
 	crds := []object{}
-	for _, name := range []string{"applications", buildsName, gatewayName} {
+	for _, name := range []string{applicationsName, buildsName, gatewayName} {
 		sourceName := "loco-" + name + "-crd"
 		ref, err := source(sourceName, manifest.Artifacts[sourceName], layerType)
 		if err != nil {
@@ -181,7 +182,8 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 			kindKustomization,
 			sourceName,
 			object{
-				fieldInterval:        "5m",
+				fieldInterval:        "1h",
+				"retryInterval":      "5m",
 				"sourceRef":          object{fieldKind: kindOCIRepository, fieldName: sourceName},
 				"path":               "./",
 				"prune":              false,

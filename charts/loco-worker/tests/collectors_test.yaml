@@ -364,19 +364,19 @@ tests:
           path: data.relay
           pattern: 'block_on_overflow: true'
 
-  - it: emits file logs synchronously only on the node collector
+  - it: shares Kubernetes metadata processors and emits node file logs synchronously
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --feature-gates=stanza.synchronousLogEmitter
+          content: --feature-gates=stanza.synchronousLogEmitter,processor.k8sattributes.ShareProcessorBetweenPipelines
         template: charts/otel-col-daemon/templates/daemonset.yaml
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].args
-          content: --feature-gates=stanza.synchronousLogEmitter
+          content: --feature-gates=processor.k8sattributes.ShareProcessorBetweenPipelines
         template: charts/otel-col-deploy/templates/statefulset.yaml
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].args
-          content: --feature-gates=stanza.synchronousLogEmitter
+          content: --feature-gates=processor.k8sattributes.ShareProcessorBetweenPipelines
         template: charts/otel-col-cluster/templates/statefulset.yaml
 
   - it: enriches route groups from namespace labels before export
