@@ -86,8 +86,9 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 					<DropdownMenuGroup>
 						<DropdownMenuLabel>Organizations</DropdownMenuLabel>
 						{orgs.map((o) => (
-							<div
+							<DropdownMenuGroup
 								key={o.id}
+								aria-label={o.name}
 								className="group/org relative flex items-center rounded-lg hover:bg-panel focus-within:bg-panel dark:hover:bg-panel2 dark:focus-within:bg-panel2"
 							>
 								<DropdownMenuItem
@@ -109,7 +110,7 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 								>
 									<SettingsIcon className="size-3.5" />
 								</DropdownMenuItem>
-							</div>
+							</DropdownMenuGroup>
 						))}
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
