@@ -1,4 +1,5 @@
 export const pageImporters = {
+	Deployments: async () => await import("@/pages/Deployments"),
 	Dashboard: async () => await import("@/pages/Dashboard"),
 	Resources: async () => await import("@/pages/Resources"),
 	Resource: async () => await import("@/pages/Resource"),
