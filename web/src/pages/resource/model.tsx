@@ -4,7 +4,7 @@ import { formatShortId } from "@/lib/utils";
 import { createQueryOptions, skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentStatus, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentListView, DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import {
@@ -16,7 +16,7 @@ import {
 
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { needsAttention } from "@/lib/alerts";
-import { getServiceSpec, isInFlight, placementIn } from "@/lib/deployment-utils";
+import { deploymentImage, isInFlight, placementIn } from "@/lib/deployment-utils";
 import { imageTag } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
 import { maybeTsMs, tsMs } from "@/lib/time";
@@ -71,12 +71,8 @@ export function changedSecrets(
 		.toSorted();
 }
 
-function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {
-	return dep === undefined ? undefined : getServiceSpec(dep);
-}
-
 export function depImage(dep: Deployment | undefined): string {
-	return depService(dep)?.build?.image ?? "";
+	return dep === undefined ? "" : deploymentImage(dep);
 }
 
 export function depTag(dep: Deployment | undefined): string {
@@ -208,7 +204,7 @@ export function tookMs(dep: Deployment): number | undefined {
 /** The newest page of the environment's deployments, the history table's first page at its default size. */
 export function deploymentsRequest(resourceId: string, environmentId: string | undefined) {
 	if (resourceId === "" || environmentId === undefined) return skipToken;
-	return { resourceId, environmentId, pageSize: DEFAULT_PAGE_SIZE };
+	return { resourceId, environmentId, pageSize: DEFAULT_PAGE_SIZE, view: DeploymentListView.FULL };
 }
 
 export function statusEnvironmentId(resource: Resource, requested: string | null): string | undefined {

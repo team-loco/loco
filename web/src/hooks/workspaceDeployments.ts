@@ -4,14 +4,18 @@ import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentService, ListDeploymentsResponseSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentListView,
+	DeploymentService,
+	ListDeploymentsResponseSchema,
+} from "@gen/loco/deployment/v1/deployment_pb";
 
 import { workspaceResourcesKey } from "@/hooks/workspaceResources";
 import { collectPages } from "@/lib/collectPages";
 
 const PAGE_SIZE = 200;
 
-/** The environment's deployments, all pages; created bounds their creation time to [sinceMs, untilMs). */
+/** The environment's full deployment specs for sizing history; created bounds creation time to [sinceMs, untilMs). */
 export function workspaceDeploymentsOptions(
 	transport: Transport,
 	workspaceId: string,
@@ -22,6 +26,7 @@ export function workspaceDeploymentsOptions(
 		workspaceId,
 		environmentId,
 		pageSize: PAGE_SIZE,
+		view: DeploymentListView.FULL,
 		...(created === undefined ? {} : { startTime: timestampFromMs(created.sinceMs) }),
 		...(created?.untilMs === undefined ? {} : { endTime: timestampFromMs(created.untilMs) }),
 	};

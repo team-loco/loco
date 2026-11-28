@@ -4,10 +4,13 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"buf.build/go/protovalidate"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/google/uuid"
@@ -315,4 +318,79 @@ func TestListDeploymentsScopeAndWindowValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func TestListDeploymentSummaryKeepsIdentityAndFetchesFullConfiguration(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	service := &deploymentv1.ServiceDeploymentSpec{
+		Build:    &deploymentv1.BuildSource{Type: "image", Image: "example.test/app:release"},
+		Platform: "linux/amd64",
+		Env:      map[string]string{"PUBLIC_TEST_CONFIGURATION": strings.Repeat("synthetic-configuration-", 512)},
+		Command:  []string{"node", "server.js"},
+	}
+	params := f.paramsFor(f.clusterID)
+	var err error
+	params.Spec, err = protojson.Marshal(service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var deploymentID uuid.UUID
+	err = withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
+		var createErr error
+		deploymentID, createErr = recordTestDeployment(
+			t.Context(), qtx, limits.Install(limits.Defaults()), params, staticSpec,
+		)
+		return createErr
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clients, _ := deploymentActorClients(t, f, genDb.DeploymentMethodCli)
+	request := &deploymentv1.ListDeploymentsRequest{ResourceId: f.resourceID.String()}
+	listed, err := clients.Deployment.ListDeployments(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := listed.GetDeployments()[0]
+	if summary.GetId() != deploymentID.String() || !proto.Equal(summary.GetBuild(), service.GetBuild()) {
+		t.Fatalf("summary identity: id=%s build=%v", summary.GetId(), summary.GetBuild())
+	}
+	if summary.GetSpec() != nil {
+		t.Fatal("summary includes a runtime spec instead of its compact build identity")
+	}
+	request.View = deploymentv1.DeploymentListView_DEPLOYMENT_LIST_VIEW_FULL
+	listed, err = clients.Deployment.ListDeployments(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := listed.GetDeployments()[0]
+	fetched, err := clients.Deployment.GetDeployment(
+		t.Context(),
+		&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID.String()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, deployment := range []*deploymentv1.Deployment{full, fetched.GetDeployment()} {
+		spec := deployment.GetSpec().GetService()
+		if !maps.Equal(spec.GetEnv(), service.GetEnv()) || !slices.Equal(spec.GetCommand(), service.GetCommand()) {
+			t.Fatal("full deployment did not preserve its recorded runtime configuration")
+		}
+		if !proto.Equal(spec.GetBuild(), summary.GetBuild()) {
+			t.Fatal("summary and full deployment describe different builds")
+		}
+		if deployment.GetId() != summary.GetId() || deployment.GetStatus() != summary.GetStatus() {
+			t.Fatal("summary and full deployment describe different deployments")
+		}
+	}
+	summaryJSON, err := protojson.Marshal(summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fullJSON, err := protojson.Marshal(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("synthetic configuration, same deployment: summary=%d bytes, full=%d bytes", len(summaryJSON), len(fullJSON))
 }

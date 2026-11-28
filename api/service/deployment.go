@@ -642,6 +642,10 @@ func (s *DeploymentServer) ListDeployments(
 		for _, placement := range deployment.GetPlacements() {
 			placement.Replicas = nil
 		}
+		if req.GetView() != deploymentv1.DeploymentListView_DEPLOYMENT_LIST_VIEW_FULL {
+			deployment.Build = deployment.GetSpec().GetService().GetBuild()
+			deployment.Spec = nil
+		}
 		deployments = append(deployments, deployment)
 	}
 	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {

@@ -4,6 +4,7 @@ import {
 	DeploymentStatus,
 	DeploymentTrigger,
 	PlacementStatus,
+	type BuildSource,
 	type Deployment,
 	type DeploymentPlacement,
 	type DeploymentSpec,
@@ -89,8 +90,13 @@ export function placementPhase(status: PlacementStatus): DeploymentStatus {
 	}
 }
 
+/** The build identity shared by full deployments and list summaries. */
+export function deploymentBuild(d: Deployment): BuildSource | undefined {
+	return d.build ?? getServiceSpec(d)?.build;
+}
+
 export function deploymentImage(d: Deployment): string {
-	return getServiceSpec(d)?.build?.image ?? "";
+	return deploymentBuild(d)?.image ?? "";
 }
 
 export function isInFlight(phase: DeploymentStatus): boolean {
