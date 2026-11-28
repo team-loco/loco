@@ -136,9 +136,11 @@ export function useServiceDeploy(
 					name: form.name,
 					description: form.description.trim(),
 					revision: resource.revision,
-					regions: {
-						targets: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
-					},
+					...(JSON.stringify(priorRequest?.regions) === JSON.stringify(form.regions)
+						? {}
+						: {
+								regions: { targets: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])) },
+							}),
 				});
 				const wantedDomain = form.isPublic ? `${form.subdomain}.${form.appDomain}` : undefined;
 				const domains = createClient(DomainService, transport);
