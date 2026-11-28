@@ -63,7 +63,9 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			const formKey = JSON.stringify(form);
 			const previous = pendingResource;
 			const image =
-				previous?.image ?? (await deployments.resolveImage({ workspaceId, image: form.image.trim() })).image;
+				previous?.form === formKey
+					? previous.image
+					: (await deployments.resolveImage({ workspaceId, image: form.image.trim() })).image;
 			const { resourceId } =
 				previous ??
 				(await createClient(ResourceService, transport).createResource({
