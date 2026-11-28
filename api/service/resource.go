@@ -885,13 +885,14 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 		}
 
 		domain := &domainv1.ResourceDomain{
-			Id:           d.ID.String(),
-			ResourceId:   d.ResourceID.String(),
-			Domain:       d.Domain,
-			DomainSource: domainSource,
-			IsPrimary:    d.IsPrimary,
-			CreatedAt:    timestamppb.New(d.CreatedAt),
-			UpdatedAt:    timestamppb.New(d.UpdatedAt),
+			Id:            d.ID.String(),
+			EnvironmentId: d.EnvironmentID.String(),
+			ResourceId:    d.ResourceID.String(),
+			Domain:        d.Domain,
+			DomainSource:  domainSource,
+			IsPrimary:     d.IsPrimary,
+			CreatedAt:     timestamppb.New(d.CreatedAt),
+			UpdatedAt:     timestamppb.New(d.UpdatedAt),
 		}
 
 		domain.SubdomainLabel = d.SubdomainLabel

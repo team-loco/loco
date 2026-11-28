@@ -103,7 +103,10 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 		let current: GetResourceEnvResponse | undefined;
 		if (variablesChanged(draft)) {
 			try {
-				current = await callUnaryMethod(transport, getResourceEnv, { resourceId, environmentId });
+				current = await callUnaryMethod(transport, getResourceEnv, {
+					resourceId,
+					environmentId,
+				});
 			} catch (err) {
 				await onDone(raw, {
 					tone: "bad",
@@ -117,7 +120,11 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 		const deploys = planSave(regions, draft, base, plainEnv(current?.env ?? {}, draft));
 		const [problem] = Object.values(validate(current?.env ?? {}, deploys.length > 0));
 		if (problem !== undefined) {
-			await onDone(raw, { tone: "bad", title: withCode`Couldn't save ${resource.name}`, message: problem });
+			await onDone(raw, {
+				tone: "bad",
+				title: withCode`Couldn't save ${resource.name}`,
+				message: problem,
+			});
 			return;
 		}
 
@@ -147,6 +154,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 				async () =>
 					await addDomain.mutateAsync({
 						resourceId,
+						environmentId,
 						domain: {
 							domainSource: DomainType.APP,
 							subdomain: draft.subdomain ?? "",
@@ -156,7 +164,9 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			);
 		}
 		if (domainChange === "remove") {
-			const ordered = resource.domains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary));
+			const ordered = resource.domains
+				.filter((d) => d.environmentId === environmentId)
+				.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary));
 			domainsSaved = await attempt("Domains", DOMAIN_KEYS, async () => {
 				for (const d of ordered) await removeDomain.mutateAsync({ domainId: d.id });
 			});
@@ -166,7 +176,11 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 		const targets = regionTargets(spec?.case === "service" ? spec.value.regions : {}, draft, base);
 		if (targets !== undefined) {
 			try {
-				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
+				await update.mutateAsync({
+					resourceId,
+					regions: { targets },
+					revision: resource.revision,
+				});
 				next = omit(next, REGION_MAP_KEYS);
 			} catch (err) {
 				if (await revisionMoved(err, resource)) {
@@ -184,7 +198,11 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			await attempt(
 				"Deployment behavior",
 				FAILURE_POLICY_KEYS,
-				async () => await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(draft, base)) }),
+				async () =>
+					await update.mutateAsync({
+						resourceId,
+						failurePolicy: failurePolicyFrom(resolved(draft, base)),
+					}),
 			);
 		}
 
@@ -249,7 +267,11 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 					)}
 				</>
 			);
-		await onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+		await onDone(next, {
+			tone: "info",
+			title: withCode`Saved ${renamed ? name : resource.name}`,
+			message,
+		});
 	};
 
 	// Saving lasts until the page has reloaded what runs, so the next edit starts from it.

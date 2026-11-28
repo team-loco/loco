@@ -12794,6 +12794,11 @@
           "domain": {
             "title": "domain",
             "$ref": "#/components/schemas/loco.domain.v1.DomainInput"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
           }
         },
         "title": "CreateResourceDomainRequest",
@@ -12949,6 +12954,10 @@
           "updatedAt": {
             "title": "updated_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
           }
         },
         "title": "ResourceDomain",

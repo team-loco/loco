@@ -108,3 +108,5 @@ locoadm cluster create --name worker-staging --country us --subdivision ca --kub
 `status` requires a system read or system admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
 
 Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.
+
+`CreateResourceDomain` requires the target `environment_id`. Domains returned on a resource include their environment ID; clients show and edit domains for the selected environment. Updating or deleting a domain by its ID keeps the operation in the environment that owns it.

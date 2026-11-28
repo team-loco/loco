@@ -10,7 +10,10 @@ import { deploymentOutcomeUnknown } from "@/lib/deployment-request";
 /** An ambiguous reply keeps the operation's ID for a retry of the same input. */
 export function useCreateDeployment() {
 	const mutation = useMutation(createDeployment);
-	const pendingRef = useRef(new Map<string, string>());
+	const pendingRef = useRef<{ key: string; id: string } | null>(null);
+	const finish = (id: string) => {
+		if (pendingRef.current?.id === id) pendingRef.current = null;
+	};
 	return {
 		...mutation,
 		mutateAsync: async (input: MessageInitShape<typeof CreateDeploymentRequestSchema>) => {
@@ -18,14 +21,14 @@ export function useCreateDeployment() {
 			const request = create(CreateDeploymentRequestSchema, input);
 			request.requestId = "";
 			const key = hashKey([toJson(CreateDeploymentRequestSchema, request)]);
-			request.requestId = pendingRef.current.get(key) ?? crypto.randomUUID();
-			pendingRef.current.set(key, request.requestId);
+			if (pendingRef.current?.key !== key) pendingRef.current = { key, id: crypto.randomUUID() };
+			request.requestId = pendingRef.current.id;
 			try {
 				const response = await mutation.mutateAsync(request);
-				pendingRef.current.delete(key);
+				finish(request.requestId);
 				return response;
 			} catch (error) {
-				if (!deploymentOutcomeUnknown(error)) pendingRef.current.delete(key);
+				if (!deploymentOutcomeUnknown(error)) finish(request.requestId);
 				throw error;
 			}
 		},

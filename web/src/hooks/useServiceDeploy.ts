@@ -41,18 +41,24 @@ export function useServiceDeploy(
 	const deployment = useCreateDeployment();
 	const queryClient = useQueryClient();
 	const [isPending, setIsPending] = useState(false);
-	const [retainedResourceId, setRetainedResourceId] = useState<string>();
 	const pendingResource = draft?.deployment;
 	const owned = useQuery(
 		getResource,
-		{ key: { case: "resourceId", value: pendingResource?.request.resourceId ?? "" } },
+		{
+			key: {
+				case: "resourceId",
+				value: pendingResource?.request.resourceId ?? "",
+			},
+		},
 		{ enabled: pendingResource !== undefined },
 	);
 	const [deployError, setDeployError] = useState<DeployError | null>(null);
 
 	const removed = async (resourceId: string) => {
 		try {
-			await createClient(ResourceService, transport).deleteResource({ resourceId });
+			await createClient(ResourceService, transport).deleteResource({
+				resourceId,
+			});
 			return true;
 		} catch {
 			return false;
@@ -62,9 +68,16 @@ export function useServiceDeploy(
 	const attempt = async (
 		form: NewResourceForm,
 		defaults: DefaultServiceConfig,
-	): Promise<{ error: DeployError | null; resourceId: string | undefined; uncertain?: boolean }> => {
+	): Promise<{
+		error: DeployError | null;
+		resourceId: string | undefined;
+	}> => {
 		const port = form.port.trim() === "" ? undefined : Number(form.port);
-		const replicas = { cpu: form.cpu.trim(), memory: form.memory.trim(), ...scalingSpec(form) };
+		const replicas = {
+			cpu: form.cpu.trim(),
+			memory: form.memory.trim(),
+			...scalingSpec(form),
+		};
 		const healthCheck = healthCheckSpec(form.health, defaults.healthCheck?.initialDelaySeconds ?? 0);
 		const health = healthCheck === undefined ? {} : { healthCheck };
 		try {
@@ -78,7 +91,12 @@ export function useServiceDeploy(
 			const image =
 				previous?.form === formKey && savedImage !== undefined
 					? savedImage
-					: (await deployments.resolveImage({ workspaceId, image: form.image.trim() })).image;
+					: (
+							await deployments.resolveImage({
+								workspaceId,
+								image: form.image.trim(),
+							})
+						).image;
 			const { resourceId } =
 				(priorRequest === undefined ? undefined : { resourceId: priorRequest.resourceId }) ??
 				(await createClient(ResourceService, transport).createResource({
@@ -109,25 +127,45 @@ export function useServiceDeploy(
 				}));
 			if (previous !== undefined && previous.form !== formKey) {
 				const resources = createClient(ResourceService, transport);
-				const { resource } = await resources.getResource({ key: { case: "resourceId", value: resourceId } });
+				const { resource } = await resources.getResource({
+					key: { case: "resourceId", value: resourceId },
+				});
 				if (resource === undefined) throw new Error("The created resource was not returned");
 				await resources.updateResource({
 					resourceId,
 					name: form.name,
 					description: form.description.trim(),
 					revision: resource.revision,
-					regions: { targets: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])) },
+					regions: {
+						targets: Object.fromEntries(form.regions.map((r) => [r, { enabled: true, ...replicas }])),
+					},
 				});
 				const wantedDomain = form.isPublic ? `${form.subdomain}.${form.appDomain}` : undefined;
 				const domains = createClient(DomainService, transport);
-				if (form.isPublic && !resource.domains.some((d) => d.domain === wantedDomain)) {
-					await domains.createResourceDomain({
-						resourceId,
-						domain: { domainSource: DomainType.APP, subdomain: form.subdomain, appDomain: form.appDomain },
-					});
-				}
-				for (const domain of resource.domains) {
-					if (domain.domain !== wantedDomain) await domains.deleteResourceDomain({ domainId: domain.id });
+				const currentDomains = resource.domains.filter((d) => d.environmentId === env.id);
+				if (form.isPublic) {
+					const primary = currentDomains.find((domain) => domain.isPrimary);
+					if (primary !== undefined && primary.domain !== wantedDomain) {
+						await domains.updateResourceDomain({
+							domainId: primary.id,
+							domain: wantedDomain,
+							updateMask: { paths: ["domain"] },
+						});
+					} else if (primary === undefined) {
+						await domains.createResourceDomain({
+							resourceId,
+							environmentId: env.id,
+							domain: {
+								domainSource: DomainType.APP,
+								subdomain: form.subdomain,
+								appDomain: form.appDomain,
+							},
+						});
+					}
+				} else {
+					for (const domain of currentDomains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary))) {
+						await domains.deleteResourceDomain({ domainId: domain.id });
+					}
 				}
 			}
 			const envMap = Object.fromEntries(envVars(form.vars));
@@ -165,7 +203,10 @@ export function useServiceDeploy(
 			};
 			if (!save(snapshot, form))
 				return {
-					error: { message: "Couldn't save the deployment attempt. It was not sent.", field: null },
+					error: {
+						message: "Couldn't save the deployment attempt. It was not sent.",
+						field: null,
+					},
 					resourceId,
 				};
 			try {
@@ -173,11 +214,14 @@ export function useServiceDeploy(
 			} catch (cause) {
 				const message = getErrorMessage(cause, "Couldn't start the deployment");
 				const field = apiFieldError(cause);
-				if (deploymentOutcomeUnknown(cause)) return { error: { message, field }, resourceId, uncertain: true };
+				if (deploymentOutcomeUnknown(cause)) return { error: { message, field }, resourceId };
 				if (previous === undefined && (await removed(resourceId))) {
 					save(null);
 					return {
-						error: { message: `Couldn't deploy ${form.image.trim()}: ${message}`, field },
+						error: {
+							message: `Couldn't deploy ${form.image.trim()}: ${message}`,
+							field,
+						},
 						resourceId: undefined,
 					};
 				}
@@ -185,7 +229,10 @@ export function useServiceDeploy(
 			}
 			return { error: null, resourceId };
 		} catch (err) {
-			const error = { message: getErrorMessage(err, "Couldn't create the resource"), field: apiFieldError(err) };
+			const error = {
+				message: getErrorMessage(err, "Couldn't create the resource"),
+				field: apiFieldError(err),
+			};
 			return { error, resourceId: undefined };
 		}
 	};
@@ -194,7 +241,6 @@ export function useServiceDeploy(
 		setDeployError(null);
 		setIsPending(true);
 		const result = await attempt(form, defaults);
-		setRetainedResourceId(result.uncertain ? undefined : result.resourceId);
 		setIsPending(false);
 		setDeployError(result.error);
 		void invalidateDeploys(queryClient, transport, workspaceId, result.resourceId);
@@ -204,13 +250,13 @@ export function useServiceDeploy(
 
 	return {
 		isPending,
-		resourceId: retainedResourceId,
+		resourceId: pendingResource?.request.resourceId,
 		pendingResourceId: pendingResource?.request.resourceId,
-		pendingDomains: owned.data?.resource?.domains.map((d) => d.domain) ?? [],
+		pendingDomains: owned.data?.resource?.domains.filter((d) => d.environmentId === env.id).map((d) => d.domain) ?? [],
 		deployError,
 		deploy,
 		clearError: () => {
-			if (retainedResourceId === undefined) setDeployError(null);
+			setDeployError(null);
 		},
 	};
 }

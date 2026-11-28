@@ -3,10 +3,20 @@ import hashlib
 import json
 import re
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from harness import evidence, expect_rpc, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -24,6 +34,11 @@ state = load_state(
 workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
 evidence.seed_cluster(state, "us-ca-1", domains=["apps.e2e.test"], default=True)
+staging = call(
+    state,
+    "loco.environment.v1.EnvironmentService/CreateEnvironment",
+    {"workspaceId": workspace, "name": "retry-staging"},
+)["environmentId"]
 
 # A synthetic image registry serves an empty amd64 image. Image resolution and deployment RPCs
 # both reach the actual API; only the first successful deployment reply is deliberately dropped.
@@ -71,18 +86,25 @@ thread = threading.Thread(target=registry.serve_forever, daemon=True)
 thread.start()
 try:
     with session(out) as browser:
-        for theme, changed in (("light", False), ("dark", False), ("light", True)):
+        for theme, changed in (
+            ("light", ""),
+            ("dark", ""),
+            ("light", "port"),
+            ("light", "public"),
+            ("light", "domain"),
+        ):
+            env_slug = "retry-staging" if changed == "public" else "production"
             context, page, errors = open_page(
                 browser,
                 state=state,
                 color_scheme=theme,
                 storage={evidence.MODE_KEY: theme},
             )
-            name = "retry-" + theme + ("-edited" if changed else "")
-            label = theme + ("-edited" if changed else "")
+            name = "retry-" + theme + ("-" + changed if changed else "")
+            label = theme + ("-" + changed if changed else "")
             page.goto(
                 state["ui_url"]
-                + f"/org/{org}/wks/{workspace}/resources?env=production&new=1"
+                + f"/org/{org}/wks/{workspace}/resources?env={env_slug}&new=1"
             )
             ask = page.get_by_role("dialog", name="New resource", exact=True)
             ask.get_by_role("textbox", name="Container image", exact=True).fill(
@@ -92,9 +114,12 @@ try:
             ask.get_by_role("button", name="Continue", exact=True).click()
             drawer = page.get_by_role("dialog", name=name, exact=True)
             drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
-            expect(
-                drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
-            ).to_be_visible()
+            if changed == "public":
+                drawer.get_by_role("button", name="Internal", exact=True).click()
+            if changed != "public":
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
             expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(
                 0
             )
@@ -142,15 +167,16 @@ try:
             )
             # Allow the normal resource/domain invalidations to finish. This draft owns its name
             # and address; they must remain usable for the recovery attempt.
-            expect(
-                drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
-            ).to_be_visible()
+            if changed != "public":
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
             page.screenshot(path=out / f"{label}-reply-lost.png")
             original_draft = page.url
             drawer.get_by_role("button", name="Close", exact=True).click()
             page.goto(
                 state["ui_url"]
-                + f"/org/{org}/wks/{workspace}/resources?env=production&new=1"
+                + f"/org/{org}/wks/{workspace}/resources?env={env_slug}&new=1"
             )
             other = page.get_by_role("dialog", name="New resource", exact=True)
             other.get_by_role("textbox", name="Container image", exact=True).fill(
@@ -165,22 +191,56 @@ try:
             page.reload()
             drawer = page.get_by_role("dialog", name=name, exact=True)
             deploy = drawer.get_by_role("button", name="Deploy " + name, exact=True)
-            expect(
-                drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
-            ).to_be_visible()
+            if changed != "public":
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
             expect(deploy).to_be_enabled()
-            if changed:
+            if changed == "port":
                 drawer.get_by_role("textbox", name="Port", exact=True).fill("9090")
-            deploy.click()
+            elif changed == "public":
+                drawer.get_by_role("button", name="Public", exact=True).click()
+                expect(
+                    drawer.get_by_text(f"{name}.apps.e2e.test is available", exact=True)
+                ).to_be_visible()
+            elif changed == "domain":
+                drawer.get_by_role("textbox", name="Subdomain", exact=True).fill(
+                    name + "-new"
+                )
+                expect(
+                    drawer.get_by_text(
+                        f"{name}-new.apps.e2e.test is available", exact=True
+                    )
+                ).to_be_visible()
+            with expect_rpc(page, "CreateDeployment"):
+                deploy.click()
             expect(page).to_have_url(
-                re.compile(r"/resource/[0-9a-f-]+\?env=production$")
+                re.compile(r"/resource/[0-9a-f-]+\?env=" + env_slug + "$")
             )
             assert len(requests) == 2, requests
             expected_rows = 2 if changed else 1
             if changed:
                 assert requests[0]["resourceId"] == requests[1]["resourceId"], requests
                 assert requests[0]["requestId"] != requests[1]["requestId"], requests
-                assert requests[1]["spec"]["service"]["port"] == 9090, requests
+                if changed == "port":
+                    assert requests[1]["spec"]["service"]["port"] == 9090, requests
+                if changed == "public":
+                    assert requests[1]["environmentId"] == staging
+                    assert (
+                        sql(
+                            state,
+                            f"SELECT environment_id FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}';",
+                        )
+                        == staging
+                    )
+                if changed == "domain":
+                    assert (
+                        sql(
+                            state,
+                            f"SELECT domain FROM resource_domains WHERE resource_id='{requests[0]['resourceId']}';",
+                        )
+                        == name + "-new.apps.e2e.test"
+                    )
                 assert replies[0]["deploymentId"] != replies[1]["deploymentId"], replies
             else:
                 assert requests[0] == requests[1], requests
@@ -208,6 +268,77 @@ try:
                     indent=2,
                 )
             )
+            if changed == "port":
+                page.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
+                # A and B are real deployments from the preceding recovery case. C makes both
+                # historical targets; changing rollback intent must retire A's lost-reply ID.
+                third = dict(requests[1], requestId=str(uuid.uuid4()))
+                third["spec"] = json.loads(json.dumps(third["spec"]))
+                third["spec"]["service"]["port"] = 7070
+                call(
+                    state,
+                    "loco.deployment.v1.DeploymentService/CreateDeployment",
+                    third,
+                )
+                page.reload()
+                rollback_requests, rollback_replies = [], []
+
+                def rollback_reply(
+                    route, _request, sent=rollback_requests, replies=rollback_replies
+                ):
+                    sent.append(route.request.post_data_json)
+                    response = route.fetch()
+                    assert response.status == 200, response.text()
+                    replies.append(response.json())
+                    if len(sent) == 1:
+                        route.abort("connectionfailed")
+                    else:
+                        route.fulfill(response=response)
+
+                page.route(
+                    "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+                    rollback_reply,
+                )
+                for source in (
+                    replies[0]["deploymentId"],
+                    replies[1]["deploymentId"],
+                    replies[0]["deploymentId"],
+                ):
+                    page.get_by_role(
+                        "button", name="Actions for " + source[-8:], exact=True
+                    ).click()
+                    page.get_by_role(
+                        "menuitem", name="Roll back to this", exact=True
+                    ).click()
+                    dialog = page.get_by_role(
+                        "dialog", name="Roll back " + name, exact=True
+                    )
+                    dialog.get_by_role("button", name="Roll back", exact=True).click()
+                    expect(dialog).to_have_count(0)
+                assert len(rollback_requests) == 3, rollback_requests
+                assert (
+                    rollback_requests[0]["sourceDeploymentId"]
+                    == rollback_requests[2]["sourceDeploymentId"]
+                )
+                assert len({r["requestId"] for r in rollback_requests}) == 3, (
+                    rollback_requests
+                )
+                assert len({r["deploymentId"] for r in rollback_replies}) == 3, (
+                    rollback_replies
+                )
+                assert (
+                    sql(
+                        state,
+                        f"SELECT count(*) FROM deployments WHERE resource_id='{requests[0]['resourceId']}';",
+                    )
+                    == "6"
+                )
+                (out / "rollback-intents.json").write_text(
+                    json.dumps(
+                        {"requests": rollback_requests, "replies": rollback_replies},
+                        indent=2,
+                    )
+                )
             assert not errors, errors
             context.close()
 finally:

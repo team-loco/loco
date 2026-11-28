@@ -187,7 +187,10 @@ function ImageStep({
 					body: "Creating a resource needs write access to this workspace.",
 				}
 			: env === undefined
-				? { title: "No environments yet", body: "Create an environment before adding a resource." }
+				? {
+						title: "No environments yet",
+						body: "Create an environment before adding a resource.",
+					}
 				: null;
 	if (notice !== null) {
 		return (
@@ -313,7 +316,10 @@ function DraftPanel({
 	const regionsQuery = useRpcQuery(
 		listRegions,
 		{ environmentId: env.id },
-		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: open },
+		{
+			refetchInterval: open ? REGION_POLL_MS : false,
+			refetchOnWindowFocus: open,
+		},
 	);
 	const domainsQuery = useRpcQuery(listAppDomains, { environmentId: env.id });
 	const draft = store.drafts.find((d) => d.id === draftId);
@@ -427,7 +433,9 @@ function DraftPanel({
 				resourceHref={
 					deployment.resourceId === undefined
 						? undefined
-						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.slug })
+						: resourcePath(orgId, workspaceId, deployment.resourceId, {
+								env: env.slug,
+							})
 				}
 				tried={tried}
 				commandOpen={commandOpen}
@@ -622,7 +630,7 @@ function ServiceForm({
 				onTry();
 				if (errors.scaling !== null) setScalingOpen(true);
 				if (errors.env !== null) setVarsOpen(true);
-				if (blocker !== null || isPending || resourceId !== undefined) return;
+				if (blocker !== null || isPending) return;
 				void deploy(form, defaults).then(({ error, resourceId: createdResourceId }) => {
 					if (error === null && createdResourceId !== undefined) {
 						onDeployed(createdResourceId);
@@ -896,7 +904,7 @@ function ServiceForm({
 						Open resource
 					</Button>
 				)}
-				<Button type="submit" className="max-w-full" disabled={isPending || resourceId !== undefined}>
+				<Button type="submit" className="max-w-full" disabled={isPending}>
 					{isPending && <Spinner aria-hidden />}
 					<span className="truncate">{`Deploy ${name}`}</span>
 				</Button>
@@ -1130,7 +1138,10 @@ function HealthSection({
 					aria-label="Health check"
 					checked={health.enabled}
 					onCheckedChange={(enabled) => {
-						onChange({ enabled, path: health.path === "" ? "/healthz" : health.path });
+						onChange({
+							enabled,
+							path: health.path === "" ? "/healthz" : health.path,
+						});
 					}}
 				/>
 			}

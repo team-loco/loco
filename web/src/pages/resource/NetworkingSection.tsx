@@ -215,6 +215,7 @@ function DomainRow({
 
 function AddDomainForm({
 	resourceId,
+	environmentId,
 	resourceName,
 	slug,
 	own,
@@ -227,6 +228,7 @@ function AddDomainForm({
 	onAdded,
 }: {
 	resourceId: string;
+	environmentId: string;
 	resourceName: string;
 	slug: string;
 	own: readonly string[];
@@ -257,6 +259,7 @@ function AddDomainForm({
 				create.mutate(
 					{
 						resourceId,
+						environmentId,
 						domain: { domainSource: DomainType.APP, subdomain, appDomain },
 					},
 					{
@@ -317,8 +320,10 @@ export function NetworkingSection({
 	served,
 	worker,
 	onDomainsChanged,
+	environmentId,
 }: SectionProps & {
 	resourceId: string;
+	environmentId: string;
 	worker: boolean;
 	domains: ResourceDomain[];
 	appDomains: AppDomain[];
@@ -366,7 +371,11 @@ export function NetworkingSection({
 					aria-label="Public"
 					aria-describedby={describedBy}
 					onCheckedChange={(checked: boolean) => {
-						onChange({ isPublic: checked, appDomain, subdomain: draft.subdomain ?? base.slug });
+						onChange({
+							isPublic: checked,
+							appDomain,
+							subdomain: draft.subdomain ?? base.slug,
+						});
 					}}
 				/>
 			</div>
@@ -428,6 +437,7 @@ export function NetworkingSection({
 						)}
 						<AddDomainForm
 							resourceId={resourceId}
+							environmentId={environmentId}
 							resourceName={base.name}
 							slug={base.slug}
 							own={own}

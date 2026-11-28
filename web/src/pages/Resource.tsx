@@ -208,7 +208,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		resource.description ?? "",
 		regions,
 		configuredRegions(resource),
-		resource.domains.length > 0,
+		resource.domains.some((d) => d.environmentId === environmentId),
 		defaults,
 		resource.failurePolicy,
 		resource.spec?.spec.case === "service" ? resource.spec.spec.value.healthCheck : undefined,
