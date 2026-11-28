@@ -58,10 +58,6 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 
 	recvCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	messages := make(chan *agentv1.SyncRequest)
-	recvErr := make(chan error, 1)
-	go receiveSync(recvCtx, stream, messages, recvErr)
-
 	send := func(msg *agentv1.SyncResponse) error {
 		sendCtx, span := s.responseSpan(ctx, cluster.ID, msg)
 		err := s.checkSyncGeneration(sendCtx, cluster.ID, generation)
@@ -73,6 +69,8 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	}
 	session := newSyncSession(s, cluster.ID, send)
 	session.generation = generation
+	recvErr := make(chan error, 1)
+	go session.receiveReports(recvCtx, stream, recvErr)
 	// A stream that ends drops its queued reports; the agent's next stream replays its statuses and inventory.
 	reportCtx, dropReports := context.WithCancel(ctx)
 	var reports sync.WaitGroup
@@ -109,13 +107,6 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 		case err := <-recvErr:
 			slog.InfoContext(ctx, "sync stream closed", "cluster_id", cluster.ID, "error", err)
 			return err
-		case msg := <-messages:
-			if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
-				return err
-			}
-			if handleErr := session.handle(ctx, msg); handleErr != nil {
-				return handleErr
-			}
 		case <-listener.Wake():
 			dirty = true
 		case <-poll.C:
@@ -144,10 +135,11 @@ func (s *AgentServer) checkSyncGeneration(ctx context.Context, clusterID uuid.UU
 	return nil
 }
 
-func receiveSync(
+// receiveReports admits reports independently of response writes, so bounded queues in both
+// peers cannot stop each other from draining the stream.
+func (ss *syncSession) receiveReports(
 	ctx context.Context,
 	stream syncStream,
-	messages chan<- *agentv1.SyncRequest,
 	recvErr chan<- error,
 ) {
 	for {
@@ -160,9 +152,12 @@ func receiveSync(
 			}
 			return
 		}
-		select {
-		case messages <- msg:
-		case <-ctx.Done():
+		if err := ss.server.checkSyncGeneration(ctx, ss.clusterID, ss.generation); err != nil {
+			recvErr <- err
+			return
+		}
+		if err := ss.handle(ctx, msg); err != nil {
+			recvErr <- err
 			return
 		}
 	}
@@ -178,19 +173,19 @@ type syncSession struct {
 	retryRecorded bool
 	// reports queues the agent reports that write the database, for one worker to apply in order.
 	reports chan func(context.Context)
-	// settled holds what applied reports change in the session, for the receive loop to run in order.
+	// settled holds what applied reports change in the session, for the main sync loop to run in order.
 	settledMu    sync.Mutex
 	settled      []settleFunc
 	settledReady chan struct{}
 	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
 	finishing map[uuid.UUID]struct{}
-	// capabilities holds the newest heartbeat whose capabilities the worker has not stored; only handle sends.
+	// capabilities holds the newest heartbeat not yet stored. Only the report receiver sends.
 	capabilities chan *agentv1.Heartbeat
 	// inventory is owned by the report worker and discarded when this stream ends.
 	inventory *agentv1.Inventory
 }
 
-// settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
+// settleFunc runs on the main sync loop, which owns the session's state and the stream's sends.
 type settleFunc func(context.Context) error
 
 func newSyncSession(
