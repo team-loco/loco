@@ -566,11 +566,7 @@ func (r *registryRun) resentBuild(t *testing.T) {
 	if credential.Username != buildUser {
 		t.Errorf("the build Secret is a %q credential, want %s", credential.Username, buildUser)
 	}
-	// A held pending Build is kept across reconnects. Lose it while the agent is stopped
-	// so the API must resend StartBuild, replacing the existing registry Secret.
-	p.StopAgent()
-	p.MustKubectl(t, "-n", p.BuildNamespace, "delete", "build", "build-"+r.resent, "--ignore-not-found=true")
-	if err := p.StartAgent(t.Context(), p.APIURL, ""); err != nil {
+	if err := p.RestartAgent(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	platform.Eventually(
