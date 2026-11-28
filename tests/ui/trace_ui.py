@@ -339,12 +339,12 @@ def handle(route):
             )
             for index, (name, duration) in enumerate(
                 [
-                    ("GET", 18),
+                    ("GET /api/products", 18),
                     ("GetRecommendations", 132),
                     ("GetProduct", 9),
                     ("GET /cart", 42),
                     ("Convert · USD → EUR", 12),
-                    ("GetQuote", 86),
+                    ("GET", 86),
                 ]
             )
         ]
@@ -365,7 +365,7 @@ def handle(route):
             {
                 "traceId": row["traceId"],
                 "rootSpanName": row["name"],
-                "httpPath": "/api/products" if row["name"] == "GET" else "",
+                "httpPath": "/quote" if row["name"] == "GET" else "",
                 "serviceName": row["serviceName"],
                 "startTime": row["startTime"],
                 "durationNanos": row["durationNanos"],
@@ -455,8 +455,8 @@ with session(out) as browser:
         page.get_by_role("region", name="Trace list")
         .get_by_role("row", name="Open trace GET", exact=True)
         .get_by_role("cell")
-        .filter(has_text="/api/products")
-    ).to_have_text("GET, /api/products")
+        .filter(has_text="/quote")
+    ).to_have_text("GET, /quote")
     expect(page.get_by_role("heading", level=1)).to_have_text("Traces")
     expect(page.get_by_role("columnheader", name="Time", exact=True)).to_have_attribute(
         "aria-sort", "descending"
