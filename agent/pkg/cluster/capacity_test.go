@@ -16,6 +16,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -30,6 +31,7 @@ const (
 	testCapacityOS      = "linux"
 	testCapacityTrue    = "true"
 	testCapacityPodKind = "Pod"
+	testCapacityApp     = "app"
 )
 
 func TestCapacityAppliesChangesAndReplacesLostObjects(t *testing.T) {
@@ -45,7 +47,7 @@ func TestCapacityAppliesChangesAndReplacesLostObjects(t *testing.T) {
 	if err := inspector.capacity.nodes.Replace([]any{first, second}, "1"); err != nil {
 		t.Fatal(err)
 	}
-	assigned := pod("app", corev1.PodPending, "250m", "64Mi")
+	assigned := pod(testCapacityApp, corev1.PodPending, "250m", "64Mi")
 	assigned.UID = "old"
 	// Assigned Pods still reserve resources if a node disappears before its Pods.
 	assigned.Spec.NodeName = "missing-node"
@@ -55,7 +57,7 @@ func TestCapacityAppliesChangesAndReplacesLostObjects(t *testing.T) {
 	close(inspector.capacity.ready)
 	assertCapacity(t, inspector, 8000, 250, 1, 0)
 
-	updated := pod("app", corev1.PodRunning, "500m", "128Mi")
+	updated := pod(testCapacityApp, corev1.PodRunning, "500m", "128Mi")
 	updated.UID = "new"
 	if err := inspector.capacity.pods.Update(updated); err != nil {
 		t.Fatal(err)
@@ -82,6 +84,68 @@ func TestCapacityAppliesChangesAndReplacesLostObjects(t *testing.T) {
 	got := assertCapacity(t, inspector, 0, 0, 0, 0)
 	if len(got.GetPlatforms()) != 0 {
 		t.Fatalf("deleted node platform remained: %v", got.GetPlatforms())
+	}
+}
+
+func TestCapacityCountsEffectiveResizeAndPodLevelRequests(t *testing.T) {
+	resources := func(cpu, memory string) corev1.ResourceList {
+		return corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(cpu),
+			corev1.ResourceMemory: resource.MustParse(memory),
+		}
+	}
+	cases := []struct {
+		name        string
+		change      func(*corev1.Pod)
+		cpu, memory int64
+	}{
+		{name: "container downsize still allocated", cpu: 1000, memory: 512 << 20, change: func(p *corev1.Pod) {
+			p.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: testCapacityApp,
+				AllocatedResources: resources("1", "512Mi"),
+				Resources:          &corev1.ResourceRequirements{Requests: resources("1", "512Mi")}}}
+		}},
+		{
+			name:   "infeasible increase does not reserve desired size",
+			cpu:    250,
+			memory: 64 << 20,
+			change: func(p *corev1.Pod) {
+				p.Spec.Containers[0].Resources.Requests = resources("2", "1Gi")
+				p.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: testCapacityApp,
+					AllocatedResources: resources("250m", "64Mi"),
+					Resources:          &corev1.ResourceRequirements{Requests: resources("250m", "64Mi")}}}
+				p.Status.Conditions = []corev1.PodCondition{
+					{Type: corev1.PodResizePending, Reason: corev1.PodReasonInfeasible},
+				}
+			},
+		},
+		{name: "pod level downsize still allocated", cpu: 2000, memory: 1 << 30, change: func(p *corev1.Pod) {
+			p.Spec.Resources = &corev1.ResourceRequirements{Requests: resources("500m", "256Mi")}
+			p.Status.AllocatedResources = resources("2", "1Gi")
+			p.Status.Resources = &corev1.ResourceRequirements{Requests: resources("2", "1Gi")}
+		}},
+		{name: "restartable init and overhead", cpu: 575, memory: 304 << 20, change: func(p *corev1.Pod) {
+			p.Spec.Containers[0].Resources.Requests = resources("100m", "64Mi")
+			p.Spec.InitContainers = []corev1.Container{
+				{Name: "sidecar", RestartPolicy: new(corev1.ContainerRestartPolicyAlways),
+					Resources: corev1.ResourceRequirements{Requests: resources("50m", "32Mi")}},
+				{Name: "init", Resources: corev1.ResourceRequirements{Requests: resources("500m", "256Mi")}},
+			}
+			p.Spec.Overhead = resources("25m", "16Mi")
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := pod(testCapacityApp, corev1.PodRunning, "250m", "64Mi")
+			tc.change(p)
+			store := newCapacityStore()
+			if err := store.Add(p); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := store.snapshot()
+			if got.cpu != tc.cpu || got.memory != tc.memory {
+				t.Fatalf("effective requests = %dm/%d bytes, want %dm/%d", got.cpu, got.memory, tc.cpu, tc.memory)
+			}
+		})
 	}
 }
 
@@ -159,7 +223,7 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	n := node("a", "4", "8Gi", "110")
 	n.Kind, n.APIVersion, n.ResourceVersion = "Node", "v1", "1"
-	p := pod("app", corev1.PodRunning, "500m", "128Mi")
+	p := pod(testCapacityApp, corev1.PodRunning, "500m", "128Mi")
 	p.Kind, p.APIVersion, p.ResourceVersion = testCapacityPodKind, "v1", "1"
 	if r.URL.Query().Get("watch") != testCapacityTrue {
 		a.mu.Lock()
@@ -278,7 +342,7 @@ func TestCapacityUsesCompleteSnapshotsAndDoesNotRelistOnHeartbeat(t *testing.T) 
 			if lists != wantLists || watches != 2 {
 				t.Fatalf("after 100 heartbeats: LIST=%d WATCH=%d, want %d/2", lists, watches, wantLists)
 			}
-			changed := pod("app", corev1.PodRunning, "750m", "128Mi")
+			changed := pod(testCapacityApp, corev1.PodRunning, "750m", "128Mi")
 			changed.Kind, changed.APIVersion, changed.ResourceVersion = testCapacityPodKind, "v1", "2"
 			api.podEvents <- watch.Event{Type: watch.Modified, Object: changed}
 			if err := wait.PollUntilContextTimeout(
@@ -331,7 +395,7 @@ func BenchmarkCapacitySnapshot(b *testing.B) {
 			var baseline runtime.MemStats
 			runtime.ReadMemStats(&baseline)
 			store := newCapacityStore()
-			p := pod("app", corev1.PodRunning, "500m", "128Mi")
+			p := pod(testCapacityApp, corev1.PodRunning, "500m", "128Mi")
 			p.Annotations = map[string]string{"irrelevant": strings.Repeat("large metadata", 1024)}
 			for n := range count {
 				p.Name, p.UID = strconv.Itoa(n), types.UID(strconv.Itoa(n))

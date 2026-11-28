@@ -33,7 +33,7 @@ func pod(name string, phase corev1.PodPhase, cpu, memory string) *corev1.Pod {
 		Spec: corev1.PodSpec{
 			NodeName: "a",
 			Containers: []corev1.Container{{
-				Name: "app",
+				Name: testCapacityApp,
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse(cpu),

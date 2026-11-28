@@ -282,7 +282,9 @@ func capacityContribution(obj any) (*capacityObject, error) {
 			Name: obj.Name, Namespace: obj.Namespace, UID: obj.UID, ResourceVersion: obj.ResourceVersion,
 		}
 		if obj.Spec.NodeName != "" && obj.Status.Phase != corev1.PodSucceeded && obj.Status.Phase != corev1.PodFailed {
-			requests := podresource.PodRequests(obj, podresource.PodResourcesOptions{})
+			requests := podresource.PodRequests(obj, podresource.PodResourcesOptions{
+				UseStatusResources: true, InPlacePodLevelResourcesVerticalScalingEnabled: true,
+			})
 			record.amount = capacityAmount{cpu: requests.Cpu().MilliValue(), memory: requests.Memory().Value(), pods: 1}
 			if obj.Status.Phase == corev1.PodRunning {
 				record.amount.running = 1
@@ -329,18 +331,17 @@ func (s *capacityStore) Update(obj any) error {
 }
 
 func (s *capacityStore) Delete(obj any) error {
-	value, err := capacityContribution(obj)
+	metadata, err := meta.Accessor(obj)
 	if err != nil {
 		return err
 	}
-	entry := value
-	key, err := cache.MetaNamespaceKeyFunc(entry)
+	key, err := cache.MetaNamespaceKeyFunc(metadata)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if old, ok := s.records[key]; ok && old.uid == entry.record.uid {
+	if old, ok := s.records[key]; ok && old.uid == metadata.GetUID() {
 		s.remove(key)
 	}
 	return nil
