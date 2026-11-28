@@ -28,10 +28,11 @@ import (
 )
 
 const (
-	testCapacityOS      = "linux"
-	testCapacityTrue    = "true"
-	testCapacityPodKind = "Pod"
-	testCapacityApp     = "app"
+	testCapacityOS         = "linux"
+	testCapacityTrue       = "true"
+	testCapacityPodKind    = "Pod"
+	testCapacityApp        = "app"
+	testCapacityStatusKind = "Status"
 )
 
 func TestCapacityAppliesChangesAndReplacesLostObjects(t *testing.T) {
@@ -199,14 +200,14 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if a.listDenial != nil {
 		w.WriteHeader(int(a.listDenial.ErrStatus.Code))
-		a.write(w, &a.listDenial.ErrStatus)
+		writeCapacityJSON(w, &a.listDenial.ErrStatus)
 		return
 	}
 	initial := r.URL.Query().Get("sendInitialEvents") == testCapacityTrue
 	if a.listOnly && initial {
 		denial := apierrors.NewBadRequest("streaming initial list unsupported")
 		w.WriteHeader(http.StatusBadRequest)
-		a.write(w, &denial.ErrStatus)
+		writeCapacityJSON(w, &denial.ErrStatus)
 		return
 	}
 	if isNodes {
@@ -233,11 +234,11 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			a.t.Errorf("LIST page limit = %s", r.URL.Query().Get("limit"))
 		}
 		if isNodes {
-			a.write(w, &corev1.NodeList{
+			writeCapacityJSON(w, &corev1.NodeList{
 				Kind: "NodeList", APIVersion: "v1", ResourceVersion: "1", Items: []corev1.Node{*n},
 			})
 		} else {
-			a.write(w, &corev1.PodList{
+			writeCapacityJSON(w, &corev1.PodList{
 				Kind: "PodList", APIVersion: "v1", ResourceVersion: "1", Items: []corev1.Pod{*p},
 			})
 		}
@@ -249,15 +250,15 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if initial {
 		if isNodes {
-			a.write(w, watch.Event{Type: watch.Added, Object: n})
+			writeCapacityJSON(w, watch.Event{Type: watch.Added, Object: n})
 		} else {
-			a.write(w, watch.Event{Type: watch.Added, Object: p})
+			writeCapacityJSON(w, watch.Event{Type: watch.Added, Object: p})
 		}
 		bookmarkKind := "Node"
 		if isPods {
 			bookmarkKind = testCapacityPodKind
 		}
-		a.write(w, watch.Event{Type: watch.Bookmark, Object: &metav1.PartialObjectMetadata{
+		writeCapacityJSON(w, watch.Event{Type: watch.Bookmark, Object: &metav1.PartialObjectMetadata{
 			Kind: bookmarkKind, APIVersion: "v1", ResourceVersion: "1",
 			Annotations: map[string]string{metav1.InitialEventsAnnotationKey: testCapacityTrue},
 		}})
@@ -274,7 +275,7 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case event := <-a.podEvents:
-			a.write(w, event)
+			writeCapacityJSON(w, event)
 			if err := http.NewResponseController(w).Flush(); err != nil {
 				return
 			}
@@ -282,7 +283,7 @@ func (a *capacityAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (*capacityAPI) write(w http.ResponseWriter, value any) {
+func writeCapacityJSON(w http.ResponseWriter, value any) {
 	if event, ok := value.(watch.Event); ok {
 		value = map[string]any{"type": event.Type, "object": event.Object}
 	}
@@ -361,7 +362,7 @@ func TestCapacityUsesCompleteSnapshotsAndDoesNotRelistOnHeartbeat(t *testing.T) 
 				t.Fatalf("watch update: %v", err)
 			}
 			denial := apierrors.NewForbidden(corev1.Resource("pods"), "", nil)
-			denial.ErrStatus.Kind, denial.ErrStatus.APIVersion = "Status", "v1"
+			denial.ErrStatus.Kind, denial.ErrStatus.APIVersion = testCapacityStatusKind, "v1"
 			api.podEvents <- watch.Event{Type: watch.Error, Object: &denial.ErrStatus}
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()

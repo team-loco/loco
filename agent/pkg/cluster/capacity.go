@@ -66,6 +66,16 @@ func (i *Inspector) startCapacity(parent context.Context, client kubernetes.Inte
 		}
 		list := lw.ListWithContextFunc
 		lw.ListWithContextFunc = func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+			// The watch cache ignores Limit at RV=0. A consistent snapshot permits
+			// paging; client-go takes its watch version from the completed result.
+			if opts.ResourceVersion == "0" {
+				opts.ResourceVersion = ""
+			}
+			// The pager retries an expired continuation with an unbounded request.
+			// Return expiration instead so the reflector starts a new paged snapshot.
+			if opts.Limit <= 0 {
+				return nil, apierrors.NewResourceExpired("capacity snapshot must restart with pagination")
+			}
 			result, err := list(ctx, opts)
 			fatal(err)
 			if err != nil {
