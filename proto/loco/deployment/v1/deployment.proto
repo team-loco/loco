@@ -125,11 +125,11 @@ message ServiceDeploymentSpec {
     lte: 65535
   }];
   // routing is the HTTP routing the deployment's environment uses. An empty message means the
-  // service sets no routing and the defaults apply; without the field the resource's routing
-  // applies.
+  // service sets no routing and the defaults apply; without the field the environment's desired routing
+  // applies when creating the snapshot.
   optional ServiceRouting routing = 10;
 
-  // Defaults to the resource settings when omitted; stored in the deployment snapshot.
+  // Defaults to the environment configuration when omitted; stored in the deployment snapshot.
   ObservabilityConfig observability = 13;
   reserved 14;
   // The API assigns the installation target when recording this immutable snapshot.
@@ -144,9 +144,12 @@ message ServiceDeploymentSpec {
   // args replaces the image CMD; without it the image's CMD is passed to the entrypoint.
   repeated string args = 17 [(buf.validate.field).repeated.max_items = 100];
   // The sizing of each region the deployment targets, keyed by region name. In a request,
-  // an entry overrides the resource's region target; the stored snapshot carries every
+  // an entry overrides the environment's region target; the stored snapshot carries every
   // target region filled in.
   map<string, RegionDeploymentTarget> regions = 18;
+  // Filled from this environment's desired configuration when recording the snapshot.
+  // Rollbacks and placement reconciliation keep this policy even if configuration changes.
+  FailurePolicy failure_policy = 19;
 
   option (buf.validate.message).cel = {
     id: "service_deployment.health_check_requires_port"
@@ -156,7 +159,7 @@ message ServiceDeploymentSpec {
 }
 
 // RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default
-// from the resource's region target.
+// from the environment's region target.
 message RegionDeploymentTarget {
   optional string cpu = 1 [(buf.validate.field).string.min_len = 1]; // e.g., "100m"
   optional string memory = 2 [(buf.validate.field).string.min_len = 1]; // e.g., "256Mi"
@@ -257,14 +260,16 @@ message DeploymentPlacement {
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  // The regions to deploy to; empty deploys to every enabled region of the resource.
+  // The regions to deploy to; empty uses this environment's enabled regions for a new deploy,
+  // or every region in the source snapshot for redeploy and rollback.
   repeated string regions = 8 [(buf.validate.field).repeated = {
     unique: true
     items: {
       string: {min_len: 1}
     }
   }];
-  DeploymentSpec spec = 4 [(buf.validate.field).required = true];
+  // A new deploy supplies spec. Redeploy and rollback load the stored source snapshot.
+  DeploymentSpec spec = 4;
   string environment_id = 5 [(buf.validate.field).string.uuid = true];
   SourceCommit commit = 7;
   // Unspecified records a deploy; redeploy and rollback name the deployment they copy.
@@ -280,10 +285,15 @@ message CreateDeploymentRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
-  // remove_health_check runs the deployment without a health check and removes the resource's
-  // own, which a spec without one inherits. The resource's check is the default for every
-  // environment of the workspace; deployments already running in other environments keep theirs.
+  // remove_health_check clears this environment's health-check default for a new deploy.
+  // Existing deployments and other environments retain their own settings.
   bool remove_health_check = 11;
+
+  option (buf.validate.message).cel = {
+    id: "create_deployment.spec_or_source"
+    message: "a new deploy needs spec; redeploy and rollback use only their source snapshot"
+    expression: "(this.trigger == 0 || this.trigger == 1) ? has(this.spec) : (!has(this.spec) && !has(this.commit) && !this.remove_health_check)"
+  };
 
   option (buf.validate.message).cel = {
     id: "create_deployment.remove_health_check_without_check"
@@ -481,6 +491,9 @@ message Replica {
   repeated google.protobuf.Timestamp restarts_at = 15;
   // The exit the replica most recently restarted after.
   ReplicaRestart last_restart = 16;
+  // The restart policy the controller evaluated for this replica's reported revision.
+  // Unset for replicas outside the current placement revision. Deploy timeout is not set.
+  FailurePolicy failure_policy = 17;
 }
 
 // RestartPolicy decides when a replica's exits stop a version.

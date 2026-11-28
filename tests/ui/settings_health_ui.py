@@ -173,6 +173,12 @@ with session(out) as browser:
                 status=503, json={"code": "unavailable", "message": "region down"}
             )
             return
+        if body.get("removeHealthCheck"):
+            sql(
+                state,
+                "UPDATE resource_environments SET spec=spec-'healthCheck',revision=revision+1 "
+                f"WHERE resource_id='{body['resourceId']}' AND environment_id='{body['environmentId']}';",
+            )
         service = {**body["spec"]["service"], **server_override}
         if "@" not in service["build"]["image"]:
             service["build"]["image"] += "@" + digest

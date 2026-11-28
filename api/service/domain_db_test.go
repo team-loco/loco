@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 const (
@@ -78,8 +79,8 @@ func TestDomainNeedsAPort(t *testing.T) {
 	client := newDomainClient(t, f)
 	if _, err := f.pool.Exec(
 		context.Background(),
-		`UPDATE resources SET spec = '{}' WHERE id = $1`,
-		f.resourceID,
+		`UPDATE resource_environments SET spec = '{}' WHERE resource_id = $1 AND environment_id = $2`,
+		f.resourceID, f.envID,
 	); err != nil {
 		t.Fatalf("drop the port: %v", err)
 	}
@@ -105,8 +106,8 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 			if !tc.resourcePort {
 				if _, err := f.pool.Exec(
 					t.Context(),
-					`UPDATE resources SET spec = '{}' WHERE id = $1`,
-					f.resourceID,
+					`UPDATE resource_environments SET spec = '{}' WHERE resource_id = $1 AND environment_id = $2`,
+					f.resourceID, f.envID,
 				); err != nil {
 					t.Fatal(err)
 				}
@@ -474,4 +475,158 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 
 func serviceSpecPayload(_ uuid.UUID) ([]byte, error) {
 	return []byte(`{"app_spec":{"serviceSpec":{"deployment":{}}}}`), nil
+}
+
+func TestDomainRPCUsesTheSelectedEnvironmentsPortAndPrimary(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name                        string
+		productionPort, stagingPort bool
+	}{
+		{"production worker, staging web", false, true},
+		{"production web, staging worker", true, false},
+		{"independent primary domains", true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			f := newDeployFixture(t)
+			staging := f.addStagingEnvironment(t)
+			worker := strings.Replace(sameRegionSpec, `"routing":{"port":8080},`, "", 1)
+			productionSpec, stagingSpec := sameRegionSpec, sameRegionSpec
+			if !tc.productionPort {
+				productionSpec = worker
+			}
+			if !tc.stagingPort {
+				stagingSpec = worker
+			}
+			if _, err := f.queries.UpdateResourceEnvironmentSpec(
+				t.Context(),
+				genDb.UpdateResourceEnvironmentSpecParams{
+					ResourceID:    f.resourceID,
+					EnvironmentID: f.envID,
+					Spec:          []byte(productionSpec),
+				},
+			); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.queries.UpsertResourceEnvironment(
+				t.Context(),
+				genDb.UpsertResourceEnvironmentParams{
+					ResourceID:    f.resourceID,
+					EnvironmentID: staging,
+					WorkspaceID:   f.workspaceID(t),
+					Spec:          []byte(stagingSpec),
+					SpecVersion:   specVersion,
+				},
+			); err != nil {
+				t.Fatal(err)
+			}
+			client := newDomainClient(t, f)
+			productionDomain := "production." + testAppDomain
+			if tc.productionPort {
+				if err := client.add(productionDomain); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := testResourceConfiguration(t, f.queries, f.resourceID, f.envID)
+			revision := f.revision(t, f.envID)
+			create := func(label string) (*domainv1.CreateResourceDomainResponse, error) {
+				return client.server.CreateResourceDomain(
+					client.ctx,
+					&domainv1.CreateResourceDomainRequest{
+						ResourceId:    f.resourceID.String(),
+						EnvironmentId: staging.String(),
+						Domain: &domainv1.DomainInput{
+							DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
+							Subdomain:    &label,
+							AppDomain:    new(testAppDomain),
+						},
+					},
+				)
+			}
+			created, err := create(stagingName)
+			if !tc.stagingPort {
+				if !errors.Is(err, errDomainWithoutPort) {
+					t.Fatalf("staging worker domain error = %v, want selected-environment port refusal", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("staging domain rejected because production is a worker: %v", err)
+				}
+				domain, getErr := f.queries.GetResourceDomainByID(t.Context(), uuid.MustParse(created.GetDomainId()))
+				if getErr != nil || domain.EnvironmentID != staging {
+					t.Fatalf(
+						"created domain environment = %s (%v), want staging %s",
+						domain.EnvironmentID,
+						getErr,
+						staging,
+					)
+				}
+				resources := NewResourceServer(
+					f.pool,
+					f.queries,
+					testServiceDefaults(),
+					testClusterSilentAfter,
+					limits.Defaults(),
+				)
+				response, getErr := resources.GetResource(
+					f.tenant.owner(t),
+					&resourcev1.GetResourceRequest{
+						Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: f.resourceID.String()},
+					},
+				)
+				if getErr != nil {
+					t.Fatal(getErr)
+				}
+				found := slices.ContainsFunc(
+					response.GetResource().GetDomains(),
+					func(domain *domainv1.ResourceDomain) bool {
+						return domain.GetId() == created.GetDomainId() && domain.GetEnvironmentId() == staging.String()
+					},
+				)
+				if !found {
+					t.Fatalf("resource response omitted staging association: %v", response)
+				}
+				alternate, createErr := create("stage-alternate")
+				if createErr != nil {
+					t.Fatal(createErr)
+				}
+				if _, primaryErr := client.server.SetPrimaryResourceDomain(
+					client.ctx,
+					&domainv1.SetPrimaryResourceDomainRequest{
+						ResourceId: f.resourceID.String(),
+						DomainId:   alternate.GetDomainId(),
+					},
+				); primaryErr != nil {
+					t.Fatal(primaryErr)
+				}
+				primary, primaryErr := f.queries.GetPrimaryResourceDomain(
+					t.Context(),
+					genDb.GetPrimaryResourceDomainParams{ResourceID: f.resourceID, EnvironmentID: staging},
+				)
+				if primaryErr != nil || primary != "stage-alternate."+testAppDomain {
+					t.Fatalf("staging primary = %q (%v)", primary, primaryErr)
+				}
+			}
+			if after := testResourceConfiguration(
+				t,
+				f.queries,
+				f.resourceID,
+				f.envID,
+			); !reflect.DeepEqual(before, after) ||
+				f.revision(t, f.envID) != revision {
+				t.Fatal("staging domain operation changed production configuration or revision")
+			}
+			if tc.productionPort {
+				primary, primaryErr := f.queries.GetPrimaryResourceDomain(
+					t.Context(),
+					genDb.GetPrimaryResourceDomainParams{ResourceID: f.resourceID, EnvironmentID: f.envID},
+				)
+				if primaryErr != nil || primary != productionDomain {
+					t.Fatalf("production primary = %q (%v), want %s", primary, primaryErr, productionDomain)
+				}
+			}
+		})
+	}
 }

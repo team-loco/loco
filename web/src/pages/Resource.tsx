@@ -31,7 +31,7 @@ import { workspaceResourcesKey, workspaceResourcesOptions } from "@/hooks/worksp
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
-import { configuredRegions } from "@/lib/resource-regions";
+import { configuredRegions, resourceConfiguration } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { activitySearch, buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -202,7 +202,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	}
 
 	const environment = environmentStatus(resource, environmentId);
-	const regions = buildRegions(resource, deployments, environment, currentDeployments);
+	const configuration = resourceConfiguration(resource, environmentId ?? "");
+	const domains = resource.domains.filter((domain) => domain.environmentId === environmentId);
+	const regions = buildRegions(resource, deployments, environmentId ?? "", environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
 	const noMetricsYet = metricsPending(deployed, nowMs);
 	const redeploySources = currentSources(regions);
@@ -213,11 +215,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		resource.name,
 		resource.description ?? "",
 		regions,
-		configuredRegions(resource),
-		resource.domains.length > 0,
+		configuredRegions(resource, environmentId ?? ""),
+		domains.length > 0,
 		defaults,
-		resource.failurePolicy,
-		resource.spec?.spec.case === "service" ? resource.spec.spec.value.healthCheck : undefined,
+		configuration?.failurePolicy,
+		configuration?.spec?.spec.case === "service" ? configuration.spec.spec.value.healthCheck : undefined,
 	);
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;
@@ -456,6 +458,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			<PageCommands items={pageCommands} />
 			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
+				environmentId={environmentId ?? ""}
 				resource={resource}
 				telemetry={{ logs: obsLink("logs"), metrics: obsLink("metrics"), traces: obsLink("traces") }}
 				environment={environment}
@@ -500,7 +503,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<DeploymentProgress
 						workspaceId={resource.workspaceId}
 						fallback={incident}
-						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
 						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}

@@ -156,6 +156,34 @@ func recordTestDeployment(
 	service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{
 		params.Region: {MinReplicas: &params.Replicas},
 	}
+	resource, err := qtx.GetResourceByID(ctx, params.ResourceID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	env, err := qtx.GetEnvironmentByID(ctx, params.EnvironmentID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	server := &DeploymentServer{defaults: testServiceDefaults()}
+	configuration, err := server.deploymentEnvironment(ctx, qtx, resource, env, &service, []string{params.Region})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	var configured resourcev1.ServiceSpec
+	if err := protojson.Unmarshal(configuration.Spec, &configured); err != nil {
+		return uuid.Nil, err
+	}
+	size := testServiceDefaults().Fill(configured.GetRegions()[params.Region], service.GetRegions()[params.Region])
+	service.Regions[params.Region] = &deploymentv1.RegionDeploymentTarget{
+		Cpu:         &size.CPU,
+		Memory:      &size.Memory,
+		MinReplicas: &size.MinReplicas,
+		MaxReplicas: &size.MaxReplicas,
+		Scalers:     size.Scalers,
+	}
+	if err := freezeDeploymentDefaults(&service, configuration, testServiceDefaults()); err != nil {
+		return uuid.Nil, err
+	}
 	return createDeployment(ctx, qtx, &counts, newDeployment{
 		params:   params.CreateDeploymentParams,
 		service:  &service,

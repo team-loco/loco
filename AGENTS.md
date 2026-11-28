@@ -14,9 +14,10 @@ Clients can use infrastructure as code through `loco.yaml`: a declarative file d
 - **Workspace**: Network boundary; groups related resources and environments, with its own membership and network isolation from other workspaces.
 - **Environment**: An isolated deployment target within a workspace, such as staging or production, with its own configuration, secrets and deployment history.
 - **Resource**: A named application component in a workspace, such as a web service or worker; can run in multiple environments and regions.
+- **Resource environment**: A resource's desired runtime defaults in one environment, keyed by resource and environment; regions, sizing, routing, health checks and failure policy are independent across environments.
 - **Build**: A source-to-container-image job; its output image can be deployed to environments.
 - **Deployment**: One rollout request for a resource in an environment: an immutable runtime configuration snapshot that fans out to one placement per target region. Each placement has its own status, replicas and image; the deployment's status aggregates them.
-- **Domain**: A hostname assigned to a resource for public routing.
+- **Domain**: A hostname assigned to a resource in one environment for public routing.
 
 ## Architecture
 
@@ -157,7 +158,8 @@ Do not edit generated files directly. Regenerate after changing their sources:
 - Protobuf definitions, SQL queries or migrations: `mise run gen`.
 - Kubernetes API types or controller markers: `mise run controller:gen` (deep copies, CRDs, RBAC and chart copies).
 
-Review generated diffs; CI checks for drift.
+Review generated diffs; CI checks for drift. When a CRD bundle changes, bump its version in
+`tools/platform-release/crds.yaml` and run `mise run lint:crd-versions`.
 
 ## Charts
 

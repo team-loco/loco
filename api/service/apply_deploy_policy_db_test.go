@@ -30,14 +30,14 @@ func (f *deployFixture) workerResource(t *testing.T) genDb.Resource {
 	return res
 }
 
-// storedPolicy is the failure policy the resource row holds, with "" and 0 for what it leaves unset.
+// storedPolicy is the failure policy the environment configuration holds, with "" and 0 for what it leaves unset.
 type storedPolicy struct {
 	restart     string
 	maxRestarts int32
 	timeout     int32
 }
 
-func storedDeployPolicy(res genDb.Resource) storedPolicy {
+func storedDeployPolicy(res genDb.ResourceEnvironment) storedPolicy {
 	var policy storedPolicy
 	if res.RestartPolicy != nil {
 		policy.restart = *res.RestartPolicy
@@ -143,7 +143,9 @@ func TestApplyStoresTheFailurePolicyAndDeploysWithIt(t *testing.T) {
 	file := workerFileWith(applyFileDeploy)
 	applyOK(t, f, file, applyOptions{})
 
-	if got, want := storedDeployPolicy(f.workerResource(t)), (storedPolicy{"on-failure", 3, 120}); got != want {
+	if got, want := storedDeployPolicy(
+		testResourceConfiguration(t, f.queries, f.workerResource(t).ID, f.envID),
+	), (storedPolicy{"on-failure", 3, 120}); got != want {
 		t.Fatalf("stored policy = %+v, want %+v", got, want)
 	}
 	want := servicedefaults.FailurePolicy{
@@ -182,7 +184,9 @@ func TestApplyWithoutARestartPolicyDeploysTheAPIDefaults(t *testing.T) {
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 
-	if got := storedDeployPolicy(f.workerResource(t)); got != (storedPolicy{}) {
+	if got := storedDeployPolicy(
+		testResourceConfiguration(t, f.queries, f.workerResource(t).ID, f.envID),
+	); got != (storedPolicy{}) {
 		t.Fatalf("stored policy = %+v, want none", got)
 	}
 	if got, want := f.deployedPolicy(t), testServiceDefaults().FailurePolicy(nil, nil, nil); got != want {
@@ -209,14 +213,18 @@ func TestChangingTheFailurePolicyDoesNotRedeploy(t *testing.T) {
 	if started := resp.GetDeployments(); len(started) != 0 {
 		t.Fatalf("a failure policy change started deployments %v", started)
 	}
-	if got := storedDeployPolicy(f.workerResource(t)); got != (storedPolicy{maxRestarts: 5}) {
+	if got := storedDeployPolicy(
+		testResourceConfiguration(t, f.queries, f.workerResource(t).ID, f.envID),
+	); got != (storedPolicy{maxRestarts: 5}) {
 		t.Fatalf("stored policy = %+v, want only 5 restarts", got)
 	}
 	wantCleanPlan(t, f, changed)
 
 	removed := planFileHeader + applyFileWorker
 	applyOK(t, f, removed, applyOptions{})
-	if got := storedDeployPolicy(f.workerResource(t)); got != (storedPolicy{}) {
+	if got := storedDeployPolicy(
+		testResourceConfiguration(t, f.queries, f.workerResource(t).ID, f.envID),
+	); got != (storedPolicy{}) {
 		t.Fatalf("stored policy = %+v, want none", got)
 	}
 	wantCleanPlan(t, f, removed)

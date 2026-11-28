@@ -125,23 +125,16 @@ func loadVariableReferences(
 	}, nil
 }
 
-// resolve resolves the variables of service, deployed as the resource with slug name with the given
-// primary domain, and checks the secret values its placements carry fit maxSecretBytes.
-func (v variableReferences) resolve(
-	name string,
-	hostname string,
-	service *deploymentv1.ServiceDeploymentSpec,
-	maxSecretBytes int32,
-) (varref.Resolved, error) {
-	target := varref.Target{Port: service.GetPort(), PublicHost: hostname}
-	resolved, err := v.environment.Resolve(name, target, service.GetEnv())
-	if err != nil {
-		return varref.Resolved{}, err
+func (v variableReferences) validateSecrets(secretEnv map[string]string, maxSecretBytes int32) error {
+	for _, name := range varref.SecretNames(secretEnv) {
+		if _, exists := v.sizes[name]; !exists {
+			return varref.ErrUnknownSecret.Detail("%s", name)
+		}
 	}
-	if total := varref.SecretBytes(resolved.Secret, v.sizes); total > int64(maxSecretBytes) {
-		return varref.Resolved{}, ErrSecretEnvTooLarge.Detail("%d bytes over a limit of %d", total, maxSecretBytes)
+	if total := varref.SecretBytes(secretEnv, v.sizes); total > int64(maxSecretBytes) {
+		return ErrSecretEnvTooLarge.Detail("%d bytes over a limit of %d", total, maxSecretBytes)
 	}
-	return resolved, nil
+	return nil
 }
 
 // withPlainEnv returns a copy of spec that runs with env as its variables.

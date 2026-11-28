@@ -52,13 +52,13 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 	spec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}}
 	workspace := workspaceID.String()
 	var input *domainv1.DomainInput
-	var requestedEnvironment *string
+	requestedEnvironment := f.envID.String()
 	wantEnvironment := f.envID
 	if platform {
 		f.serveDomains(t, testAppDomain)
 		if staging {
 			wantEnvironment = f.addStagingEnvironment(t)
-			requestedEnvironment = new(wantEnvironment.String())
+			requestedEnvironment = wantEnvironment.String()
 
 			_, err := f.pool.Exec(ctx, `UPDATE clusters SET domains = '{}' WHERE id = $1`, f.otherCluster)
 			if err != nil {
@@ -116,7 +116,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 
 	if staging {
 		otherEnvironment := f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other"))
-		req.EnvironmentId = new(otherEnvironment.String())
+		req.EnvironmentId = otherEnvironment.String()
 		_, err = server.CreateResource(scoped, req)
 		wantCode(t, err, connect.CodeNotFound)
 	}

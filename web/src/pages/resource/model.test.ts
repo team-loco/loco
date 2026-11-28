@@ -61,7 +61,7 @@ describe("buildRegions", () => {
 				spec: create(DeploymentSpecSchema),
 			}),
 		);
-		const [region] = buildRegions(create(ResourceSchema), history, undefined);
+		const [region] = buildRegions(create(ResourceSchema), history, "production", undefined);
 		expect(region?.current).toBeUndefined();
 		expect(region?.history.map((d) => d.id)).toEqual(["release-3", "release-2", "release-1"]);
 		expect(region?.lastGood).toBeUndefined();
@@ -77,7 +77,7 @@ describe("buildRegions", () => {
 				create(RegionStatusSchema, { region: "us-va-1", deploymentId: "current", lastGoodDeploymentId: "target" }),
 			],
 		});
-		const [region] = buildRegions(create(ResourceSchema), [current], environment, [current, target]);
+		const [region] = buildRegions(create(ResourceSchema), [current], "production", environment, [current, target]);
 		expect(region?.lastGood?.id).toBe("target");
 		expect(region?.history.map((d) => d.id)).toEqual(["current"]);
 	});
@@ -92,7 +92,7 @@ describe("buildRegions", () => {
 				create(RegionStatusSchema, { region: "us-va-1", deploymentId: "failed", servingDeploymentId: "previous" }),
 			],
 		});
-		const [region] = buildRegions(create(ResourceSchema), [failed, previous], environment);
+		const [region] = buildRegions(create(ResourceSchema), [failed, previous], "production", environment);
 		expect(region?.current?.id).toBe("failed");
 		expect(region?.serving?.id).toBe("previous");
 	});
@@ -112,15 +112,18 @@ describe("buildRegions", () => {
 		const environment = create(EnvironmentStatusSchema, {
 			regions: [create(RegionStatusSchema, { region: "us-ca-1", deploymentId: current.id })],
 		});
-		const regions = buildRegions(create(ResourceSchema), history, environment, [current]);
+		const regions = buildRegions(create(ResourceSchema), history, "production", environment, [current]);
 		const california = regions.find((region) => region.name === "us-ca-1");
 		expect(california?.current).toEqual(current);
 		expect(california?.history).toEqual([]);
-		const resource = create(ResourceSchema, { spec: { spec: { case: "service", value: {} } } });
+		const resource = create(ResourceSchema, {
+			environments: [{ environmentId: "production", spec: { spec: { case: "service", value: {} } } }],
+		});
 		expect(
 			isWorker(
 				resource,
 				regions.flatMap((r) => (r.current === undefined ? [] : [r.current])),
+				"production",
 			),
 		).toBe(false);
 		expect(regions.flatMap((region) => region.history)).toHaveLength(200);
@@ -131,7 +134,7 @@ describe("buildRegions", () => {
 		const environment = create(EnvironmentStatusSchema, {
 			regions: [create(RegionStatusSchema, { region: "us-ca-1", deploymentId: "current" })],
 		});
-		const regions = buildRegions(create(ResourceSchema), [old], environment);
+		const regions = buildRegions(create(ResourceSchema), [old], "production", environment);
 		expect(regions[0]?.current).toBeUndefined();
 	});
 });

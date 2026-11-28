@@ -29,11 +29,15 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if stopsService(op) {
 		return a.stop(ctx, qtx, res, op)
 	}
-	currentSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
-	if err != nil {
-		return fmt.Errorf("resource spec: %w", err)
+	current := &resourcev1.ServiceSpec{}
+	config, configured := a.live.configurations[res.ID]
+	if configured {
+		currentSpec, err := converter.DeserializeResourceSpec(config.Spec, res.Type)
+		if err != nil {
+			return fmt.Errorf("resource environment spec: %w", err)
+		}
+		current = currentSpec.GetService()
 	}
-	current := currentSpec.GetService()
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
 	affected := a.affectedRegions(res.ID, op.Changes, regions)
 
@@ -42,25 +46,27 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if err != nil {
 		return fmt.Errorf("marshal resource spec: %w", err)
 	}
-	specParams := genDb.UpdateResourceSpecParams{ID: res.ID, Spec: specJSON}
-	if updateErr := qtx.UpdateResourceSpec(ctx, specParams); updateErr != nil {
+	specParams := genDb.UpsertResourceEnvironmentParams{ResourceID: res.ID, EnvironmentID: a.env.ID,
+		WorkspaceID: res.WorkspaceID, Spec: specJSON, SpecVersion: specVersion}
+	if _, updateErr := qtx.UpsertResourceEnvironment(ctx, specParams); updateErr != nil {
 		return fmt.Errorf("update resource spec: %w", updateErr)
 	}
-	if deployErr := setDeployPolicy(ctx, qtx, &res, op.Desired.Deploy); deployErr != nil {
+	if deployErr := setDeployPolicy(ctx, qtx, res.ID, a.env.ID, op.Desired.Deploy); deployErr != nil {
 		return deployErr
 	}
-	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, res.ID); bumpErr != nil {
+	if bumpErr := bumpEnvironmentRevision(ctx, qtx, a.env.ID); bumpErr != nil {
 		return bumpErr
 	}
 	if domainErr := a.syncDomains(ctx, qtx, res.ID, op.Desired.Domains); domainErr != nil {
 		return domainErr
 	}
 	if eventErr := events.Record(ctx, qtx, events.Event{
-		Type:        events.ResourceUpdated,
-		WorkspaceID: new(res.WorkspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(res.ID),
-		Data:        map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
+		Type:          events.ResourceUpdated,
+		EnvironmentID: new(a.env.ID),
+		WorkspaceID:   new(res.WorkspaceID),
+		SubjectType:   events.SubjectResource,
+		SubjectID:     new(res.ID),
+		Data:          map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
 	}); eventErr != nil {
 		return eventErr
 	}
@@ -68,7 +74,7 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 		return stopErr
 	}
 	if a.builds[res.Slug] != nil {
-		return a.deploy(ctx, qtx, res, spec, op.Desired, regions)
+		return a.deploy(ctx, qtx, res, op.Desired, regions)
 	}
 	if op.NeedsDeploy {
 		return nil
@@ -76,7 +82,7 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if len(affected) == 0 {
 		return nil
 	}
-	return a.deploy(ctx, qtx, res, spec, op.Desired, affected)
+	return a.deploy(ctx, qtx, res, op.Desired, affected)
 }
 
 // updatedSpec is the resource spec an update stores. A region edit replaces only the region map
@@ -111,11 +117,12 @@ func (a *applier) stop(ctx context.Context, qtx *genDb.Queries, res genDb.Resour
 		return stopErr
 	}
 	return events.Record(ctx, qtx, events.Event{
-		Type:        events.ResourceUpdated,
-		WorkspaceID: new(res.WorkspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(res.ID),
-		Data:        map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
+		Type:          events.ResourceUpdated,
+		EnvironmentID: new(a.env.ID),
+		WorkspaceID:   new(res.WorkspaceID),
+		SubjectType:   events.SubjectResource,
+		SubjectID:     new(res.ID),
+		Data:          map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
 	})
 }
 

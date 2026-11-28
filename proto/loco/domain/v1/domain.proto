@@ -43,7 +43,7 @@ message DomainInput {
   };
 }
 
-// ResourceDomain represents a domain assigned to a resource.
+// ResourceDomain is a hostname routing to a resource in one environment.
 message ResourceDomain {
   string id = 1;
   string resource_id = 2;
@@ -54,6 +54,7 @@ message ResourceDomain {
   bool is_primary = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+  string environment_id = 10;
 }
 
 // --- Service ---
@@ -96,6 +97,7 @@ message ListAppDomainsResponse {
 message CreateResourceDomainRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   DomainInput domain = 2 [(buf.validate.field).required = true];
+  string environment_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
 // CreateResourceDomainResponse is the response containing the created resource domain ID.

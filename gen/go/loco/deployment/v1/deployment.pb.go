@@ -672,10 +672,10 @@ type ServiceDeploymentSpec struct {
 	// port is the port the service listens on; without it the service is a worker.
 	Port *int32 `protobuf:"varint,9,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// routing is the HTTP routing the deployment's environment uses. An empty message means the
-	// service sets no routing and the defaults apply; without the field the resource's routing
-	// applies.
+	// service sets no routing and the defaults apply; without the field the environment's desired routing
+	// applies when creating the snapshot.
 	Routing *ServiceRouting `protobuf:"bytes,10,opt,name=routing,proto3,oneof" json:"routing,omitempty"`
-	// Defaults to the resource settings when omitted; stored in the deployment snapshot.
+	// Defaults to the environment configuration when omitted; stored in the deployment snapshot.
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
 	// The API assigns the installation target when recording this immutable snapshot.
 	Platform string `protobuf:"bytes,15,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -684,9 +684,12 @@ type ServiceDeploymentSpec struct {
 	// args replaces the image CMD; without it the image's CMD is passed to the entrypoint.
 	Args []string `protobuf:"bytes,17,rep,name=args,proto3" json:"args,omitempty"`
 	// The sizing of each region the deployment targets, keyed by region name. In a request,
-	// an entry overrides the resource's region target; the stored snapshot carries every
+	// an entry overrides the environment's region target; the stored snapshot carries every
 	// target region filled in.
-	Regions       map[string]*RegionDeploymentTarget `protobuf:"bytes,18,rep,name=regions,proto3" json:"regions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Regions map[string]*RegionDeploymentTarget `protobuf:"bytes,18,rep,name=regions,proto3" json:"regions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Filled from this environment's desired configuration when recording the snapshot.
+	// Rollbacks and placement reconciliation keep this policy even if configuration changes.
+	FailurePolicy *FailurePolicy `protobuf:"bytes,19,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -791,8 +794,15 @@ func (x *ServiceDeploymentSpec) GetRegions() map[string]*RegionDeploymentTarget 
 	return nil
 }
 
+func (x *ServiceDeploymentSpec) GetFailurePolicy() *FailurePolicy {
+	if x != nil {
+		return x.FailurePolicy
+	}
+	return nil
+}
+
 // RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default
-// from the resource's region target.
+// from the environment's region target.
 type RegionDeploymentTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cpu           *string                `protobuf:"bytes,1,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`       // e.g., "100m"
@@ -1361,17 +1371,18 @@ func (x *DeploymentPlacement) GetPreviousDeploymentId() string {
 type CreateDeploymentRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	// The regions to deploy to; empty deploys to every enabled region of the resource.
-	Regions       []string        `protobuf:"bytes,8,rep,name=regions,proto3" json:"regions,omitempty"`
+	// The regions to deploy to; empty uses this environment's enabled regions for a new deploy,
+	// or every region in the source snapshot for redeploy and rollback.
+	Regions []string `protobuf:"bytes,8,rep,name=regions,proto3" json:"regions,omitempty"`
+	// A new deploy supplies spec. Redeploy and rollback load the stored source snapshot.
 	Spec          *DeploymentSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
 	EnvironmentId string          `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	Commit        *SourceCommit   `protobuf:"bytes,7,opt,name=commit,proto3" json:"commit,omitempty"`
 	// Unspecified records a deploy; redeploy and rollback name the deployment they copy.
 	Trigger            DeploymentTrigger `protobuf:"varint,9,opt,name=trigger,proto3,enum=loco.deployment.v1.DeploymentTrigger" json:"trigger,omitempty"`
 	SourceDeploymentId string            `protobuf:"bytes,10,opt,name=source_deployment_id,json=sourceDeploymentId,proto3" json:"source_deployment_id,omitempty"`
-	// remove_health_check runs the deployment without a health check and removes the resource's
-	// own, which a spec without one inherits. The resource's check is the default for every
-	// environment of the workspace; deployments already running in other environments keep theirs.
+	// remove_health_check clears this environment's health-check default for a new deploy.
+	// Existing deployments and other environments retain their own settings.
 	RemoveHealthCheck bool `protobuf:"varint,11,opt,name=remove_health_check,json=removeHealthCheck,proto3" json:"remove_health_check,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -2216,7 +2227,10 @@ type Replica struct {
 	// The replica's restarts since it last stayed up for the cluster's health window, oldest first.
 	RestartsAt []*timestamppb.Timestamp `protobuf:"bytes,15,rep,name=restarts_at,json=restartsAt,proto3" json:"restarts_at,omitempty"`
 	// The exit the replica most recently restarted after.
-	LastRestart   *ReplicaRestart `protobuf:"bytes,16,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
+	LastRestart *ReplicaRestart `protobuf:"bytes,16,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
+	// The restart policy the controller evaluated for this replica's reported revision.
+	// Unset for replicas outside the current placement revision. Deploy timeout is not set.
+	FailurePolicy *FailurePolicy `protobuf:"bytes,17,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2352,6 +2366,13 @@ func (x *Replica) GetRestartsAt() []*timestamppb.Timestamp {
 func (x *Replica) GetLastRestart() *ReplicaRestart {
 	if x != nil {
 		return x.LastRestart
+	}
+	return nil
+}
+
+func (x *Replica) GetFailurePolicy() *FailurePolicy {
+	if x != nil {
+		return x.FailurePolicy
 	}
 	return nil
 }
@@ -3342,7 +3363,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xcc\a\n" +
+	"\f_inject_otel\"\x96\b\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12D\n" +
@@ -3354,7 +3375,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bplatform\x18\x0f \x01(\tR\bplatform\x12(\n" +
 	"\acommand\x18\x10 \x03(\tB\x0e\xbaH\v\x92\x01\b\x10d\"\x04r\x02\x10\x01R\acommand\x12\x1c\n" +
 	"\x04args\x18\x11 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x04args\x12P\n" +
-	"\aregions\x18\x12 \x03(\v26.loco.deployment.v1.ServiceDeploymentSpec.RegionsEntryR\aregions\x1a6\n" +
+	"\aregions\x18\x12 \x03(\v26.loco.deployment.v1.ServiceDeploymentSpec.RegionsEntryR\aregions\x12H\n" +
+	"\x0efailure_policy\x18\x13 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicy\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1af\n" +
@@ -3439,18 +3461,19 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\rsuperseded_by\x18\f \x01(\tR\fsupersededBy\x124\n" +
 	"\x16previous_deployment_id\x18\r \x01(\tR\x14previousDeploymentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\x94\x05\n" +
+	"\r_completed_at\"\x81\a\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
-	"\aregions\x18\b \x03(\tB\x0e\xbaH\v\x92\x01\b\x18\x01\"\x04r\x02\x10\x01R\aregions\x12>\n" +
-	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
+	"\aregions\x18\b \x03(\tB\x0e\xbaH\v\x92\x01\b\x18\x01\"\x04r\x02\x10\x01R\aregions\x126\n" +
+	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12/\n" +
 	"\x0eenvironment_id\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x128\n" +
 	"\x06commit\x18\a \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commit\x12O\n" +
 	"\atrigger\x18\t \x01(\x0e2%.loco.deployment.v1.DeploymentTriggerB\x0e\xbaH\v\x82\x01\b\x18\x00\x18\x01\x18\x02\x18\x03R\atrigger\x12=\n" +
 	"\x14source_deployment_id\x18\n" +
 	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x12sourceDeploymentId\x12.\n" +
-	"\x13remove_health_check\x18\v \x01(\bR\x11removeHealthCheck:\xb8\x01\xbaH\xb4\x01\x1a\xb1\x01\n" +
+	"\x13remove_health_check\x18\v \x01(\bR\x11removeHealthCheck:\xad\x03\xbaH\xa9\x03\x1a\xf2\x01\n" +
+	" create_deployment.spec_or_source\x12Ma new deploy needs spec; redeploy and rollback use only their source snapshot\x1a\x7f(this.trigger == 0 || this.trigger == 1) ? has(this.spec) : (!has(this.spec) && !has(this.commit) && !this.remove_health_check)\x1a\xb1\x01\n" +
 	"3create_deployment.remove_health_check_without_check\x127remove_health_check needs a spec without a health_check\x1aA!this.remove_health_check || !has(this.spec.service.health_check)\"v\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x125\n" +
@@ -3522,7 +3545,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\x0e2$.loco.deployment.v1.DeploymentStatusR\x06status\x129\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x14\n" +
-	"\x05image\x18\x06 \x01(\tR\x05image\"\xfe\x04\n" +
+	"\x05image\x18\x06 \x01(\tR\x05image\"\xc8\x05\n" +
 	"\aReplica\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3542,7 +3565,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExit\x12;\n" +
 	"\vrestarts_at\x18\x0f \x03(\v2\x1a.google.protobuf.TimestampR\n" +
 	"restartsAt\x12E\n" +
-	"\flast_restart\x18\x10 \x01(\v2\".loco.deployment.v1.ReplicaRestartR\vlastRestart\"\xb2\x01\n" +
+	"\flast_restart\x18\x10 \x01(\v2\".loco.deployment.v1.ReplicaRestartR\vlastRestart\x12H\n" +
+	"\x0efailure_policy\x18\x11 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicy\"\xb2\x01\n" +
 	"\rFailurePolicy\x12H\n" +
 	"\x0erestart_policy\x18\x01 \x01(\x0e2!.loco.deployment.v1.RestartPolicyR\rrestartPolicy\x12!\n" +
 	"\fmax_restarts\x18\x02 \x01(\x05R\vmaxRestarts\x124\n" +
@@ -3732,83 +3756,85 @@ var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
 	13, // 3: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
 	10, // 4: loco.deployment.v1.ServiceDeploymentSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
 	47, // 5: loco.deployment.v1.ServiceDeploymentSpec.regions:type_name -> loco.deployment.v1.ServiceDeploymentSpec.RegionsEntry
-	8,  // 6: loco.deployment.v1.RegionDeploymentTarget.scalers:type_name -> loco.deployment.v1.Scalers
-	11, // 7: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
-	0,  // 8: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentStatus
-	48, // 9: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
-	48, // 10: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	48, // 11: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
-	48, // 12: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
-	14, // 13: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	3,  // 14: loco.deployment.v1.Deployment.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
-	4,  // 15: loco.deployment.v1.Deployment.method:type_name -> loco.deployment.v1.DeploymentMethod
-	45, // 16: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
-	16, // 17: loco.deployment.v1.Deployment.placements:type_name -> loco.deployment.v1.DeploymentPlacement
-	2,  // 18: loco.deployment.v1.Deployment.trigger:type_name -> loco.deployment.v1.DeploymentTrigger
-	9,  // 19: loco.deployment.v1.Deployment.build:type_name -> loco.deployment.v1.BuildSource
-	1,  // 20: loco.deployment.v1.DeploymentPlacement.status:type_name -> loco.deployment.v1.PlacementStatus
-	48, // 21: loco.deployment.v1.DeploymentPlacement.started_at:type_name -> google.protobuf.Timestamp
-	48, // 22: loco.deployment.v1.DeploymentPlacement.completed_at:type_name -> google.protobuf.Timestamp
-	32, // 23: loco.deployment.v1.DeploymentPlacement.problem:type_name -> loco.deployment.v1.Problem
-	28, // 24: loco.deployment.v1.DeploymentPlacement.replicas:type_name -> loco.deployment.v1.Replica
-	14, // 25: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	45, // 26: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
-	2,  // 27: loco.deployment.v1.CreateDeploymentRequest.trigger:type_name -> loco.deployment.v1.DeploymentTrigger
-	9,  // 28: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
-	15, // 29: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	48, // 30: loco.deployment.v1.ListDeploymentsRequest.start_time:type_name -> google.protobuf.Timestamp
-	48, // 31: loco.deployment.v1.ListDeploymentsRequest.end_time:type_name -> google.protobuf.Timestamp
-	0,  // 32: loco.deployment.v1.ListDeploymentsRequest.statuses:type_name -> loco.deployment.v1.DeploymentStatus
-	5,  // 33: loco.deployment.v1.ListDeploymentsRequest.view:type_name -> loco.deployment.v1.DeploymentListView
-	15, // 34: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	48, // 35: loco.deployment.v1.QueryDeploymentBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
-	48, // 36: loco.deployment.v1.QueryDeploymentBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
-	25, // 37: loco.deployment.v1.QueryDeploymentBucketsResponse.buckets:type_name -> loco.deployment.v1.DeploymentBucket
-	48, // 38: loco.deployment.v1.DeploymentBucket.mean_created_at:type_name -> google.protobuf.Timestamp
-	26, // 39: loco.deployment.v1.DeploymentBucket.status_counts:type_name -> loco.deployment.v1.DeploymentStatusCount
-	27, // 40: loco.deployment.v1.DeploymentBucket.only_deployment:type_name -> loco.deployment.v1.DeploymentBucketEntry
-	0,  // 41: loco.deployment.v1.DeploymentStatusCount.status:type_name -> loco.deployment.v1.DeploymentStatus
-	0,  // 42: loco.deployment.v1.DeploymentBucketEntry.status:type_name -> loco.deployment.v1.DeploymentStatus
-	48, // 43: loco.deployment.v1.DeploymentBucketEntry.created_at:type_name -> google.protobuf.Timestamp
-	48, // 44: loco.deployment.v1.Replica.state_since:type_name -> google.protobuf.Timestamp
-	48, // 45: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
-	48, // 46: loco.deployment.v1.Replica.started_at:type_name -> google.protobuf.Timestamp
-	31, // 47: loco.deployment.v1.Replica.last_exit:type_name -> loco.deployment.v1.ReplicaExit
-	48, // 48: loco.deployment.v1.Replica.restarts_at:type_name -> google.protobuf.Timestamp
-	30, // 49: loco.deployment.v1.Replica.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
-	6,  // 50: loco.deployment.v1.FailurePolicy.restart_policy:type_name -> loco.deployment.v1.RestartPolicy
-	48, // 51: loco.deployment.v1.ReplicaRestart.at:type_name -> google.protobuf.Timestamp
-	48, // 52: loco.deployment.v1.ReplicaExit.finished_at:type_name -> google.protobuf.Timestamp
-	48, // 53: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
-	48, // 54: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
-	15, // 55: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	33, // 56: loco.deployment.v1.WatchDeploymentResponse.activity:type_name -> loco.deployment.v1.Activity
-	42, // 57: loco.deployment.v1.GetDeploymentCancelImpactResponse.finished_regions:type_name -> loco.deployment.v1.FinishedRegion
-	15, // 58: loco.deployment.v1.FinishedRegion.previous:type_name -> loco.deployment.v1.Deployment
-	12, // 59: loco.deployment.v1.ServiceDeploymentSpec.RegionsEntry.value:type_name -> loco.deployment.v1.RegionDeploymentTarget
-	17, // 60: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	19, // 61: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	21, // 62: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	23, // 63: loco.deployment.v1.DeploymentService.QueryDeploymentBuckets:input_type -> loco.deployment.v1.QueryDeploymentBucketsRequest
-	34, // 64: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	36, // 65: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	38, // 66: loco.deployment.v1.DeploymentService.CancelDeployment:input_type -> loco.deployment.v1.CancelDeploymentRequest
-	40, // 67: loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact:input_type -> loco.deployment.v1.GetDeploymentCancelImpactRequest
-	43, // 68: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
-	18, // 69: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	20, // 70: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	22, // 71: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	24, // 72: loco.deployment.v1.DeploymentService.QueryDeploymentBuckets:output_type -> loco.deployment.v1.QueryDeploymentBucketsResponse
-	35, // 73: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	37, // 74: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
-	39, // 75: loco.deployment.v1.DeploymentService.CancelDeployment:output_type -> loco.deployment.v1.CancelDeploymentResponse
-	41, // 76: loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact:output_type -> loco.deployment.v1.GetDeploymentCancelImpactResponse
-	44, // 77: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
-	69, // [69:78] is the sub-list for method output_type
-	60, // [60:69] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	29, // 6: loco.deployment.v1.ServiceDeploymentSpec.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	8,  // 7: loco.deployment.v1.RegionDeploymentTarget.scalers:type_name -> loco.deployment.v1.Scalers
+	11, // 8: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
+	0,  // 9: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentStatus
+	48, // 10: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
+	48, // 11: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	48, // 12: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
+	48, // 13: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 14: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	3,  // 15: loco.deployment.v1.Deployment.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
+	4,  // 16: loco.deployment.v1.Deployment.method:type_name -> loco.deployment.v1.DeploymentMethod
+	45, // 17: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
+	16, // 18: loco.deployment.v1.Deployment.placements:type_name -> loco.deployment.v1.DeploymentPlacement
+	2,  // 19: loco.deployment.v1.Deployment.trigger:type_name -> loco.deployment.v1.DeploymentTrigger
+	9,  // 20: loco.deployment.v1.Deployment.build:type_name -> loco.deployment.v1.BuildSource
+	1,  // 21: loco.deployment.v1.DeploymentPlacement.status:type_name -> loco.deployment.v1.PlacementStatus
+	48, // 22: loco.deployment.v1.DeploymentPlacement.started_at:type_name -> google.protobuf.Timestamp
+	48, // 23: loco.deployment.v1.DeploymentPlacement.completed_at:type_name -> google.protobuf.Timestamp
+	32, // 24: loco.deployment.v1.DeploymentPlacement.problem:type_name -> loco.deployment.v1.Problem
+	28, // 25: loco.deployment.v1.DeploymentPlacement.replicas:type_name -> loco.deployment.v1.Replica
+	14, // 26: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	45, // 27: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	2,  // 28: loco.deployment.v1.CreateDeploymentRequest.trigger:type_name -> loco.deployment.v1.DeploymentTrigger
+	9,  // 29: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
+	15, // 30: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	48, // 31: loco.deployment.v1.ListDeploymentsRequest.start_time:type_name -> google.protobuf.Timestamp
+	48, // 32: loco.deployment.v1.ListDeploymentsRequest.end_time:type_name -> google.protobuf.Timestamp
+	0,  // 33: loco.deployment.v1.ListDeploymentsRequest.statuses:type_name -> loco.deployment.v1.DeploymentStatus
+	5,  // 34: loco.deployment.v1.ListDeploymentsRequest.view:type_name -> loco.deployment.v1.DeploymentListView
+	15, // 35: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	48, // 36: loco.deployment.v1.QueryDeploymentBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
+	48, // 37: loco.deployment.v1.QueryDeploymentBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
+	25, // 38: loco.deployment.v1.QueryDeploymentBucketsResponse.buckets:type_name -> loco.deployment.v1.DeploymentBucket
+	48, // 39: loco.deployment.v1.DeploymentBucket.mean_created_at:type_name -> google.protobuf.Timestamp
+	26, // 40: loco.deployment.v1.DeploymentBucket.status_counts:type_name -> loco.deployment.v1.DeploymentStatusCount
+	27, // 41: loco.deployment.v1.DeploymentBucket.only_deployment:type_name -> loco.deployment.v1.DeploymentBucketEntry
+	0,  // 42: loco.deployment.v1.DeploymentStatusCount.status:type_name -> loco.deployment.v1.DeploymentStatus
+	0,  // 43: loco.deployment.v1.DeploymentBucketEntry.status:type_name -> loco.deployment.v1.DeploymentStatus
+	48, // 44: loco.deployment.v1.DeploymentBucketEntry.created_at:type_name -> google.protobuf.Timestamp
+	48, // 45: loco.deployment.v1.Replica.state_since:type_name -> google.protobuf.Timestamp
+	48, // 46: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
+	48, // 47: loco.deployment.v1.Replica.started_at:type_name -> google.protobuf.Timestamp
+	31, // 48: loco.deployment.v1.Replica.last_exit:type_name -> loco.deployment.v1.ReplicaExit
+	48, // 49: loco.deployment.v1.Replica.restarts_at:type_name -> google.protobuf.Timestamp
+	30, // 50: loco.deployment.v1.Replica.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
+	29, // 51: loco.deployment.v1.Replica.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	6,  // 52: loco.deployment.v1.FailurePolicy.restart_policy:type_name -> loco.deployment.v1.RestartPolicy
+	48, // 53: loco.deployment.v1.ReplicaRestart.at:type_name -> google.protobuf.Timestamp
+	48, // 54: loco.deployment.v1.ReplicaExit.finished_at:type_name -> google.protobuf.Timestamp
+	48, // 55: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
+	48, // 56: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
+	15, // 57: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	33, // 58: loco.deployment.v1.WatchDeploymentResponse.activity:type_name -> loco.deployment.v1.Activity
+	42, // 59: loco.deployment.v1.GetDeploymentCancelImpactResponse.finished_regions:type_name -> loco.deployment.v1.FinishedRegion
+	15, // 60: loco.deployment.v1.FinishedRegion.previous:type_name -> loco.deployment.v1.Deployment
+	12, // 61: loco.deployment.v1.ServiceDeploymentSpec.RegionsEntry.value:type_name -> loco.deployment.v1.RegionDeploymentTarget
+	17, // 62: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	19, // 63: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	21, // 64: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	23, // 65: loco.deployment.v1.DeploymentService.QueryDeploymentBuckets:input_type -> loco.deployment.v1.QueryDeploymentBucketsRequest
+	34, // 66: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
+	36, // 67: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
+	38, // 68: loco.deployment.v1.DeploymentService.CancelDeployment:input_type -> loco.deployment.v1.CancelDeploymentRequest
+	40, // 69: loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact:input_type -> loco.deployment.v1.GetDeploymentCancelImpactRequest
+	43, // 70: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
+	18, // 71: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	20, // 72: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	22, // 73: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	24, // 74: loco.deployment.v1.DeploymentService.QueryDeploymentBuckets:output_type -> loco.deployment.v1.QueryDeploymentBucketsResponse
+	35, // 75: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
+	37, // 76: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	39, // 77: loco.deployment.v1.DeploymentService.CancelDeployment:output_type -> loco.deployment.v1.CancelDeploymentResponse
+	41, // 78: loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact:output_type -> loco.deployment.v1.GetDeploymentCancelImpactResponse
+	44, // 79: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
+	71, // [71:80] is the sub-list for method output_type
+	62, // [62:71] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_loco_deployment_v1_deployment_proto_init() }

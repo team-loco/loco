@@ -237,7 +237,7 @@ func generatedDomain(ctx context.Context, t cmdutil.Target, name, appDomain stri
 		return existing, err
 	}
 	client := t.Clients.Domain
-	candidate := base + domainSuffix(t.WorkspaceID, name) + "." + appDomain
+	candidate := base + domainSuffix(t.WorkspaceID, t.Environment.GetId(), name) + "." + appDomain
 	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
 	response, checkErr := client.CheckDomainAvailability(ctx, request)
 	if checkErr != nil {
@@ -258,6 +258,9 @@ func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, 
 		return "", err
 	}
 	for _, assigned := range res.GetDomains() {
+		if assigned.GetEnvironmentId() != t.Environment.GetId() {
+			continue
+		}
 		domain := assigned.GetDomain()
 		if !strings.HasPrefix(domain, base) || !strings.HasSuffix(domain, "."+appDomain) {
 			continue
@@ -276,8 +279,8 @@ func domainBase(name string) string {
 	return name + "-"
 }
 
-func domainSuffix(workspaceID, name string) string {
-	input := workspaceID + "/" + name
+func domainSuffix(workspaceID, environmentID, name string) string {
+	input := workspaceID + "/" + environmentID + "/" + name
 	hash := sha256.Sum256([]byte(input))
 	value := binary.BigEndian.Uint32(hash[:])
 	suffix := [domainSuffixLength]byte{}

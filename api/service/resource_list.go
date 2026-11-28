@@ -27,12 +27,11 @@ import (
 // $5 status name or ”, $6 not deployed, $7 region or ”, $8 type or ”, $9 environment scoped,
 // $10 sort environment or NULL, $11 the resources to list, or NULL for every resource.
 const resourceListSQL = `WITH ws AS MATERIALIZED (
-  SELECT r.id, r.name, r.slug, r.description, r.type::text AS type, r.created_at, r.spec
+  SELECT r.id, r.name, r.slug, r.description, r.type::text AS type, r.created_at
   FROM resources r WHERE r.workspace_id = $1 AND ($11::uuid[] IS NULL OR r.id = ANY($11::uuid[]))
 ),
 regions AS MATERIALIZED (
   SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas,
-    d.id AS deployment_id, d.created_at AS deployment_created_at, d.spec AS deployment_spec,
     d.spec->'build'->>'image' AS image,
     region_status(region_status_cause(
         i.last_heartbeat, i.health_status, make_interval(secs => $2::float8),
@@ -44,9 +43,7 @@ regions AS MATERIALIZED (
     AND ($3::uuid IS NULL OR $10::uuid IS NULL OR i.environment_id IN ($3::uuid, $10::uuid))
 ),
 cells AS (
-  SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status,
-    min(region) AS first_region,
-    (array_agg(deployment_spec ORDER BY deployment_created_at DESC, deployment_id DESC))[1] AS live_spec
+  SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status
   FROM regions GROUP BY resource_id, environment_id
 ),
 facts AS (
@@ -57,7 +54,9 @@ facts AS (
       AND ($10::uuid IS NULL OR c.environment_id = $10::uuid)) AS sort_statuses,
     ARRAY(SELECT g.region FROM regions g
       WHERE g.resource_id = ws.id AND ($3::uuid IS NULL OR g.environment_id = $3::uuid)
-      UNION SELECT t.key FROM jsonb_each(ws.spec->'regions') t WHERE t.value->>'enabled' = 'true'
+      UNION SELECT t.key FROM resource_environments cfg CROSS JOIN LATERAL jsonb_each(cfg.spec->'regions') t
+        WHERE cfg.resource_id = ws.id AND ($3::uuid IS NULL OR cfg.environment_id = $3::uuid)
+          AND t.value->>'enabled' = 'true'
       ORDER BY 1) AS regions,
     ARRAY(SELECT DISTINCT g.image FROM regions g
       WHERE g.resource_id = ws.id AND g.image <> '' AND ($3::uuid IS NULL OR g.environment_id = $3::uuid)) AS images,
@@ -66,32 +65,48 @@ facts AS (
     (SELECT max(n.at) FROM (
       SELECT DISTINCT ON (d.environment_id) COALESCE(d.started_at, d.created_at) AS at FROM deployments d
       WHERE d.resource_id = ws.id AND ($10::uuid IS NULL OR d.environment_id = $10::uuid)
-      ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at,
-    cpu_millicores(COALESCE(run.target->>'cpu', cfg.target->>'cpu')) AS cpu,
-    memory_bytes(COALESCE(run.target->>'memory', cfg.target->>'memory')) AS memory
+      ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at
   FROM ws
-  LEFT JOIN cells env ON env.resource_id = ws.id AND env.environment_id = $10::uuid
-  LEFT JOIN LATERAL (
-    SELECT t.key AS region, t.value AS target FROM jsonb_each(ws.spec->'regions') t
-    WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
-  ) cfg ON true
-  CROSS JOIN LATERAL (
-    SELECT COALESCE(env.live_spec->'regions'->cfg.region, env.live_spec->'regions'->env.first_region) AS target
-  ) run
 ),
 matched AS (
   SELECT * FROM facts f
   WHERE ($4 = '' OR f.name ILIKE $4 OR f.slug ILIKE $4 OR f.description ILIKE $4
-      OR EXISTS (SELECT 1 FROM resource_domains rd WHERE rd.resource_id = f.id AND rd.domain ILIKE $4)
+      OR EXISTS (SELECT 1 FROM resource_domains rd
+        WHERE rd.resource_id = f.id AND ($3::uuid IS NULL OR rd.environment_id = $3::uuid)
+          AND rd.domain ILIKE $4)
       OR EXISTS (SELECT 1 FROM unnest(f.regions || f.images) v WHERE v ILIKE $4))
     AND ($5 = '' OR $5 = ANY(f.statuses))
     AND (NOT $6 OR cardinality(f.statuses) = 0)
     AND ($7 = '' OR $7 = ANY(f.regions))
     AND ($8 = '' OR f.type = $8)
     AND (NOT $9
-      OR EXISTS (SELECT 1 FROM deployments d WHERE d.resource_id = f.id AND d.environment_id = $3::uuid)
-      OR NOT EXISTS (SELECT 1 FROM deployments d WHERE d.resource_id = f.id))
+      OR EXISTS (SELECT 1 FROM resource_environments re
+        WHERE re.resource_id = f.id AND re.environment_id = $3::uuid)
+      OR NOT EXISTS (SELECT 1 FROM resource_environments re WHERE re.resource_id = f.id))
 )`
+
+const resourceSizeSQL = `
+  LEFT JOIN LATERAL (
+    SELECT cpu_millicores(sized.target->>'cpu') AS cpu,
+           memory_bytes(sized.target->>'memory') AS memory
+    FROM resource_environments config
+    LEFT JOIN LATERAL (
+      SELECT min(l.region) AS first_region,
+        (array_agg(d.spec ORDER BY d.created_at DESC, d.id DESC))[1] AS live_spec
+      FROM live_deployment_placements l JOIN deployments d ON d.id = l.deployment_id
+      WHERE l.resource_id = config.resource_id AND l.environment_id = config.environment_id
+    ) env ON true
+    LEFT JOIN LATERAL (
+      SELECT t.key AS region, t.value AS target FROM jsonb_each(config.spec->'regions') t
+      WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
+    ) desired ON true
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(env.live_spec->'regions'->desired.region,
+                      env.live_spec->'regions'->env.first_region, desired.target) AS target
+    ) sized
+    WHERE config.resource_id = m.id AND ($10::uuid IS NULL OR config.environment_id = $10::uuid)
+    ORDER BY cpu DESC, memory DESC, config.environment_id LIMIT 1
+  ) size ON true`
 
 // The sort keys of each order as k1, k2 and kt; every order then sorts by name_key and id.
 var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
@@ -103,7 +118,7 @@ var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
 	    ELSE 2 END) FROM unnest(sort_statuses) s), 4)::bigint, 0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED: `(EXTRACT(EPOCH FROM created_at) * 1000000)::bigint,
 	    0::bigint, ''::text`,
-	resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE:     `cpu, memory, ''::text`,
+	resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE:     `COALESCE(size.cpu, 0), COALESCE(size.memory, 0), ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_REGION:   `0::bigint, 0::bigint, COALESCE(regions[1], '')`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_REPLICAS: `replicas, 0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_DEPLOYED: `COALESCE((EXTRACT(EPOCH FROM deployed_at) * 1000000)::bigint, 0),
@@ -351,7 +366,11 @@ func (s *ResourceServer) resourcePage(
 ) ([]resourceKey, error) {
 	args := filter.args()
 	sql := resourceListSQL + " SELECT id, name_key, k1, k2, kt FROM (SELECT m.id, m.name_key, x.k1, x.k2, x.kt" +
-		" FROM matched m CROSS JOIN LATERAL (SELECT " + resourceOrderKeys[after.Order] + ") x (k1, k2, kt)) k"
+		" FROM matched m"
+	if after.Order == resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE {
+		sql += resourceSizeSQL
+	}
+	sql += " CROSS JOIN LATERAL (SELECT " + resourceOrderKeys[after.Order] + ") x (k1, k2, kt)) k"
 	direction, beyond := "ASC", ">"
 	if after.Descending {
 		direction, beyond = "DESC", "<"
@@ -387,6 +406,14 @@ func (s *ResourceServer) listedResources(ctx context.Context, keys []resourceKey
 	if err != nil {
 		return nil, fmt.Errorf("list resource domains: %w", err)
 	}
+	configs, err := s.queries.ListResourceEnvironments(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list resource environments: %w", err)
+	}
+	configsByResource := make(map[uuid.UUID][]genDb.ResourceEnvironment, len(ids))
+	for _, config := range configs {
+		configsByResource[config.ResourceID] = append(configsByResource[config.ResourceID], config)
+	}
 	statuses, err := s.environmentStatuses(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("derive resource statuses: %w", err)
@@ -404,7 +431,12 @@ func (s *ResourceServer) listedResources(ctx context.Context, keys []resourceKey
 	}
 	byID := make(map[uuid.UUID]*resourcev1.Resource, len(dbResources))
 	for _, dbResource := range dbResources {
-		resource, protoErr := s.dbResourceToProto(dbResource, statuses[dbResource.ID], domainsByResource[dbResource.ID])
+		resource, protoErr := s.dbResourceToProto(
+			dbResource,
+			configsByResource[dbResource.ID],
+			statuses[dbResource.ID],
+			domainsByResource[dbResource.ID],
+		)
 		if protoErr != nil {
 			return nil, protoErr
 		}

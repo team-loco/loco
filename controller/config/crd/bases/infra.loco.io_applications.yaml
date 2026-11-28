@@ -398,6 +398,26 @@ spec:
                           type: integer
                         ready:
                           type: boolean
+                        restartPolicy:
+                          description: |-
+                            RestartPolicy is the policy the controller evaluated for this replica's revision.
+                            Unset for replicas outside the current placement revision.
+                          properties:
+                            maxRestarts:
+                              description: MaxRestarts is the on-failure budget.
+                              format: int32
+                              maximum: 5
+                              minimum: 1
+                              type: integer
+                            mode:
+                              enum:
+                              - on-failure
+                              - always
+                              - never
+                              type: string
+                          required:
+                          - mode
+                          type: object
                         restarts:
                           format: int32
                           type: integer

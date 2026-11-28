@@ -27,8 +27,9 @@ const (
 //	nu, xi us-ca-1 1 × 100m 128Mi
 //	idle   us-ca-1 0 × 1 CPU 1Gi
 //
-// Alpha also runs us-ca-1 1 × 1 CPU 1Gi beside its unsized us-va-1, and beta runs 3 × 250m 128Mi
-// in staging. svc keeps 1 × 4 CPU 256Mi in prod.
+// Alpha also runs us-ca-1 1 × 1 CPU 1Gi beside us-va-1 2 × 1 CPU 512Mi in prod.
+// Staging runs Alpha at 1 × 150m 192Mi and beta at 3 × 250m 128Mi.
+// svc keeps 1 × 4 CPU 256Mi in prod.
 func newAllocationFixture(t *testing.T) *resourceListFixture {
 	t.Helper()
 	f := newResourceListFixture(t)
@@ -108,21 +109,26 @@ func TestGetEnvironmentAllocation(t *testing.T) {
 		want        *resourcev1.GetEnvironmentAllocationResponse
 	}{
 		{statusProduction, f.ctx, f.envID, &resourcev1.GetEnvironmentAllocationResponse{
-			CpuMillicores: 3*4000 + 3500 + 1000 + 2*100,
-			MemoryBytes:   (512 + 256 + 256 + 3584 + 1024 + 2*128) * mebibyte,
+			CpuMillicores: 3*4000 + 3500 + 3000 + 2*100,
+			MemoryBytes:   (512 + 256 + 256 + 3584 + 2048 + 2*128) * mebibyte,
 			ResourceCount: 7,
 			Resources: []*resourcev1.ResourceAllocation{
 				f.allocated("zeta", 4000, 512),
 				f.allocated(listSvc, 4000, 256),
 				f.allocated("Tau", 4000, 256),
 				f.allocated("wide", 2*250+3*1000, 2*1024+3*512),
-				f.allocated(listAlpha, 1000, 1024),
+				f.allocated(listAlpha, 3000, 2048),
 				f.allocated("nu", 100, 128),
 			},
 		}},
 		{stagingName, f.ctx, f.stagingID, &resourcev1.GetEnvironmentAllocationResponse{
-			CpuMillicores: 750, MemoryBytes: 384 * mebibyte, ResourceCount: 1,
-			Resources: []*resourcev1.ResourceAllocation{f.allocated(listBeta, 750, 384)},
+			CpuMillicores: 900,
+			MemoryBytes:   576 * mebibyte,
+			ResourceCount: 2,
+			Resources: []*resourcev1.ResourceAllocation{
+				f.allocated(listBeta, 750, 384),
+				f.allocated(listAlpha, 150, 192),
+			},
 		}},
 		{"granted Alpha and svc", reqctx.WithPrincipal(context.Background(), reqctx.Principal{
 			Scopes: []genDb.EntityScope{
@@ -130,10 +136,10 @@ func TestGetEnvironmentAllocation(t *testing.T) {
 				{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listSvc], Scope: genDb.ScopeRead},
 			},
 		}), f.envID, &resourcev1.GetEnvironmentAllocationResponse{
-			CpuMillicores: 5000, MemoryBytes: 1280 * mebibyte, ResourceCount: 2,
+			CpuMillicores: 7000, MemoryBytes: 2304 * mebibyte, ResourceCount: 2,
 			Resources: []*resourcev1.ResourceAllocation{
 				f.allocated(listSvc, 4000, 256),
-				f.allocated(listAlpha, 1000, 1024),
+				f.allocated(listAlpha, 3000, 2048),
 			},
 		}},
 	}

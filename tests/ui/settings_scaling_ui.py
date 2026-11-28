@@ -152,7 +152,10 @@ with session(out) as browser:
 
     def stored_regions():
         return json.loads(
-            sql(state, f"SELECT spec FROM resources WHERE id='{resource}';")
+            sql(
+                state,
+                f"SELECT spec FROM resource_environments WHERE resource_id='{resource}' AND environment_id=(SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production');",
+            )
         )["regions"]
 
     def save_and_settle(method="UpdateResource"):

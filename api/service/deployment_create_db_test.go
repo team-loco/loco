@@ -54,8 +54,8 @@ func createDeploymentWith(
 func seedDeployment(t *testing.T, f *deployFixture, resourceSpec string) {
 	t.Helper()
 	f.markClustersHealthy(t)
-	setup := `UPDATE resources SET spec = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(context.Background(), setup, f.resourceID, resourceSpec); err != nil {
+	setup := `UPDATE resource_environments SET spec = $2 WHERE resource_id = $1 AND environment_id = $3`
+	if _, err := f.pool.Exec(context.Background(), setup, f.resourceID, resourceSpec, f.envID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 }

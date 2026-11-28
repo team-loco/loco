@@ -21,8 +21,8 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 		Scan(&workspaceID); err != nil {
 		t.Fatalf("workspace: %v", err)
 	}
-	corrupt := `UPDATE resources SET spec = '{"regions": 7}' WHERE id = $1`
-	if _, err := f.pool.Exec(ctx, corrupt, f.resourceID); err != nil {
+	corrupt := `UPDATE resource_environments SET spec = '{"regions": 7}' WHERE resource_id = $1 AND environment_id = $2`
+	if _, err := f.pool.Exec(ctx, corrupt, f.resourceID, f.envID); err != nil {
 		t.Fatalf("corrupt spec: %v", err)
 	}
 	scopes := []genDb.EntityScope{
@@ -55,10 +55,10 @@ func TestCreateResourceRejectsNonServiceType(t *testing.T) {
 	service := &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{}}
 	spec := &resourcev1.ResourceSpec{Spec: service}
 	req := &resourcev1.CreateResourceRequest{
-		WorkspaceId: workspaceID.String(),
-		Name:        "db",
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_DATABASE,
-		Spec:        spec,
+		WorkspaceId: workspaceID.String(), EnvironmentId: f.envID.String(),
+		Name: "db",
+		Type: resourcev1.ResourceType_RESOURCE_TYPE_DATABASE,
+		Spec: spec,
 	}
 	_, err := server.CreateResource(ctx, req)
 	wantCode(t, err, connect.CodeInvalidArgument)

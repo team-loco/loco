@@ -112,7 +112,16 @@ func MergeDeploymentSpec(
 		resourceServiceSpec.GetObservability(),
 		requestServiceSpec.GetObservability(),
 	)
+	routing := requestServiceSpec.GetRouting()
+	if routing == nil {
+		routing = &deploymentv1.ServiceRouting{
+			PathPrefix:  resourceServiceSpec.GetRouting().GetPathPrefix(),
+			IdleTimeout: resourceServiceSpec.GetRouting().GetIdleTimeout(),
+		}
+	}
+	path, timeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
+		Routing:       &deploymentv1.ServiceRouting{PathPrefix: path, IdleTimeout: timeout},
 		Platform:      servicedefaults.FirstSet(requestServiceSpec.GetPlatform(), string(defaults.TargetPlatform)),
 		Observability: observability.Proto(),
 		Build:         requestServiceSpec.GetBuild(),

@@ -518,10 +518,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", rollback)
     dialog.get_by_role("button", name="Roll back", exact=True).click()
     expect(dialog).to_be_hidden()
-    assert (
-        len(mutations) == 1
-        and mutations[0]["spec"]["service"]["build"]["image"] == p["old_image"]
-    ), mutations
+    assert len(mutations) == 1, mutations
+    assert "spec" not in mutations[0] and "commit" not in mutations[0], mutations
     assert (
         mutations[0]["environmentId"] == p["environment"]
         and mutations[0]["regions"] == ["us-ca-1"]

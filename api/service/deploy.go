@@ -20,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -300,7 +299,6 @@ func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resourc
 type placementRenderer struct {
 	resource        genDb.Resource
 	organizationID  uuid.UUID
-	resourceSpec    *resourcev1.ResourceSpec
 	hostname        string
 	environmentID   uuid.UUID
 	environmentName string
@@ -315,10 +313,6 @@ func newPlacementRenderer(
 	environmentID uuid.UUID,
 	defaults servicedefaults.Defaults,
 ) (placementRenderer, error) {
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if err != nil {
-		return placementRenderer{}, fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, err)
-	}
 	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
 	if err != nil {
 		return placementRenderer{}, err
@@ -334,7 +328,6 @@ func newPlacementRenderer(
 	return placementRenderer{
 		resource:        resource,
 		organizationID:  owner.OrgID,
-		resourceSpec:    resourceSpec,
 		hostname:        hostname,
 		environmentID:   env.ID,
 		environmentName: env.Slug,
@@ -350,7 +343,6 @@ func (r placementRenderer) payload(
 	appSpec, err := buildApplicationSpec(
 		r.resource,
 		r.organizationID,
-		r.resourceSpec,
 		r.hostname,
 		spec,
 		region,
@@ -392,7 +384,6 @@ func primaryHostname(
 func buildApplicationSpec(
 	resource genDb.Resource,
 	organizationID uuid.UUID,
-	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
 	region string,
@@ -417,10 +408,6 @@ func buildApplicationSpec(
 	switch resource.Type {
 	case genDb.ResourceTypeService:
 		appSpec.Type = "SERVICE"
-		resourceService := resourceSpec.GetService()
-		if _, ok := resourceService.GetRegions()[region]; !ok {
-			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
-		}
 		deploymentService := deploymentSpec.GetService()
 		target, ok := deploymentService.GetRegions()[region]
 		if !ok {
@@ -430,12 +417,15 @@ func buildApplicationSpec(
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(target),
 			Routing: converter.ProtoToRoutingSpec(
-				deploymentRouting(resourceService, deploymentService),
+				deploymentRouting(deploymentService),
 				hostname,
 				defaults,
 			),
 		}
-		policy := defaults.FailurePolicy(resource.RestartPolicy, resource.MaxRestarts, resource.DeployTimeoutSeconds)
+		policy, policyErr := deploymentFailurePolicy(deploymentService.GetFailurePolicy())
+		if policyErr != nil {
+			return nil, &invalidSpecError{err: policyErr}
+		}
 		appSpec.ServiceSpec.RestartPolicy = policy.Restart
 		appSpec.ServiceSpec.DeployTimeoutSeconds = policy.DeployTimeoutSeconds
 

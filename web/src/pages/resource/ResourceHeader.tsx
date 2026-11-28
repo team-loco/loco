@@ -97,6 +97,7 @@ function MenuIcon({ children }: { children: React.ReactNode }) {
 
 export function ResourceHeader({
 	resource,
+	environmentId,
 	telemetry,
 	environment,
 	regions,
@@ -116,6 +117,7 @@ export function ResourceHeader({
 	onDelete,
 }: {
 	resource: Resource;
+	environmentId: string;
 	telemetry: Record<"logs" | "metrics" | "traces", string | undefined>;
 	environment: EnvironmentStatus | undefined;
 	regions: RegionView[];
@@ -136,7 +138,8 @@ export function ResourceHeader({
 }) {
 	const [titleWidth, measureTitle] = useWidth();
 	const primary = regions.find(isDeployed)?.current;
-	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
+	const domains = resource.domains.filter((domain) => domain.environmentId === environmentId);
+	const domain = domains.find((d) => d.isPrimary) ?? domains[0];
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (

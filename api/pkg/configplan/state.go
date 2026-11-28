@@ -119,11 +119,14 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		health := fileHealth(*service.Health, defaults)
 		state.Health = &health
 	}
-	if service.Routing != nil {
-		pathPrefix, idleTimeout := defaults.Routing(service.Routing.PathPrefix, 0)
+	if service.Port != nil {
+		pathPrefix, idleTimeout := defaults.Routing("", 0)
 		routing := Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
-		if service.Routing.IdleTimeout != nil {
-			routing.IdleTimeout = *service.Routing.IdleTimeout
+		if service.Routing != nil {
+			routing.PathPrefix, _ = defaults.Routing(service.Routing.PathPrefix, 0)
+			if service.Routing.IdleTimeout != nil {
+				routing.IdleTimeout = *service.Routing.IdleTimeout
+			}
 		}
 		state.Routing = &routing
 	}

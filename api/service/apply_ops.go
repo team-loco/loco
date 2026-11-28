@@ -104,8 +104,6 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 		Slug:        op.Service,
 		Name:        op.Service,
 		Type:        genDb.ResourceTypeService,
-		Spec:        specJSON,
-		SpecVersion: specVersion,
 	})
 	if keyErr := resourceKeyConflict(err, op.Service, op.Service); keyErr != nil {
 		return keyErr
@@ -117,8 +115,14 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if partialErr := qtx.SetResourcePartial(ctx, partialParams); partialErr != nil {
 		return fmt.Errorf("set resource partial: %w", partialErr)
 	}
-	if deployErr := qtx.SetResourceDeployPolicy(ctx, deployPolicy(resourceID, op.Desired.Deploy)); deployErr != nil {
-		return fmt.Errorf("set resource deploy policy: %w", deployErr)
+	if _, configErr := qtx.UpsertResourceEnvironment(ctx, genDb.UpsertResourceEnvironmentParams{
+		ResourceID: resourceID, EnvironmentID: a.env.ID, WorkspaceID: a.env.WorkspaceID,
+		Spec: specJSON, SpecVersion: specVersion,
+	}); configErr != nil {
+		return fmt.Errorf("create resource environment: %w", configErr)
+	}
+	if deployErr := setDeployPolicy(ctx, qtx, resourceID, a.env.ID, op.Desired.Deploy); deployErr != nil {
+		return deployErr
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 		return bumpErr
@@ -142,7 +146,7 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if err != nil {
 		return fmt.Errorf("get resource: %w", err)
 	}
-	return a.deploy(ctx, qtx, res, spec, op.Desired, regions)
+	return a.deploy(ctx, qtx, res, op.Desired, regions)
 }
 
 func (a *applier) importService(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -169,15 +173,14 @@ func (a *applier) importService(ctx context.Context, qtx *genDb.Queries, op conf
 // environment runs it. It reads where else the service runs under the resource lock.
 func (a *applier) delete(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
 	res := a.live.resources[op.Service]
-	running := genDb.ListResourcesRunningOutsideEnvironmentParams{
-		ResourceIds: []uuid.UUID{res.ID}, EnvironmentID: a.env.ID,
-	}
-	elsewhere, err := qtx.ListResourcesRunningOutsideEnvironment(ctx, running)
+	configs, err := qtx.ListResourceEnvironments(ctx, []uuid.UUID{res.ID})
 	if err != nil {
-		return fmt.Errorf("list environments running %s: %w", op.Service, err)
+		return fmt.Errorf("list resource environments: %w", err)
 	}
-	if len(elsewhere) > 0 {
-		return a.removeFromEnvironment(ctx, qtx, res)
+	for _, config := range configs {
+		if config.EnvironmentID != a.env.ID {
+			return a.removeFromEnvironment(ctx, qtx, res)
+		}
 	}
 	if err := removeResourcePlacements(ctx, qtx, res.ID); err != nil {
 		return err
@@ -220,6 +223,12 @@ func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries,
 		}); err != nil {
 			return err
 		}
+	}
+	if _, err := qtx.DeleteResourceEnvironment(
+		ctx,
+		genDb.DeleteResourceEnvironmentParams{ResourceID: res.ID, EnvironmentID: a.env.ID},
+	); err != nil {
+		return fmt.Errorf("delete resource environment: %w", err)
 	}
 	return bumpEnvironmentRevision(ctx, qtx, a.env.ID)
 }
@@ -266,7 +275,6 @@ func (a *applier) deploy(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	res genDb.Resource,
-	spec *resourcev1.ServiceSpec,
 	state configplan.State,
 	regions []string,
 ) error {
@@ -289,7 +297,6 @@ func (a *applier) deploy(
 	render := placementRenderer{
 		resource:        res,
 		organizationID:  a.organizationID,
-		resourceSpec:    &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
 		hostname:        hostname,
 		environmentID:   a.env.ID,
 		environmentName: a.env.Slug,
@@ -306,6 +313,13 @@ func (a *applier) deploy(
 	}
 	service := deploymentSpecFor(state, regions, build)
 	service.Platform = string(a.defaults.TargetPlatform)
+	config, configErr := resourceEnvironment(ctx, qtx, res.ID, a.env.ID)
+	if configErr != nil {
+		return configErr
+	}
+	if freezeErr := freezeDeploymentDefaults(service, config, a.defaults); freezeErr != nil {
+		return freezeErr
+	}
 	if quantityErr := validateQuantities(service); quantityErr != nil {
 		return &invalidSpecError{err: quantityErr}
 	}
@@ -406,14 +420,10 @@ func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
 			continue
 		}
 		res := a.live.resources[service]
-		resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
-		if err != nil {
-			return fmt.Errorf("resource spec: %w", err)
-		}
 		desired := a.desired[service]
 		regions := slices.Sorted(maps.Keys(desired.Regions))
 		deployCtx, span := startServiceSpan(ctx, service)
-		deployErr := a.deploy(deployCtx, qtx, res, resourceSpec.GetService(), desired, regions)
+		deployErr := a.deploy(deployCtx, qtx, res, desired, regions)
 		tracing.End(span, deployErr)
 		if deployErr != nil {
 			return deployErr
@@ -514,8 +524,11 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 	}
 }
 
-func deployPolicy(resourceID uuid.UUID, deploy *locofile.Deploy) genDb.SetResourceDeployPolicyParams {
-	params := genDb.SetResourceDeployPolicyParams{ID: resourceID}
+func deployPolicy(
+	resourceID, environmentID uuid.UUID,
+	deploy *locofile.Deploy,
+) genDb.SetResourceEnvironmentDeployPolicyParams {
+	params := genDb.SetResourceEnvironmentDeployPolicyParams{ResourceID: resourceID, EnvironmentID: environmentID}
 	if deploy != nil {
 		if deploy.Restart != "" {
 			params.RestartPolicy = &deploy.Restart
@@ -526,14 +539,20 @@ func deployPolicy(resourceID uuid.UUID, deploy *locofile.Deploy) genDb.SetResour
 	return params
 }
 
-// setDeployPolicy stores the service's failure policy and updates res, which the deployments
-// the same apply starts render from.
-func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, res *genDb.Resource, deploy *locofile.Deploy) error {
-	params := deployPolicy(res.ID, deploy)
-	if err := qtx.SetResourceDeployPolicy(ctx, params); err != nil {
-		return fmt.Errorf("set resource deploy policy: %w", err)
+// setDeployPolicy changes only the selected environment's next-deployment policy.
+func setDeployPolicy(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID, environmentID uuid.UUID,
+	deploy *locofile.Deploy,
+) error {
+	params := deployPolicy(resourceID, environmentID, deploy)
+	rows, err := qtx.SetResourceEnvironmentDeployPolicy(ctx, params)
+	if err != nil {
+		return fmt.Errorf("set resource environment deploy policy: %w", err)
 	}
-	res.RestartPolicy, res.MaxRestarts, res.DeployTimeoutSeconds =
-		params.RestartPolicy, params.MaxRestarts, params.DeployTimeoutSeconds
+	if rows != 1 {
+		return errResourceEnvironmentNotFound
+	}
 	return nil
 }

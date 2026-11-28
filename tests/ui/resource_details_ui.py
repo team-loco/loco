@@ -244,9 +244,9 @@ with session(out) as browser:
             "button", name="Resource settings", exact=True
         )
         more_button = page.get_by_role("button", name="More actions", exact=True)
-        assert (
-            abs(settings_button.bounding_box()["y"] - more_button.bounding_box()["y"])
-            < 1
+        page.wait_for_function(
+            "([settings, more]) => Math.abs(settings.getBoundingClientRect().top - more.getBoundingClientRect().top) < 1",
+            arg=[settings_button.element_handle(), more_button.element_handle()],
         )
         heading = title.bounding_box()
         assert (
@@ -366,6 +366,7 @@ with session(out) as browser:
     assert created[0]["resourceId"] == resource, created
     assert created[0]["trigger"] == "DEPLOYMENT_TRIGGER_REDEPLOY", created
     assert created[0]["sourceDeploymentId"] == deployment, created
+    assert "spec" not in created[0] and "commit" not in created[0], created
     context.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
     context.route(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment",

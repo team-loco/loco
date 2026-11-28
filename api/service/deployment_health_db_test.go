@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -20,7 +21,6 @@ const (
 		`"intervalSeconds":10,"timeoutSeconds":2,"failureThreshold":3},"regions":{"us-ca-1":{"enabled":true,` +
 		`"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 	resourceUpdatedEvents = `SELECT count(*) FROM events WHERE type = 'resource.updated' AND subject_id = $1`
-	resourceRevision      = `SELECT revision FROM resources WHERE id = $1`
 )
 
 func storedHealthCheck() *deploymentv1.HealthCheckConfig {
@@ -76,11 +76,24 @@ func TestCreateDeploymentHealthCheck(t *testing.T) {
 	}
 }
 
-func TestCreateDeploymentRemovingAHealthCheckUpdatesEveryEnvironment(t *testing.T) {
+func TestCreateDeploymentRemovingAHealthCheckChangesOnlyItsEnvironment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	seedDeployment(t, f, checkedRegionSpec)
 	staging := f.addStagingEnvironment(t)
+	if _, err := f.queries.UpsertResourceEnvironment(
+		t.Context(),
+		genDb.UpsertResourceEnvironmentParams{
+			ResourceID:    f.resourceID,
+			EnvironmentID: staging,
+			WorkspaceID:   f.workspaceID(t),
+			Spec:          []byte(checkedRegionSpec),
+			SpecVersion:   specVersion,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	stagingConfig := testResourceConfiguration(t, f.queries, f.resourceID, staging)
 	stagingDeployment, err := deployServiceIn(t, f, imageService(), staging)
 	if err != nil {
 		t.Fatalf("deploy to staging: %v", err)
@@ -93,12 +106,23 @@ func TestCreateDeploymentRemovingAHealthCheckUpdatesEveryEnvironment(t *testing.
 	}
 	stagingAfter := f.revision(t, staging)
 	productionAfter := f.revision(t, f.envID)
-	if stagingAfter <= stagingBefore || productionAfter <= productionBefore {
-		t.Fatalf("revisions staging %d -> %d, production %d -> %d, want both advanced",
+	if stagingAfter != stagingBefore || productionAfter <= productionBefore {
+		t.Fatalf("revisions staging %d -> %d, production %d -> %d, want only production advanced",
 			stagingBefore, stagingAfter, productionBefore, productionAfter)
 	}
 	if n := f.count(t, resourceUpdatedEvents); n != 1 {
 		t.Fatalf("%d resource.updated events, want 1", n)
+	}
+	if after := testResourceConfiguration(
+		t,
+		f.queries,
+		f.resourceID,
+		staging,
+	); !reflect.DeepEqual(
+		after,
+		stagingConfig,
+	) {
+		t.Fatal("removing production health check changed staging config")
 	}
 	f.wantDeployedHealth(t, staging, stagingDeployment, storedHealthCheck())
 }
@@ -108,14 +132,14 @@ func TestCreateDeploymentRemovingAnAbsentHealthCheckLeavesTheResource(t *testing
 	f := newDeployFixture(t)
 	seedDeployment(t, f, sameRegionSpec)
 	staging := f.addStagingEnvironment(t)
-	before := f.count(t, resourceRevision)
+	before := testResourceConfiguration(t, f.queries, f.resourceID, f.envID).Revision
 	stagingBefore := f.revision(t, staging)
 	productionBefore := f.revision(t, f.envID)
 	created, err := deployRequest(t, f, healthRequest(f, f.envID, imageService(), true))
 	if err != nil {
 		t.Fatalf("remove health check: %v", err)
 	}
-	if after := f.count(t, resourceRevision); after != before {
+	if after := testResourceConfiguration(t, f.queries, f.resourceID, f.envID).Revision; after != before {
 		t.Fatalf("resource revision %d -> %d, want unchanged", before, after)
 	}
 	if f.revision(t, staging) != stagingBefore {
@@ -137,7 +161,7 @@ func TestCreateDeploymentRejectedRemovalKeepsTheHealthCheck(t *testing.T) {
 	staging := f.addStagingEnvironment(t)
 	stagingBefore := f.revision(t, staging)
 	productionBefore := f.revision(t, f.envID)
-	resourceBefore := f.count(t, resourceRevision)
+	resourceBefore := testResourceConfiguration(t, f.queries, f.resourceID, f.envID).Revision
 	service := imageService()
 	testTarget(service).Cpu = new("lots")
 	request := healthRequest(f, f.envID, service, true)
@@ -152,7 +176,7 @@ func TestCreateDeploymentRejectedRemovalKeepsTheHealthCheck(t *testing.T) {
 	if f.revision(t, staging) != stagingBefore || f.revision(t, f.envID) != productionBefore {
 		t.Fatal("a rejected deployment advanced an environment's revision")
 	}
-	if f.count(t, resourceRevision) != resourceBefore {
+	if testResourceConfiguration(t, f.queries, f.resourceID, f.envID).Revision != resourceBefore {
 		t.Fatal("a rejected deployment advanced the resource's revision")
 	}
 	if n := f.count(t, resourceUpdatedEvents); n != 0 {
@@ -242,7 +266,10 @@ func (f *deployFixture) resourceHealthCheck(t *testing.T) *deploymentv1.HealthCh
 	if err != nil {
 		t.Fatalf("read resource: %v", err)
 	}
-	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	spec, err := converter.DeserializeResourceSpec(
+		testResourceConfiguration(t, f.queries, resource.ID, f.envID).Spec,
+		resource.Type,
+	)
 	if err != nil {
 		t.Fatalf("decode resource spec: %v", err)
 	}

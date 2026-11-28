@@ -59,60 +59,46 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 func (f *orgDeleteFixture) createResource(t *testing.T) (string, error) {
 	t.Helper()
 	created, err := f.resources.CreateResource(f.owner, &resourcev1.CreateResourceRequest{
-		WorkspaceId: f.workspaceID, Name: testNewResource, Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec: testResourceSpec(),
+		WorkspaceId:   f.workspaceID,
+		EnvironmentId: testDefaultEnvironment(t, f.queries, uuid.MustParse(f.workspaceID)).String(),
+		Name:          testNewResource,
+		Type:          resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		Spec:          testResourceSpec(),
 	})
 	return created.GetResourceId(), err
 }
 
 func TestOrgDeleteRetainsAResourceCreatedDuringDeletion(t *testing.T) {
 	t.Parallel()
-	for _, environments := range []bool{true, false} {
-		name := "with environments"
-		if !environments {
-			name = "without environments"
-		}
-		t.Run(name, func(t *testing.T) {
-			f := newOrgDeleteFixture(t)
-			if !environments {
-				if _, err := f.pool.Exec(
-					t.Context(),
-					"DELETE FROM environments WHERE workspace_id=$1",
-					f.workspaceID,
-				); err != nil {
-					t.Fatal(err)
-				}
-			}
-			gate, err := f.pool.Begin(t.Context())
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer gate.Rollback(context.Background())
-			if _, err = gate.Exec(
-				t.Context(),
-				"SELECT id FROM organizations WHERE id=$1 FOR UPDATE",
-				f.orgID,
-			); err != nil {
-				t.Fatal(err)
-			}
-			done := make(chan error, 1)
-			go func() {
-				_, deleteErr := f.orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
-				done <- deleteErr
-			}()
-			dbtest.WaitForLockWaiters(t, f.pool, 1)
-			id, createErr := f.createResource(t)
-			if createErr != nil {
-				t.Fatal(createErr)
-			}
-			if err := gate.Rollback(t.Context()); err != nil {
-				t.Fatal(err)
-			}
-			wantCode(t, <-done, connect.CodeFailedPrecondition)
-			if _, getErr := f.queries.GetResourceByID(t.Context(), uuid.MustParse(id)); getErr != nil {
-				t.Fatalf("accepted resource disappeared: %v", getErr)
-			}
-		})
+	f := newOrgDeleteFixture(t)
+	gate, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gate.Rollback(context.Background())
+	if _, err = gate.Exec(
+		t.Context(),
+		"SELECT id FROM organizations WHERE id=$1 FOR UPDATE",
+		f.orgID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, deleteErr := f.orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
+		done <- deleteErr
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	id, createErr := f.createResource(t)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	if err := gate.Rollback(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, <-done, connect.CodeFailedPrecondition)
+	if _, getErr := f.queries.GetResourceByID(t.Context(), uuid.MustParse(id)); getErr != nil {
+		t.Fatalf("accepted resource disappeared: %v", getErr)
 	}
 }
 
@@ -138,7 +124,7 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 	_, createErr := qtx.CreateResource(t.Context(), genDb.CreateResourceParams{
 		CreatedBy:   principal.UserID,
 		WorkspaceID: uuid.MustParse(f.workspaceID), Slug: testNewResource, Name: testNewResource,
-		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
+		Type: genDb.ResourceTypeService,
 	})
 	if createErr != nil {
 		t.Fatal(createErr)

@@ -126,10 +126,11 @@ func (tn tenant) resource(t *testing.T, workspaceID uuid.UUID, name string, spec
 	t.Helper()
 	server := NewResourceServer(tn.pool, tn.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	created, err := server.CreateResource(tn.owner(t), &resourcev1.CreateResourceRequest{
-		WorkspaceId: workspaceID.String(),
-		Name:        name,
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec:        &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
+		WorkspaceId:   workspaceID.String(),
+		EnvironmentId: tn.defaultEnvironment(t, workspaceID).String(),
+		Name:          name,
+		Type:          resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		Spec:          &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
 	})
 	if err != nil {
 		t.Fatalf("create resource %s: %v", name, err)
@@ -144,4 +145,29 @@ func environmentRevision(t *testing.T, queries genDb.Querier, environmentID uuid
 		t.Fatalf("get environment %s: %v", environmentID, err)
 	}
 	return env.Revision
+}
+
+func testResourceConfiguration(
+	t *testing.T,
+	queries genDb.Querier,
+	resourceID, environmentID uuid.UUID,
+) genDb.ResourceEnvironment {
+	t.Helper()
+	config, err := queries.GetResourceEnvironment(
+		t.Context(),
+		genDb.GetResourceEnvironmentParams{ResourceID: resourceID, EnvironmentID: environmentID},
+	)
+	if err != nil {
+		t.Fatalf("resource %s configuration in environment %s: %v", resourceID, environmentID, err)
+	}
+	return config
+}
+
+func testDefaultEnvironment(t *testing.T, queries genDb.Querier, workspaceID uuid.UUID) uuid.UUID {
+	t.Helper()
+	env, err := queries.GetWorkspaceDefaultEnvironment(t.Context(), workspaceID)
+	if err != nil {
+		t.Fatalf("default environment of workspace %s: %v", workspaceID, err)
+	}
+	return env.ID
 }

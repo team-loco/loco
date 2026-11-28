@@ -140,7 +140,10 @@ func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
 		t.Fatalf("desired spec = %+v, want LOG_LEVEL debug and cpu %s", service, biggerCPU)
 	}
 	res, _ := f.resourceByName(t, applyWorker)
-	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	spec, err := converter.DeserializeResourceSpec(
+		testResourceConfiguration(t, f.queries, res.ID, f.envID).Spec,
+		res.Type,
+	)
 	if err != nil {
 		t.Fatalf("resource spec: %v", err)
 	}
@@ -401,7 +404,10 @@ func TestApplyUpdateThatNeedsADeployWritesConfigOnly(t *testing.T) {
 		t.Fatalf("apply = %v, want an update that needs a deploy and no deployments", resp)
 	}
 	res, _ := f.resourceByName(t, applyWorker)
-	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	spec, err := converter.DeserializeResourceSpec(
+		testResourceConfiguration(t, f.queries, res.ID, f.envID).Spec,
+		res.Type,
+	)
 	if err != nil {
 		t.Fatalf("resource spec: %v", err)
 	}

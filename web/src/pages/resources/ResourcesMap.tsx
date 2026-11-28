@@ -121,7 +121,7 @@ export function ResourcesMap({
 							<Fact label="Replicas">
 								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(", ")}
 							</Fact>
-							<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
+							<Fact label="Address">{primaryDomain(selected.resource, selected.environmentId) ?? "internal only"}</Fact>
 						</SheetBody>
 						<SheetFooter className="justify-start">
 							<Button

@@ -35,9 +35,10 @@ func TestBuildDispatch(t *testing.T) {
 	w := p.NewTenant(t)
 	const name = "e2e-built-app"
 	created, err := p.User.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
-		WorkspaceId: w.ID,
-		Name:        name,
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		EnvironmentId: w.EnvironmentID,
+		WorkspaceId:   w.ID,
+		Name:          name,
+		Type:          resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Domain: &domainv1.DomainInput{
 			DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
 			Subdomain:    new(name),

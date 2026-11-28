@@ -55,12 +55,12 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			const { image } = await resolveDraftImage(queryClient, transport, workspaceId, form.image);
 			const { resourceId } = await createClient(ResourceService, transport).createResource({
 				workspaceId,
+				environmentId: env.id,
 				name: form.name,
 				type: ResourceType.SERVICE,
 				...(form.description.trim() === "" ? {} : { description: form.description.trim() }),
 				...(form.isPublic
 					? {
-							environmentId: env.id,
 							domain: {
 								domainSource: DomainType.APP,
 								subdomain: form.subdomain,

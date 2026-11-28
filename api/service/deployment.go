@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 var (
@@ -263,11 +265,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
-	serviceSpec := req.GetSpec().GetService()
-	if serviceSpec == nil {
-		return nil, errOnlyServiceResources
-	}
-
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
@@ -286,27 +283,16 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, err
 	}
 
-	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter, s.defaults.TargetPlatform)
-	if err != nil {
-		return nil, fmt.Errorf("get active clusters: %w", err)
-	}
-
-	requestedBuild := serviceSpec.GetBuild()
-	pinnedBuild, err := pinBuildSource(
-		ctx,
-		s.queries,
-		s.resolver,
-		s.registryHost,
-		resourceID,
-		requestedBuild,
-		s.defaults.TargetPlatform,
-	)
+	input, err := s.loadDeploymentInput(ctx, req, source, resource)
 	if err != nil {
 		return nil, err
 	}
-	originalSpec := req.GetSpec()
-	requestSpec := proto.CloneOf(originalSpec)
-	requestSpec.GetService().Build = pinnedBuild
+	requestSpec := input.spec
+	platform := input.platform
+	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter, platform)
+	if err != nil {
+		return nil, fmt.Errorf("get active clusters: %w", err)
+	}
 
 	_, counts, err := workspaceLimits(ctx, s.queries, s.counts, resource.WorkspaceID)
 	if err != nil {
@@ -315,55 +301,62 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
-			return lockErr
-		}
-		lockErr := lockDeploymentEnvironments(ctx, qtx, resourceID, environmentID, req.GetRemoveHealthCheck())
+		lockedResource, lockErr := lockDeploymentInput(ctx, qtx, resource, environmentID, input)
 		if lockErr != nil {
 			return lockErr
 		}
-		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
-			return lockErr
+
+		regions := req.GetRegions()
+		if source != nil && len(regions) == 0 {
+			regions = slices.Sorted(maps.Keys(requestSpec.GetService().GetRegions()))
 		}
-		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
-			return lockErr
+		config, configErr := s.deploymentEnvironment(ctx, qtx, lockedResource, env, requestSpec.GetService(), regions)
+		if configErr != nil {
+			return configErr
 		}
-		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
-		if getErr != nil {
-			return fmt.Errorf("read resource before deployment: %w", getErr)
+		resourceSpec, specErr := converter.DeserializeResourceSpec(config.Spec, lockedResource.Type)
+		if specErr != nil {
+			return fmt.Errorf("decode resource environment spec: %w", specErr)
 		}
-		render, renderErr := newPlacementRenderer(ctx, qtx, resource, environmentID, s.defaults)
+		render, renderErr := newPlacementRenderer(ctx, qtx, lockedResource, environmentID, s.defaults)
 		if renderErr != nil {
 			return renderErr
 		}
-		regions := req.GetRegions()
 		if len(regions) == 0 {
-			regions = enabledRegions(render.resourceSpec.GetService().GetRegions())
+			regions = enabledRegions(resourceSpec.GetService().GetRegions())
 		}
-		targets, targetErr := placementTargets(clusters, regions, string(s.defaults.TargetPlatform))
+		targets, targetErr := placementTargets(clusters, regions, string(platform))
 		if targetErr != nil {
 			return targetErr
 		}
 
 		if req.GetRemoveHealthCheck() {
-			removeErr := removeHealthCheck(ctx, qtx, resourceID, render.resourceSpec.GetService())
+			removeErr := removeHealthCheck(ctx, qtx, resourceID, environmentID, resourceSpec.GetService())
 			if removeErr != nil {
 				return removeErr
 			}
 		}
-		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
-		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
-		if mergeErr != nil {
-			return mergeErr
+		requestSpec.GetService().Platform = string(platform)
+		mergedServiceSpec, snapshotErr := prepareDeploymentSnapshot(
+			resourceSpec,
+			requestSpec,
+			regions,
+			config,
+			source,
+			s.defaults,
+		)
+		if snapshotErr != nil {
+			return snapshotErr
 		}
 
 		resolved, resolveErr := s.resolveVariables(
 			ctx,
 			qtx,
-			resource,
+			lockedResource,
 			environmentID,
 			render.hostname,
 			mergedServiceSpec,
+			source,
 		)
 		if resolveErr != nil {
 			return resolveErr
@@ -377,8 +370,8 @@ func (s *DeploymentServer) CreateDeployment(
 				ActorType:          principal.ActorType,
 				ActorID:            principal.ActorID,
 				Method:             principal.Method,
-				CommitSha:          sourceCommitSHA(req.GetCommit()),
-				CommitDirty:        req.GetCommit().GetDirty(),
+				CommitSha:          sourceCommitSHA(input.commit),
+				CommitDirty:        input.commit.GetDirty(),
 				Trigger:            trigger,
 				SourceDeploymentID: sourceID(source),
 			},
@@ -393,7 +386,7 @@ func (s *DeploymentServer) CreateDeployment(
 		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
 			return bumpErr
 		}
-		return recordDeploymentCreated(ctx, qtx, resource, environmentID, deploymentID, regions)
+		return recordDeploymentCreated(ctx, qtx, lockedResource, environmentID, deploymentID, regions)
 	})
 	if err != nil {
 		return nil, err
@@ -401,33 +394,15 @@ func (s *DeploymentServer) CreateDeployment(
 
 	return &deploymentv1.CreateDeploymentResponse{
 		DeploymentId: deploymentID.String(),
-		Build:        pinnedBuild,
+		Build:        input.spec.GetService().GetBuild(),
 	}, nil
 }
 
-// lockDeploymentEnvironments locks the deployment's environment, or every environment of the
-// workspace when the deployment removes the resource's health check, which they all inherit.
-func lockDeploymentEnvironments(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	resourceID, environmentID uuid.UUID,
-	removesHealthCheck bool,
-) error {
-	if removesHealthCheck {
-		if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
-			return err
-		}
-	}
-	_, err := lockEnvironment(ctx, qtx, environmentID)
-	return err
-}
-
-// removeHealthCheck removes the resource's health check, which deployments without one inherit, and
-// advances every environment's revision. The caller holds the workspace's environments.
+// removeHealthCheck clears only this environment's default. Existing deployments keep their snapshots.
 func removeHealthCheck(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	resourceID uuid.UUID,
+	resourceID, environmentID uuid.UUID,
 	spec *resourcev1.ServiceSpec,
 ) error {
 	if spec.GetHealthCheck() == nil {
@@ -438,17 +413,21 @@ func removeHealthCheck(
 	if err != nil {
 		return fmt.Errorf("marshal resource spec: %w", err)
 	}
-	if err := qtx.UpdateResourceSpec(ctx, genDb.UpdateResourceSpecParams{ID: resourceID, Spec: specJSON}); err != nil {
+	if _, err := qtx.UpdateResourceEnvironmentSpec(
+		ctx,
+		genDb.UpdateResourceEnvironmentSpecParams{ResourceID: resourceID, EnvironmentID: environmentID, Spec: specJSON},
+	); err != nil {
 		return fmt.Errorf("remove resource health check: %w", err)
 	}
-	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
+	if err := bumpEnvironmentRevision(ctx, qtx, environmentID); err != nil {
 		return err
 	}
 	return events.Record(ctx, qtx, events.Event{
-		Type:        events.ResourceUpdated,
-		ResourceID:  new(resourceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(resourceID),
+		Type:          events.ResourceUpdated,
+		EnvironmentID: new(environmentID),
+		ResourceID:    new(resourceID),
+		SubjectType:   events.SubjectResource,
+		SubjectID:     new(resourceID),
 	})
 }
 
@@ -471,6 +450,132 @@ func mergeRequestSpec(
 		return nil, &invalidInputError{public: publicInvalidRequest, err: quantityErr}
 	}
 	return merged.GetService(), nil
+}
+
+type deploymentInput struct {
+	spec     *deploymentv1.DeploymentSpec
+	commit   *deploymentv1.SourceCommit
+	platform workloadplatform.Platform
+}
+
+// lockDeploymentInput holds the runtime's lock order before reading metadata used by its snapshot.
+func lockDeploymentInput(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resource genDb.Resource,
+	environmentID uuid.UUID,
+	input deploymentInput,
+) (genDb.Resource, error) {
+	if err := lockOrganization(ctx, qtx, resource.WorkspaceID); err != nil {
+		return genDb.Resource{}, err
+	}
+	if _, err := lockEnvironment(ctx, qtx, environmentID); err != nil {
+		return genDb.Resource{}, err
+	}
+	if err := lockResource(ctx, qtx, resource.ID); err != nil {
+		return genDb.Resource{}, err
+	}
+	if err := lockPinnedBuildImage(ctx, qtx, input.spec.GetService().GetBuild()); err != nil {
+		return genDb.Resource{}, err
+	}
+	locked, err := qtx.GetResourceByID(ctx, resource.ID)
+	if err != nil {
+		return genDb.Resource{}, fmt.Errorf("read resource before deployment: %w", err)
+	}
+	return locked, nil
+}
+
+// loadDeploymentInput reads the authoritative snapshot and pins its image before the transaction.
+func (s *DeploymentServer) loadDeploymentInput(
+	ctx context.Context,
+	req *deploymentv1.CreateDeploymentRequest,
+	source *genDb.Deployment,
+	resource genDb.Resource,
+) (deploymentInput, error) {
+	input := deploymentInput{spec: req.GetSpec(), commit: req.GetCommit(), platform: s.defaults.TargetPlatform}
+	if source != nil {
+		changesSnapshot := req.GetSpec() != nil || req.GetCommit() != nil || req.GetRemoveHealthCheck()
+		if changesSnapshot {
+			return deploymentInput{}, rpcerr.NewCoded(
+				connect.CodeInvalidArgument,
+				"redeploy and rollback use source_deployment_id without spec, commit or remove_health_check",
+			)
+		}
+		var err error
+		input.spec, err = converter.DeserializeDeploymentSpec(source.Spec, resource.Type)
+		if err != nil {
+			return deploymentInput{}, fmt.Errorf("decode source deployment snapshot: %w", err)
+		}
+		input.commit = nil
+		if source.CommitSha != nil {
+			input.commit = &deploymentv1.SourceCommit{Sha: *source.CommitSha, Dirty: source.CommitDirty}
+		}
+		input.platform = workloadplatform.Platform(input.spec.GetService().GetPlatform())
+	}
+	if input.spec.GetService() == nil {
+		return deploymentInput{}, errOnlyServiceResources
+	}
+	build, err := pinBuildSource(
+		ctx,
+		s.queries,
+		s.resolver,
+		s.registryHost,
+		resource.ID,
+		input.spec.GetService().GetBuild(),
+		input.platform,
+	)
+	if err != nil {
+		return deploymentInput{}, err
+	}
+	input.spec = proto.CloneOf(input.spec)
+	input.spec.GetService().Build = build
+	return input, nil
+}
+
+func prepareDeploymentSnapshot(
+	resourceSpec *resourcev1.ResourceSpec,
+	requestSpec *deploymentv1.DeploymentSpec,
+	regions []string,
+	config genDb.ResourceEnvironment,
+	source *genDb.Deployment,
+	defaults servicedefaults.Defaults,
+) (*deploymentv1.ServiceDeploymentSpec, error) {
+	if source != nil {
+		return deploymentSnapshotForRegions(requestSpec.GetService(), regions)
+	}
+	service, err := mergeRequestSpec(resourceSpec, requestSpec, regions, defaults)
+	if err != nil {
+		return nil, err
+	}
+	if err = freezeDeploymentDefaults(service, config, defaults); err != nil {
+		return nil, err
+	}
+	return service, nil
+}
+
+func deploymentSnapshotForRegions(
+	service *deploymentv1.ServiceDeploymentSpec,
+	regions []string,
+) (*deploymentv1.ServiceDeploymentSpec, error) {
+	snapshot := proto.CloneOf(service)
+	snapshot.Regions = make(map[string]*deploymentv1.RegionDeploymentTarget, len(regions))
+	for _, region := range regions {
+		target := service.GetRegions()[region]
+		if target == nil {
+			return nil, &invalidInputError{
+				public: publicInvalidRequest,
+				err:    fmt.Errorf("%w: %s", converter.ErrRegionNotFound, region),
+			}
+		}
+		snapshot.Regions[region] = target
+	}
+	if err := validateQuantities(snapshot); err != nil {
+		return nil, &invalidSpecError{err: err}
+	}
+	if _, err := deploymentFailurePolicy(snapshot.GetFailurePolicy()); err != nil {
+		return nil, &invalidSpecError{err: err}
+	}
+	return snapshot, nil
 }
 
 // sourceDeployment is the deployment a redeploy or rollback copies, which must belong to the
@@ -715,15 +820,8 @@ func (s *DeploymentServer) DeleteDeployment(
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
 }
 
-// deploymentRouting is the routing an Application uses: the deployment's own when it carries
-// one, so each environment keeps its routing, and the resource's otherwise.
-func deploymentRouting(
-	resourceService *resourcev1.ServiceSpec,
-	deploymentService *deploymentv1.ServiceDeploymentSpec,
-) *resourcev1.RoutingConfig {
-	if deploymentService.GetRouting() == nil {
-		return resourceService.GetRouting()
-	}
+// deploymentRouting reads the routing frozen into the deployment.
+func deploymentRouting(deploymentService *deploymentv1.ServiceDeploymentSpec) *resourcev1.RoutingConfig {
 	return &resourcev1.RoutingConfig{
 		PathPrefix:  deploymentService.GetRouting().GetPathPrefix(),
 		IdleTimeout: deploymentService.GetRouting().GetIdleTimeout(),

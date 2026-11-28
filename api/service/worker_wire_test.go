@@ -21,10 +21,10 @@ func TestWireRejectsTrafficSettingsWithoutAPort(t *testing.T) {
 	regions := map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}}
 	create := func(service *resourcev1.ServiceSpec) *resourcev1.CreateResourceRequest {
 		return &resourcev1.CreateResourceRequest{
-			WorkspaceId: "01a1dbb5-4966-72e2-a92b-a2560006942a",
-			Name:        "worker",
-			Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-			Spec:        &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}},
+			WorkspaceId: "01a1dbb5-4966-72e2-a92b-a2560006942a", EnvironmentId: "01a1dbb5-4966-72e2-a92b-a2560006942b",
+			Name: "worker",
+			Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+			Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}},
 		}
 	}
 	domain := create(&resourcev1.ServiceSpec{Regions: regions})

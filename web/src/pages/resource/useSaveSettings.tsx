@@ -13,6 +13,7 @@ import {
 } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { GetResourceEnvResponse, Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { resourceConfiguration } from "@/lib/resource-regions";
 import { getErrorMessage } from "@/lib/error-handler";
 
 import { refreshVariables } from "./variables";
@@ -72,13 +73,15 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 	const queryClient = useQueryClient();
 
 	// The API refuses a stale region map with FAILED_PRECONDITION; only a moved revision means someone else saved first.
-	const revisionMoved = async (err: unknown, resource: Resource) => {
+	const revisionMoved = async (err: unknown, resource: Resource, environmentId: string) => {
 		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
 		try {
 			const latest = await callUnaryMethod(transport, getResource, {
 				key: { case: "resourceId", value: resource.id },
 			});
-			return latest.resource?.revision !== resource.revision;
+			const latestConfiguration =
+				latest.resource === undefined ? undefined : resourceConfiguration(latest.resource, environmentId);
+			return latestConfiguration?.revision !== resourceConfiguration(resource, environmentId)?.revision;
 		} catch {
 			return false;
 		}
@@ -86,6 +89,8 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 
 	const saveAll = async ({ resource, environmentId, regions, base, draft: raw, validate }: SaveRequest) => {
 		const resourceId = resource.id;
+		const configuration = resourceConfiguration(resource, environmentId);
+		const domains = resource.domains.filter((domain) => domain.environmentId === environmentId);
 		const draft = effectiveDraft(raw, base);
 		const failures: string[] = [];
 		let next = draft;
@@ -147,6 +152,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 				async () =>
 					await addDomain.mutateAsync({
 						resourceId,
+						environmentId,
 						domain: {
 							domainSource: DomainType.APP,
 							subdomain: draft.subdomain ?? "",
@@ -156,20 +162,25 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			);
 		}
 		if (domainChange === "remove") {
-			const ordered = resource.domains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary));
+			const ordered = domains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary));
 			domainsSaved = await attempt("Domains", DOMAIN_KEYS, async () => {
 				for (const d of ordered) await removeDomain.mutateAsync({ domainId: d.id });
 			});
 		}
 
-		const spec = resource.spec?.spec;
+		const spec = configuration?.spec?.spec;
 		const targets = regionTargets(spec?.case === "service" ? spec.value.regions : {}, draft, base);
 		if (targets !== undefined) {
 			try {
-				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
+				await update.mutateAsync({
+					resourceId,
+					environmentId,
+					regions: { targets },
+					revision: configuration?.revision ?? 0n,
+				});
 				next = omit(next, REGION_MAP_KEYS);
 			} catch (err) {
-				if (await revisionMoved(err, resource)) {
+				if (await revisionMoved(err, resource, environmentId)) {
 					await onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,
@@ -184,7 +195,12 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			await attempt(
 				"Deployment behavior",
 				FAILURE_POLICY_KEYS,
-				async () => await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(draft, base)) }),
+				async () =>
+					await update.mutateAsync({
+						resourceId,
+						environmentId,
+						failurePolicy: failurePolicyFrom(resolved(draft, base)),
+					}),
 			);
 		}
 

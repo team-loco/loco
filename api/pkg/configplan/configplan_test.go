@@ -220,11 +220,12 @@ func TestRemovedRoutingAndEnvShowAsChanges(t *testing.T) {
 		RunningRegions: []string{testRegion},
 		State:          liveState(),
 	}
+	live.State.Routing = &Routing{PathPrefix: "/custom", IdleTimeout: 120}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: service}, live)))
 	want := []Change{
 		{Path: logLevelPath, Before: logLevelInfo},
-		{Path: "routing.idleTimeout", Before: "60"},
-		{Path: "routing.pathPrefix", Before: "/"},
+		{Path: "routing.idleTimeout", Before: "120", After: "60"},
+		{Path: "routing.pathPrefix", Before: "/custom", After: "/"},
 	}
 	if !reflect.DeepEqual(want, op.Changes) {
 		t.Fatalf("changes = %v, want %v", op.Changes, want)

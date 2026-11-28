@@ -138,12 +138,13 @@ with session(out) as browser:
     def create_deployment(route):
         body = route.request.post_data_json
         deployments.append(body)
-        service = body["spec"]["service"]
-        sql(
-            state,
-            f"UPDATE deployments SET spec={evidence.sql_literal(json.dumps(service))} "
-            f"WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
-        )
+        if "spec" in body:
+            service = body["spec"]["service"]
+            sql(
+                state,
+                f"UPDATE deployments SET spec={evidence.sql_literal(json.dumps(service))} "
+                f"WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
+            )
         route.fulfill(json={"deploymentId": deployment})
 
     context.route(
@@ -291,6 +292,8 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_role("status")).to_have_count(0)
     assert len(deployments) == 5, deployments
+    assert "spec" not in deployments[4], deployments[4]
+    assert deployments[4]["environmentId"] == production, deployments[4]
 
     page.goto(
         state["ui_url"]

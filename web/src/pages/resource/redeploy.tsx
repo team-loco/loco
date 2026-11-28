@@ -2,7 +2,6 @@ import type { MessageInitShape } from "@bufbuild/protobuf";
 import type { CreateDeploymentRequestSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Deployment, DeploymentTrigger } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { specForRegions } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { toast } from "@/lib/toast";
 
@@ -20,7 +19,7 @@ export function currentSources(regions: readonly RegionView[]): DeploymentSource
 	const sources = new Map<string, DeploymentSource>();
 	for (const region of regions.filter(isDeployed)) {
 		const deployment = region.current;
-		if (deployment?.spec === undefined) continue;
+		if (deployment === undefined) continue;
 		const source = sources.get(deployment.id) ?? { deployment, regions: [] };
 		source.regions.push(region.name);
 		sources.set(deployment.id, source);
@@ -37,14 +36,11 @@ export async function createDeployments(
 ): Promise<string[]> {
 	const failures: string[] = [];
 	for (const { deployment: d, regions } of sources) {
-		if (d.spec === undefined) continue;
 		try {
 			await create({
 				resourceId,
 				regions,
-				spec: specForRegions(d.spec, regions),
 				environmentId: d.environmentId,
-				commit: d.commit,
 				trigger,
 				sourceDeploymentId: d.id,
 			});

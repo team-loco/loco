@@ -9420,11 +9420,6 @@
             "description": "Set when the controller stopped the observed revision.",
             "$ref": "#/components/schemas/loco.agent.v1.StoppedRevision"
           },
-          "failurePolicy": {
-            "title": "failure_policy",
-            "description": "The observed revision's failure policy.",
-            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
-          },
           "deployed": {
             "type": "boolean",
             "title": "deployed",
@@ -11517,10 +11512,11 @@
             },
             "title": "regions",
             "uniqueItems": true,
-            "description": "The regions to deploy to; empty deploys to every enabled region of the resource."
+            "description": "The regions to deploy to; empty uses this environment's enabled regions for a new deploy,\n or every region in the source snapshot for redeploy and rollback."
           },
           "spec": {
             "title": "spec",
+            "description": "A new deploy supplies spec. Redeploy and rollback load the stored source snapshot.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSpec"
           },
           "environmentId": {
@@ -11551,15 +11547,12 @@
           "removeHealthCheck": {
             "type": "boolean",
             "title": "remove_health_check",
-            "description": "remove_health_check runs the deployment without a health check and removes the resource's\n own, which a spec without one inherits. The resource's check is the default for every\n environment of the workspace; deployments already running in other environments keep theirs."
+            "description": "remove_health_check clears this environment's health-check default for a new deploy.\n Existing deployments and other environments retain their own settings."
           }
         },
         "title": "CreateDeploymentRequest",
-        "required": [
-          "spec"
-        ],
         "additionalProperties": false,
-        "description": "CreateDeploymentRequest is the request to create a new deployment.\ncreate_deployment.remove_health_check_without_check // remove_health_check needs a spec without a health_check\n"
+        "description": "CreateDeploymentRequest is the request to create a new deployment.\ncreate_deployment.remove_health_check_without_check // remove_health_check needs a spec without a health_check\ncreate_deployment.spec_or_source // a new deploy needs spec; redeploy and rollback use only their source snapshot\n"
       },
       "loco.deployment.v1.CreateDeploymentResponse": {
         "type": "object",
@@ -12391,7 +12384,7 @@
         },
         "title": "RegionDeploymentTarget",
         "additionalProperties": false,
-        "description": "RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default\n from the resource's region target.\nreplicas.min_lte_max // min_replicas must be \u003c= max_replicas\n"
+        "description": "RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default\n from the environment's region target.\nreplicas.min_lte_max // min_replicas must be \u003c= max_replicas\n"
       },
       "loco.deployment.v1.Replica": {
         "type": "object",
@@ -12467,6 +12460,11 @@
             "title": "last_restart",
             "description": "The exit the replica most recently restarted after.",
             "$ref": "#/components/schemas/loco.deployment.v1.ReplicaRestart"
+          },
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "The restart policy the controller evaluated for this replica's reported revision.\n Unset for replicas outside the current placement revision. Deploy timeout is not set.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "Replica",
@@ -12627,11 +12625,11 @@
               }
             ],
             "title": "routing",
-            "description": "routing is the HTTP routing the deployment's environment uses. An empty message means the\n service sets no routing and the defaults apply; without the field the resource's routing\n applies."
+            "description": "routing is the HTTP routing the deployment's environment uses. An empty message means the\n service sets no routing and the defaults apply; without the field the environment's desired routing\n applies when creating the snapshot."
           },
           "observability": {
             "title": "observability",
-            "description": "Defaults to the resource settings when omitted; stored in the deployment snapshot.",
+            "description": "Defaults to the environment configuration when omitted; stored in the deployment snapshot.",
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           },
           "platform": {
@@ -12665,7 +12663,12 @@
               "title": "value",
               "$ref": "#/components/schemas/loco.deployment.v1.RegionDeploymentTarget"
             },
-            "description": "The sizing of each region the deployment targets, keyed by region name. In a request,\n an entry overrides the resource's region target; the stored snapshot carries every\n target region filled in."
+            "description": "The sizing of each region the deployment targets, keyed by region name. In a request,\n an entry overrides the environment's region target; the stored snapshot carries every\n target region filled in."
+          },
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "Filled from this environment's desired configuration when recording the snapshot.\n Rollbacks and placement reconciliation keep this policy even if configuration changes.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -12809,6 +12812,11 @@
           "domain": {
             "title": "domain",
             "$ref": "#/components/schemas/loco.domain.v1.DomainInput"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
           }
         },
         "title": "CreateResourceDomainRequest",
@@ -12964,11 +12972,15 @@
           "updatedAt": {
             "title": "updated_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
           }
         },
         "title": "ResourceDomain",
         "additionalProperties": false,
-        "description": "ResourceDomain represents a domain assigned to a resource."
+        "description": "ResourceDomain is a hostname routing to a resource in one environment."
       },
       "loco.domain.v1.SetPrimaryResourceDomainRequest": {
         "type": "object",
@@ -16092,13 +16104,10 @@
             "maxLength": 256
           },
           "environmentId": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": "string",
             "title": "environment_id",
             "format": "uuid",
-            "description": "The environment for domain. If omitted, the workspace's production environment is used."
+            "description": "The environment receiving the initial runtime configuration and optional domain."
           },
           "slug": {
             "type": [
@@ -16508,7 +16517,7 @@
           "environmentScoped": {
             "type": "boolean",
             "title": "environment_scoped",
-            "description": "Only resources with a deployment in environment_id, or with no deployment anywhere."
+            "description": "Resources configured in environment_id, plus shared identities with no configuration anywhere."
           },
           "orderBy": {
             "title": "order_by",
@@ -16547,7 +16556,7 @@
         },
         "title": "ListWorkspaceResourcesRequest",
         "additionalProperties": false,
-        "description": "ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the\n regions its live deployments run in and the enabled regions of its spec. environment_id scopes\n the status, live regions, image and size that query, the filters, the facets and the order read;\n without it they read every environment, and a resource matches a status or region any\n environment has.\nresources.environment_scoped_requires_environment // environment_scoped needs environment_id\nresources.status_or_not_deployed // status and not_deployed are mutually exclusive\n"
+        "description": "ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the\n regions its live deployments run in and the enabled regions of its desired configurations. environment_id scopes\n the status, live regions, image and size that query, the filters, the facets and the order read;\n without it they read every environment, and a resource matches a status or region any\n environment has.\nresources.environment_scoped_requires_environment // environment_scoped needs environment_id\nresources.status_or_not_deployed // status and not_deployed are mutually exclusive\n"
       },
       "loco.resource.v1.ListWorkspaceResourcesResponse": {
         "type": "object",
@@ -16785,7 +16794,7 @@
         },
         "title": "RegionTargets",
         "additionalProperties": false,
-        "description": "RegionTargets is a resource's desired region map, keyed by region name."
+        "description": "RegionTargets is one environment's desired region map, keyed by region name."
       },
       "loco.resource.v1.Resource": {
         "type": "object",
@@ -16813,22 +16822,6 @@
               "$ref": "#/components/schemas/loco.domain.v1.ResourceDomain"
             },
             "title": "domains"
-          },
-          "spec": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/loco.resource.v1.ResourceSpec"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "spec"
-          },
-          "specVersion": {
-            "type": "integer",
-            "title": "spec_version",
-            "format": "int32"
           },
           "description": {
             "type": [
@@ -16863,21 +16856,17 @@
             },
             "title": "environment_statuses"
           },
-          "revision": {
-            "type": "string",
-            "title": "revision",
-            "format": "int64",
-            "description": "revision increases with every change to the resource spec or its scaling."
-          },
           "name": {
             "type": "string",
             "title": "name",
             "description": "name is the label the dashboard shows."
           },
-          "failurePolicy": {
-            "title": "failure_policy",
-            "description": "The failure policy the service's next deployment runs under, with the defaults filled in.",
-            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
+          "environments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceEnvironment"
+            },
+            "title": "environments"
           }
         },
         "title": "Resource",
@@ -16909,6 +16898,38 @@
         "title": "ResourceAllocation",
         "additionalProperties": false,
         "description": "ResourceAllocation is one resource's allocation in an environment."
+      },
+      "loco.resource.v1.ResourceEnvironment": {
+        "type": "object",
+        "properties": {
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "spec": {
+            "title": "spec",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceSpec"
+          },
+          "specVersion": {
+            "type": "integer",
+            "title": "spec_version",
+            "format": "int32"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "revision increases whenever this environment's desired configuration changes."
+          },
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "The policy the next deployment snapshots, with installation defaults filled in.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
+          }
+        },
+        "title": "ResourceEnvironment",
+        "additionalProperties": false,
+        "description": "ResourceEnvironment is the desired runtime configuration of one resource in one environment.\n An absent entry means this resource has no configuration in that environment."
       },
       "loco.resource.v1.ResourceFacets": {
         "type": "object",
@@ -17043,7 +17064,7 @@
         },
         "title": "ResourceSpec",
         "additionalProperties": false,
-        "description": "ResourceSpec defines the global infrastructure intent for a resource.\n Uses oneof to support different resource types."
+        "description": "ResourceSpec defines the desired runtime configuration in one environment.\n Uses oneof to support different resource types."
       },
       "loco.resource.v1.ResourceStatus": {
         "type": "string",
@@ -17258,7 +17279,7 @@
         },
         "title": "ServiceSpec",
         "additionalProperties": false,
-        "description": "ServiceSpec is the resource specification for SERVICE type resources.\nservice.health_check_requires_port // health_check needs routing.port: the HTTP check probes the service port\n"
+        "description": "ServiceSpec is the desired runtime configuration of a service in one environment.\nservice.health_check_requires_port // health_check needs routing.port: the HTTP check probes the service port\n"
       },
       "loco.resource.v1.TransferPartialRequest": {
         "type": "object",
@@ -17320,13 +17341,13 @@
               }
             ],
             "title": "regions",
-            "description": "regions replaces the resource's whole region map when set; omitted regions are torn down."
+            "description": "regions replaces this environment's whole region map; omitted regions are torn down."
           },
           "revision": {
             "type": "string",
             "title": "revision",
             "format": "int64",
-            "description": "revision is the Resource.revision the caller loaded; a regions update fails when it moved."
+            "description": "revision is the ResourceEnvironment.revision loaded; a region update fails when it moved."
           },
           "failurePolicy": {
             "oneOf": [
@@ -17338,7 +17359,7 @@
               }
             ],
             "title": "failure_policy",
-            "description": "failure_policy replaces the service's failure policy; it applies from the next deployment."
+            "description": "failure_policy changes only this environment's next deployment."
           },
           "slug": {
             "type": [
@@ -17347,11 +17368,16 @@
             ],
             "title": "slug",
             "description": "A new slug: a DNS label other than localhost and resource-\u003cUUID\u003e, unique in the workspace.\n Resources that loco.yaml manages keep the slug the file names them by."
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
           }
         },
         "title": "UpdateResourceRequest",
         "additionalProperties": false,
-        "description": "UpdateResourceRequest is the request to update a resource."
+        "description": "UpdateResourceRequest updates shared identity or one environment's runtime configuration.\nupdate_resource.configuration_requires_environment // regions and failure_policy require environment_id\n"
       },
       "loco.resource.v1.UpdateResourceResponse": {
         "type": "object",

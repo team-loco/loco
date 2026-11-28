@@ -21,7 +21,6 @@ type Querier interface {
 	BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsedByOtherDeploymentsParams) (bool, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
-	BumpResourceRevision(ctx context.Context, id uuid.UUID) error
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
@@ -104,6 +103,7 @@ type Querier interface {
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
+	DeleteResourceEnvironment(ctx context.Context, arg DeleteResourceEnvironmentParams) (int64, error)
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
 	DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
@@ -161,6 +161,7 @@ type Querier interface {
 	GetResourceBySlugAndWorkspace(ctx context.Context, arg GetResourceBySlugAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, arg GetResourceDomainCountParams) (int64, error)
+	GetResourceEnvironment(ctx context.Context, arg GetResourceEnvironmentParams) (ResourceEnvironment, error)
 	GetResourceEnvironmentPlacement(ctx context.Context, arg GetResourceEnvironmentPlacementParams) (Placement, error)
 	GetResourceOrganizationSuspension(ctx context.Context, id uuid.UUID) (*string, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -258,6 +259,7 @@ type Querier interface {
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
 	ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error)
+	ListResourceEnvironments(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceEnvironment, error)
 	ListResourcesByIDs(ctx context.Context, ids []uuid.UUID) ([]Resource, error)
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
 	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
@@ -399,8 +401,8 @@ type Querier interface {
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetPlacementRegionStatus(ctx context.Context, arg SetPlacementRegionStatusParams) error
-	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
+	SetResourceEnvironmentDeployPolicy(ctx context.Context, arg SetResourceEnvironmentDeployPolicyParams) (int64, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetSystemRoleGrant(ctx context.Context, arg SetSystemRoleGrantParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
@@ -433,13 +435,14 @@ type Querier interface {
 	UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error)
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
-	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
+	UpdateResourceEnvironmentSpec(ctx context.Context, arg UpdateResourceEnvironmentSpecParams) (int64, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
+	UpsertResourceEnvironment(ctx context.Context, arg UpsertResourceEnvironmentParams) (ResourceEnvironment, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }

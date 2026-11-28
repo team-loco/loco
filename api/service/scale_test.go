@@ -10,7 +10,7 @@ import (
 )
 
 func scaledSpec(minReplicas, maxReplicas int32) *deploymentv1.RegionDeploymentTarget {
-	cpu := "100m"
+	cpu := testRegionCPU
 	memory := testRegionMemory
 	return &deploymentv1.RegionDeploymentTarget{
 		Cpu:         &cpu,

@@ -18,7 +18,7 @@ func TestDeploymentCreationRequiresAPrincipal(t *testing.T) {
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 	t.Run("apply", func(t *testing.T) {
-		err := (&applier{}).deploy(t.Context(), nil, genDb.Resource{}, nil, configplan.State{}, nil)
+		err := (&applier{}).deploy(t.Context(), nil, genDb.Resource{}, configplan.State{}, nil)
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 	t.Run("scale", func(t *testing.T) {

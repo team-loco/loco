@@ -231,6 +231,9 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 	} {
 		app := workspaceApp("problem-revision", "problem-revision")
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		app.Spec.ServiceSpec.RestartPolicy = locov1alpha1.RestartPolicySpec{
+			Mode: locov1alpha1.RestartOnFailure, MaxRestarts: 3,
+		}
 		pod := &corev1.Pod{
 			UID: "crash-uid", Name: "crash-replica", Namespace: testEnvironmentNamespace(app),
 			Labels: map[string]string{labelApp: testAppName(app)},
@@ -252,6 +255,20 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 		}
 		if got := app.Status.Rollout.Problem != nil; got != tt.want {
 			t.Errorf("revision %q problem = %+v", tt.revision, app.Status.Rollout.Problem)
+		}
+		policy := app.Status.Rollout.Replicas[0].RestartPolicy
+		if !tt.want {
+			if policy != nil {
+				t.Errorf("revision %q has a restart budget outside the current revision: %+v", tt.revision, policy)
+			}
+			continue
+		}
+		if policy == nil || *policy != app.Spec.ServiceSpec.RestartPolicy {
+			t.Fatalf("observed restart policy = %+v", policy)
+		}
+		app.Spec.ServiceSpec.RestartPolicy.MaxRestarts = 7
+		if policy.MaxRestarts != 3 {
+			t.Fatalf("observed policy followed a later desired policy: %+v", policy)
 		}
 	}
 }

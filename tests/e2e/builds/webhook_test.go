@@ -19,9 +19,10 @@ func TestFailedBuildReachesInstallWebhook(t *testing.T) {
 	w := p.NewTenant(t)
 	const name = "e2e-webhook-build"
 	created, err := p.User.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
-		WorkspaceId: w.ID,
-		Name:        name,
-		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		EnvironmentId: w.EnvironmentID,
+		WorkspaceId:   w.ID,
+		Name:          name,
+		Type:          resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
 			Routing: &resourcev1.RoutingConfig{Port: new(int32(8080)), PathPrefix: "/"},
 			Regions: map[string]*resourcev1.RegionTarget{

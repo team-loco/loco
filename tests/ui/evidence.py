@@ -1090,31 +1090,79 @@ def seed_resources(state, resources):
     for resource in resources:
         org = resource["workspace"].split("/", 1)[0]
         user = state["orgs"][org]["owner"]
-        service = resource.get("service")
-        if service is None:
-            first = resource["deployments"][0]["spec"]
-            service = {
-                "regions": {
-                    region: {"enabled": True, **target}
-                    for deployment in resource["deployments"]
-                    for region, target in deployment["spec"]["regions"].items()
+        deployments = resource.get("deployments", [])
+        environments = {deployment["environment"] for deployment in deployments}
+        environments.update(
+            domain["environment"] for domain in resource.get("domains", [])
+        )
+        initial_environment = resource.get("environment", "production")
+        environments.add(initial_environment)
+        configurations = {}
+        for environment in environments:
+            runtime = [
+                entry["spec"]
+                for entry in deployments
+                if entry["environment"] == environment
+            ]
+            service = resource.get("service")
+            if runtime:
+                first = runtime[0]
+                service = {
+                    "regions": {
+                        region: {"enabled": True, **target}
+                        for spec in runtime
+                        for region, target in spec["regions"].items()
+                    },
+                    **{
+                        key: first[key]
+                        for key in ("healthCheck", "observability")
+                        if key in first
+                    },
                 }
-            }
-            if "port" in first:
-                service["routing"] = {"port": first["port"]}
+                if "port" in first:
+                    service["routing"] = {
+                        "port": first["port"],
+                        **first.get("routing", {}),
+                    }
+                if environment == initial_environment and "service" in resource:
+                    service = resource["service"]
+            if service is None:
+                continue
+            configurations[environment] = service
+        if initial_environment not in configurations:
+            initial_environment = deployments[0]["environment"]
+        service = configurations[initial_environment]
+        environment_id = psql(
+            state,
+            "SELECT id FROM environments "
+            f"WHERE workspace_id={sql_literal(state['workspaces'][resource['workspace']])} "
+            f"AND slug={sql_literal(initial_environment)};",
+        )
         resource_id = rpc(
             state["api_url"],
             state["users"][user]["token"],
             "loco.resource.v1.ResourceService/CreateResource",
             {
                 "workspaceId": state["workspaces"][resource["workspace"]],
+                "environmentId": environment_id,
                 "name": resource["name"],
                 "type": "RESOURCE_TYPE_SERVICE",
                 "spec": {"service": service},
             },
         )["resourceId"]
         seeded[f"{resource['workspace']}/{resource['name']}"] = resource_id
-        seed_deployments(state, resource_id, resource.get("deployments", []), user)
+        q = sql_literal
+        for environment, config in configurations.items():
+            if environment == initial_environment:
+                continue
+            psql(
+                state,
+                "INSERT INTO resource_environments(resource_id,environment_id,workspace_id,spec,spec_version) "
+                f"SELECT r.id,e.id,r.workspace_id,{q(json.dumps(config))},1 "
+                "FROM resources r JOIN environments e ON e.workspace_id=r.workspace_id "
+                f"WHERE r.id={q(resource_id)} AND e.slug={q(environment)};",
+            )
+        seed_deployments(state, resource_id, deployments, user)
         seed_domains(state, resource_id, resource.get("domains", []))
     return seeded
 
@@ -1195,11 +1243,36 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
     actor = state["users"][user]["id"]
     ids, rows = [], []
     placeholders, now = placeholder_ids(state), time.time()
+    default_policy = rpc(
+        state["api_url"], None, "loco.config.v1.ConfigService/GetConfig", {}
+    )["serviceDefaults"]["failurePolicy"]
+
     for deployment in deployments:
         deployment_id = deployment.get("id") or str(uuid.uuid4())
         ids.append(deployment_id)
         environment = target["environments"][deployment["environment"]]
-        runtime = deployment["spec"]
+        runtime = {"failurePolicy": default_policy, **deployment["spec"]}
+        configuration = {
+            "regions": {
+                region: {"enabled": True, **sizing}
+                for region, sizing in runtime["regions"].items()
+            },
+            **{
+                key: runtime[key]
+                for key in ("healthCheck", "observability")
+                if key in runtime
+            },
+        }
+        if "port" in runtime:
+            configuration["routing"] = {
+                "port": runtime["port"],
+                **runtime.get("routing", {}),
+            }
+        rows.append(
+            "INSERT INTO resource_environments(resource_id,environment_id,workspace_id,spec,spec_version) "
+            f"VALUES({q(resource_id)},{q(environment)},{q(target['workspace'])},{q(json.dumps(configuration))},1) "
+            "ON CONFLICT (resource_id,environment_id) DO NOTHING;"
+        )
         status = deployment.get("status", "running")
         live = deployment.get("live", True)
         created = f"NOW()-{q(deployment.get('age', '0 seconds'))}::interval"

@@ -98,12 +98,13 @@ type plannedFile struct {
 // liveEnvironment is every service of the workspace as the environment runs it, with the rows
 // the apply writes against.
 type liveEnvironment struct {
-	services    []configplan.Service
-	resources   map[string]genDb.Resource
-	domains     map[uuid.UUID][]genDb.ResourceDomain
-	deployments map[uuid.UUID][]liveDeployment
-	builds      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow
-	elsewhere   map[uuid.UUID]bool
+	services       []configplan.Service
+	resources      map[string]genDb.Resource
+	configurations map[uuid.UUID]genDb.ResourceEnvironment
+	domains        map[uuid.UUID][]genDb.ResourceDomain
+	deployments    map[uuid.UUID][]liveDeployment
+	builds         map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow
+	elsewhere      map[uuid.UUID]bool
 }
 
 // Plan returns the operations an apply of the file would perform in the environment. It writes
@@ -352,24 +353,26 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list latest builds: %w", err)
 	}
-	runningElsewhere, err := s.queries.ListResourcesRunningOutsideEnvironment(
-		ctx,
-		genDb.ListResourcesRunningOutsideEnvironmentParams{ResourceIds: ids, EnvironmentID: env.ID},
-	)
+	configurations, err := s.queries.ListResourceEnvironments(ctx, ids)
 	if err != nil {
-		return liveEnvironment{}, fmt.Errorf("list resources running elsewhere: %w", err)
+		return liveEnvironment{}, fmt.Errorf("list resource environments: %w", err)
 	}
 
 	live := liveEnvironment{
-		services:    make([]configplan.Service, 0, len(resources)),
-		resources:   make(map[string]genDb.Resource, len(resources)),
-		domains:     map[uuid.UUID][]genDb.ResourceDomain{},
-		deployments: map[uuid.UUID][]liveDeployment{},
-		builds:      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{},
-		elsewhere:   make(map[uuid.UUID]bool, len(runningElsewhere)),
+		services:       make([]configplan.Service, 0, len(resources)),
+		resources:      make(map[string]genDb.Resource, len(resources)),
+		domains:        map[uuid.UUID][]genDb.ResourceDomain{},
+		deployments:    map[uuid.UUID][]liveDeployment{},
+		builds:         map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{},
+		elsewhere:      make(map[uuid.UUID]bool),
+		configurations: make(map[uuid.UUID]genDb.ResourceEnvironment),
 	}
-	for _, resourceID := range runningElsewhere {
-		live.elsewhere[resourceID] = true
+	for _, config := range configurations {
+		if config.EnvironmentID == env.ID {
+			live.configurations[config.ResourceID] = config
+		} else {
+			live.elsewhere[config.ResourceID] = true
+		}
 	}
 	for _, domain := range domains {
 		live.domains[domain.ResourceID] = append(live.domains[domain.ResourceID], domain)
@@ -383,7 +386,15 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 
 	for _, res := range resources {
 		latest, built := live.builds[res.ID]
-		state, stateErr := liveState(ctx, s.queries, s.defaults, res, live.domains[res.ID], live.deployments[res.ID])
+		state, stateErr := liveState(
+			ctx,
+			s.queries,
+			s.defaults,
+			res,
+			live.configurations[res.ID],
+			live.domains[res.ID],
+			live.deployments[res.ID],
+		)
 		if stateErr != nil {
 			return liveEnvironment{}, fmt.Errorf("resource %s: %w", res.Slug, stateErr)
 		}
@@ -418,10 +429,14 @@ func liveState(
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
 	res genDb.Resource,
+	config genDb.ResourceEnvironment,
 	domains []genDb.ResourceDomain,
 	deployments []liveDeployment,
 ) (configplan.State, error) {
-	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	if config.ResourceID == uuid.Nil {
+		return configplan.State{}, nil
+	}
+	resourceSpec, err := converter.DeserializeResourceSpec(config.Spec, res.Type)
 	if err != nil {
 		return configplan.State{}, fmt.Errorf("resource spec: %w", err)
 	}
@@ -435,13 +450,13 @@ func liveState(
 	if routing := spec.GetRouting(); routing != nil {
 		state.Port = routing.Port
 	}
-	if res.RestartPolicy != nil || res.MaxRestarts != nil || res.DeployTimeoutSeconds != nil {
-		state.Deploy = &locofile.Deploy{MaxRestarts: res.MaxRestarts, Timeout: res.DeployTimeoutSeconds}
-		if res.RestartPolicy != nil {
-			state.Deploy.Restart = *res.RestartPolicy
+	if config.RestartPolicy != nil || config.MaxRestarts != nil || config.DeployTimeoutSeconds != nil {
+		state.Deploy = &locofile.Deploy{MaxRestarts: config.MaxRestarts, Timeout: config.DeployTimeoutSeconds}
+		if config.RestartPolicy != nil {
+			state.Deploy.Restart = *config.RestartPolicy
 		}
 	}
-	if routing := spec.GetRouting(); routing.GetPathPrefix() != "" || routing.GetIdleTimeout() != 0 {
+	if routing := spec.GetRouting(); routing.GetPort() != 0 {
 		pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 		state.Routing = &configplan.Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
 	}
@@ -496,8 +511,13 @@ func liveState(
 		state.Command = service.GetCommand()
 		state.Args = service.GetArgs()
 		state.Port = service.Port
-		if service.GetRouting() != nil {
-			state.Routing = liveRouting(service.GetRouting())
+		state.Routing = nil
+		if service.Port != nil {
+			path, timeout := defaults.Routing(
+				service.GetRouting().GetPathPrefix(),
+				service.GetRouting().GetIdleTimeout(),
+			)
+			state.Routing = &configplan.Routing{PathPrefix: path, IdleTimeout: timeout}
 		}
 		state.Health = liveHealth(service.GetHealthCheck())
 		build := service.GetBuild()
@@ -545,13 +565,6 @@ func liveHealth(health *deploymentv1.HealthCheckConfig) *configplan.Health {
 		FailThreshold:      health.GetFailureThreshold(),
 		StartupGracePeriod: health.GetInitialDelaySeconds(),
 	}
-}
-
-func liveRouting(routing *deploymentv1.ServiceRouting) *configplan.Routing {
-	if routing.GetPathPrefix() == "" {
-		return nil
-	}
-	return &configplan.Routing{PathPrefix: routing.GetPathPrefix(), IdleTimeout: routing.GetIdleTimeout()}
 }
 
 func liveAutoscaling(scalers *deploymentv1.Scalers) *configplan.Autoscaling {

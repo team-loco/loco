@@ -14,7 +14,8 @@ export function row(
 	patch: { description?: string; domain?: string; status?: ResourceStatus; regions?: RegionReplicas[] } = {},
 ): EnvResource {
 	const regions = patch.regions ?? [{ region: "us-va-1", desired: 1, ready: 1 }];
-	const domains = patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }];
+	const domains =
+		patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true, environmentId: "production" }];
 	return {
 		resource: create(ResourceSchema, {
 			id: name,
@@ -23,6 +24,7 @@ export function row(
 			description: patch.description ?? "",
 			domains,
 		}),
+		environmentId: "production",
 		environment: undefined,
 		status: patch.status ?? ResourceStatus.HEALTHY,
 		deployments: [],

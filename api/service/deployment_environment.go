@@ -14,7 +14,8 @@ import (
 
 // resolveVariables resolves the variables of a deployment of resource to the environment. The
 // caller must be able to read every other resource the variables refer to directly, and to list
-// the environment's secrets when the variables read one. The checks run on qtx.
+// the environment's secrets when the actual bindings read one. Source replays retain their
+// captured bindings and check access to the original direct references. The checks run on qtx.
 func (s *DeploymentServer) resolveVariables(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -22,13 +23,25 @@ func (s *DeploymentServer) resolveVariables(
 	environmentID uuid.UUID,
 	hostname string,
 	service *deploymentv1.ServiceDeploymentSpec,
+	source *genDb.Deployment,
 ) (varref.Resolved, error) {
 	references, err := loadVariableReferences(ctx, qtx, resource.WorkspaceID, environmentID)
 	if err != nil {
 		return varref.Resolved{}, err
 	}
-	resolved, err := references.resolve(resource.Slug, hostname, service, s.maxSecretBytes)
-	if err != nil {
+	var resolved varref.Resolved
+	if source == nil {
+		resolved, err = references.environment.Resolve(
+			resource.Slug, varref.Target{Port: service.GetPort(), PublicHost: hostname}, service.GetEnv(),
+		)
+		if err != nil {
+			return varref.Resolved{}, err
+		}
+	} else {
+		resolved = storedResolution(*source)
+		resolved.Resources = varref.ReferencedResources(service.GetEnv())
+	}
+	if err = references.validateSecrets(resolved.Secret, s.maxSecretBytes); err != nil {
 		return varref.Resolved{}, err
 	}
 	authorizer := authz.New(qtx)
@@ -38,7 +51,14 @@ func (s *DeploymentServer) resolveVariables(
 		}
 	}
 	for _, name := range resolved.Resources {
-		if authErr := authorize(ctx, authorizer, actions.GetResource, references.ids[name]); authErr != nil {
+		if name == resource.Slug {
+			continue
+		}
+		id, exists := references.ids[name]
+		if !exists {
+			return varref.Resolved{}, varref.ErrUnknownResource.Detail("%s", name)
+		}
+		if authErr := authorize(ctx, authorizer, actions.GetResource, id); authErr != nil {
 			return varref.Resolved{}, authErr
 		}
 	}

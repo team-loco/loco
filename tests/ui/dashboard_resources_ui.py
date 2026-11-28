@@ -168,6 +168,7 @@ with session(out) as browser:
     expect(page.get_by_text("Redeploying svc-1", exact=True)).to_be_visible()
     assert len(created) == 1, created
     assert created[0]["trigger"] == "DEPLOYMENT_TRIGGER_REDEPLOY", created
+    assert "spec" not in created[0] and "commit" not in created[0], created
     page.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu.get_by_role("menuitem", name="Scale", exact=True).click()

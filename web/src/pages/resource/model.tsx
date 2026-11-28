@@ -86,11 +86,12 @@ function byNewest(a: Deployment, b: Deployment): number {
 export function buildRegions(
 	resource: Resource,
 	deployments: Deployment[],
+	environmentId: string,
 	environment: EnvironmentStatus | undefined,
 	currentDeployments: Deployment[] = [],
 ): RegionView[] {
 	const names = new Set<string>();
-	for (const r of configuredRegions(resource)) names.add(r);
+	for (const r of configuredRegions(resource, environmentId)) names.add(r);
 	for (const r of environment?.regions ?? []) names.add(r.region);
 	for (const d of deployments) {
 		for (const p of d.placements) {
