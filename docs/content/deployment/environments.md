@@ -28,6 +28,8 @@ With a user session, `--workspace` overrides `LOCO_WORKSPACE`, which overrides t
 
 The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production share resource identities and keep separate runtime configuration, workloads and deployment history. A service keeps one name and slug across the workspace. Its regions, CPU, memory, routing, health check and failure policy belong to each environment. Editing production's regions or sizing leaves staging unchanged. A public domain routes to one environment of the service, so staging and production can use different hostnames.
 
+When `loco deploy` generates a public hostname, it reuses the hostname assigned to the selected environment. A first deployment to another environment gets its own hostname.
+
 Source builds started by `loco deploy` record the selected environment. The dashboard shows those builds and their activity in that environment. A build's image remains reusable in other environments; a deployment can still open its source build and logs there. Builds created through the API without an origin appear only in unfiltered build history, including `loco builds list`.
 
 A service accepts changes at any time, including while a deployment is building or rolling out. A change that creates a deployment, such as scaling, a deploy or a configuration change, replaces the deployment in flight in the same region: that deployment ends `canceled` and the version that was serving before it keeps serving until the new one is ready. A restart during a rollout rolls the replicas again.
