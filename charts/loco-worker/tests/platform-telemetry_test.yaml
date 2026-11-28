@@ -38,38 +38,38 @@ tests:
       - matchRegex: &readOnly
           path: rules[*].verbs[*]
           pattern: ^(get|list|watch)$
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
+        template: charts/nodeCollector/templates/clusterrole.yaml
       - matchRegex: *readOnly
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
+        template: charts/workloadCollector/templates/clusterrole.yaml
       - matchRegex: *readOnly
-        template: charts/otel-col-cluster/templates/clusterrole.yaml
+        template: charts/clusterCollector/templates/clusterrole.yaml
       - notMatchRegex: &noSecrets
           path: rules[*].resources[*]
           pattern: ^secrets$
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
+        template: charts/nodeCollector/templates/clusterrole.yaml
       - notMatchRegex: *noSecrets
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
+        template: charts/workloadCollector/templates/clusterrole.yaml
       - notMatchRegex: *noSecrets
-        template: charts/otel-col-cluster/templates/clusterrole.yaml
+        template: charts/clusterCollector/templates/clusterrole.yaml
       - isKind: {of: ClusterRole}
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
+        template: charts/nodeCollector/templates/clusterrole.yaml
       - isKind: {of: ClusterRole}
-        template: charts/otel-col-cluster/templates/clusterrole.yaml
+        template: charts/clusterCollector/templates/clusterrole.yaml
 
   - it: rejects more than one cluster collector replica
     set:
-      otel-col-cluster.replicaCount: 2
+      clusterCollector.replicaCount: 2
     asserts:
       - failedTemplate:
-          errorMessage: platform telemetry requires one otel-col-cluster replica with autoscaling disabled
+          errorMessage: platform telemetry requires one clusterCollector replica with autoscaling disabled
         template: templates/collectors/collector-configs.yaml
 
   - it: rejects an autoscaled cluster collector
     set:
-      otel-col-cluster.autoscaling.enabled: true
+      clusterCollector.autoscaling.enabled: true
     asserts:
       - failedTemplate:
-          errorMessage: platform telemetry requires one otel-col-cluster replica with autoscaling disabled
+          errorMessage: platform telemetry requires one clusterCollector replica with autoscaling disabled
         template: templates/collectors/collector-configs.yaml
 
   - it: deletes the platform marker from the telemetry workloads send
@@ -78,21 +78,21 @@ tests:
       - matchRegex: &stripsScope
           path: data.relay
           pattern: 'resource/strip_tenancy:\n\s+attributes:\n(\s+- action: delete\n\s+key: \S+\n)*\s+- action: delete\n\s+key: loco\.telemetry\.scope\n'
-        documentSelector: {path: metadata.name, value: otel-col-daemon-agent}
+        documentSelector: {path: metadata.name, value: node-collector-agent}
       - matchRegex: *stripsScope
-        documentSelector: {path: metadata.name, value: otel-col-deploy}
+        documentSelector: {path: metadata.name, value: workload-collector}
 
   - it: points both controllers at the cluster collector's platform pipelines
     asserts:
       - contains: &platformEndpoint
           path: spec.template.spec.containers[0].env
-          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-col-cluster-platform.loco-obs.svc.cluster.local:4318"}
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://cluster-collector-platform.loco-obs.svc.cluster.local:4318"}
         template: templates/controller/deployment.yaml
       - contains: *platformEndpoint
         template: templates/builds/deployment.yaml
       - equal:
           path: spec.selector
-          value: {app.kubernetes.io/name: otel-col-cluster, app.kubernetes.io/instance: loco-worker}
+          value: {app.kubernetes.io/name: cluster-collector, app.kubernetes.io/instance: loco-worker}
         documentSelector: {path: kind, value: Service}
         template: templates/collectors/platform-otlp.yaml
       - equal:
@@ -102,6 +102,28 @@ tests:
             podSelector: {matchExpressions: [{key: app.kubernetes.io/name, operator: In, values: [loco-controller, loco-build-controller]}]}
         documentSelector: {path: kind, value: NetworkPolicy}
         template: templates/collectors/platform-otlp.yaml
+
+  - it: opts out of platform stdout while keeping workload logs and infrastructure metrics
+    set:
+      global.platformTelemetry.logs.enabled: false
+    template: templates/collectors/collector-configs.yaml
+    asserts:
+      - notMatchRegex:
+          path: data.relay
+          pattern: 'logs/platform:'
+        documentSelector: {path: metadata.name, value: node-collector-agent}
+      - matchRegex:
+          path: data.relay
+          pattern: 'metrics/platform:'
+        documentSelector: {path: metadata.name, value: node-collector-agent}
+      - matchRegex:
+          path: data.relay
+          pattern: '(?m)^\s+logs:\n'
+        documentSelector: {path: metadata.name, value: node-collector-agent}
+      - matchRegex:
+          path: data.relay
+          pattern: 'logs/platform:'
+        documentSelector: {path: metadata.name, value: cluster-collector}
 
   - it: exports no controller telemetry while platform telemetry is off
     set:

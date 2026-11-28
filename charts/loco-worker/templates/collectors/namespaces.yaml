@@ -1,4 +1,4 @@
-{{- range $name, $level := dict (index .Values "otel-col-deploy" "namespaceOverride") "restricted" (index .Values "otel-col-daemon" "namespaceOverride") "privileged" }}
+{{- range $name, $level := dict (index .Values "workloadCollector" "namespaceOverride") "restricted" (index .Values "nodeCollector" "namespaceOverride") "privileged" }}
 ---
 apiVersion: v1
 kind: Namespace

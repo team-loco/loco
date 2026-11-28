@@ -70,8 +70,12 @@ global:
     # opt in; adds platform pipelines next to the application telemetry pipelines, and the
     # controllers export their traces and metrics to the cluster collector's platform pipelines.
     enabled: false
+    # Stop platform stdout forwarding without disabling workload logs or infrastructure metrics.
+    # @schema additionalProperties: false
+    logs:
+      enabled: true
     # keep only platform pipelines in the node and cluster collectors.
-    # requires enabled: true and otel-col-deploy.enabled: false.
+    # requires enabled: true and workloadCollector.enabled: false.
     platformOnly: false
     # required when enabled: stable ID for the Loco installation, shared by its clusters.
     # exported as loco.installation.id; supplied by the operator, not discovered.
@@ -445,9 +449,10 @@ builds:
     buildkit: 10Gi
 
 # @schema skipProperties
-otel-col-daemon:
+nodeCollector:
   enabled: true
-  fullnameOverride: "otel-col-daemon"
+  nameOverride: node-collector
+  fullnameOverride: "node-collector"
   configMap:
     create: false
     existingName: '{{ include "opentelemetry-collector.fullname" . }}-agent'
@@ -828,9 +833,10 @@ otel-col-daemon:
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region]
 
 # @schema skipProperties
-otel-col-deploy:
+workloadCollector:
   enabled: true
-  fullnameOverride: otel-col-deploy
+  nameOverride: workload-collector
+  fullnameOverride: workload-collector
   command:
     # Share Kubernetes metadata caches and watches across signal pipelines.
     extraArgs:
@@ -890,7 +896,7 @@ otel-col-deploy:
       whenUnsatisfiable: ScheduleAnyway
       labelSelector:
         matchLabels:
-          app.kubernetes.io/name: otel-col-deploy
+          app.kubernetes.io/name: workload-collector
   clusterRole:
     create: true
     rules:
@@ -999,9 +1005,10 @@ otel-col-deploy:
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, k8s_attributes/route_namespace, resource/region]
 
 # @schema skipProperties
-otel-col-cluster:
+clusterCollector:
   enabled: true
-  fullnameOverride: otel-col-cluster
+  nameOverride: cluster-collector
+  fullnameOverride: cluster-collector
   command:
     # Share Kubernetes metadata caches and watches across signal pipelines.
     extraArgs:

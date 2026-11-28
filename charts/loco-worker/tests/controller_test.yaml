@@ -50,16 +50,16 @@ tests:
         template: templates/controller/deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_OTEL_COLLECTOR_SERVICE, value: otel-col-deploy}
+          content: {name: LOCO_OTEL_COLLECTOR_SERVICE, value: workload-collector}
         template: templates/controller/deployment.yaml
       - equal:
           path: metadata.name
-          value: otel-col-deploy
-        template: charts/otel-col-deploy/templates/service.yaml
+          value: workload-collector
+        template: charts/workloadCollector/templates/service.yaml
       - equal:
           path: metadata.namespace
           value: loco-obs
-        template: charts/otel-col-deploy/templates/service.yaml
+        template: charts/workloadCollector/templates/service.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_GATEWAY, value: eg}
@@ -67,10 +67,10 @@ tests:
 
   - it: reads the collector namespace, Service and ports from the values
     set:
-      otel-col-deploy.namespaceOverride: telemetry
-      otel-col-deploy.fullnameOverride: collector
-      otel-col-deploy.ports.otlp.servicePort: 14317
-      otel-col-deploy.ports.otlp-http.servicePort: 14318
+      workloadCollector.namespaceOverride: telemetry
+      workloadCollector.fullnameOverride: collector
+      workloadCollector.ports.otlp.servicePort: 14317
+      workloadCollector.ports.otlp-http.servicePort: 14318
     template: templates/controller/deployment.yaml
     asserts:
       - contains:

@@ -15,18 +15,18 @@ dependencies:
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.178.2
-      alias: otel-col-daemon
-      condition: otel-col-daemon.enabled
+      alias: nodeCollector
+      condition: nodeCollector.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.178.2
-      alias: otel-col-deploy
-      condition: otel-col-deploy.enabled
+      alias: workloadCollector
+      condition: workloadCollector.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.178.2
-      alias: otel-col-cluster
-      condition: otel-col-cluster.enabled
+      alias: clusterCollector
+      condition: clusterCollector.enabled
 maintainers:
     - name: nikumar1206
 sources:

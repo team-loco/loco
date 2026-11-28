@@ -147,28 +147,28 @@ tests:
           value: 1
         template: charts/metrics-server/templates/pdb.yaml
 
-  - it: rejects an autoscaled gateway collector
+  - it: rejects an autoscaled workload collector
     set:
-      otel-col-deploy.autoscaling.enabled: true
+      workloadCollector.autoscaling.enabled: true
     asserts:
       - failedTemplate:
-          errorMessage: otel-col-deploy runs a fixed replica count; autoscaling would strand the queues of removed replicas
+          errorMessage: workloadCollector runs a fixed replica count; autoscaling would strand the queues of removed replicas
         template: templates/collectors/collector-configs.yaml
 
-  - it: runs two gateway collectors without an autoscaler, with a disruption budget, spread across nodes
+  - it: runs two workload collectors without an autoscaler, with a disruption budget, spread across nodes
     asserts:
       - hasDocuments:
           count: 0
-        template: charts/otel-col-deploy/templates/hpa.yaml
+        template: charts/workloadCollector/templates/hpa.yaml
       - equal:
           path: spec.replicas
           value: 2
-        template: charts/otel-col-deploy/templates/statefulset.yaml
+        template: charts/workloadCollector/templates/statefulset.yaml
       - equal:
           path: spec.maxUnavailable
           value: 1
-        template: charts/otel-col-deploy/templates/pdb.yaml
+        template: charts/workloadCollector/templates/pdb.yaml
       - equal:
           path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
-          value: {app.kubernetes.io/name: otel-col-deploy}
-        template: charts/otel-col-deploy/templates/statefulset.yaml
+          value: {app.kubernetes.io/name: workload-collector}
+        template: charts/workloadCollector/templates/statefulset.yaml
