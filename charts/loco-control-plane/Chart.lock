@@ -1,9 +1,9 @@
 dependencies:
-- name: loco-collector-config
-  repository: file://../loco-collector-config
+- name: loco-control-plane-telemetry
+  repository: file://telemetry
   version: 0.1.0
 - name: clickhouse
   repository: https://helm.altinity.com
   version: 0.3.13
-digest: sha256:dfac5bcb1f3d813b50a38d42993fe75ed282168741dfca45ab5e037dc0ee2354
-generated: "2026-11-27T19:32:00.145808-08:00"
+digest: sha256:f2a94577c952e76c3dbd284ce82341fd731788457da0acac17ec3f21ae9747b4
+generated: "2026-11-27T20:25:27.780333-08:00"

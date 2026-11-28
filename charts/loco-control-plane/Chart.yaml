@@ -4,9 +4,11 @@ description: Helm chart for the regional Loco dashboard, API, observability prox
 type: application
 version: 0.12.35
 dependencies:
-    - name: loco-collector-config
+    - name: loco-control-plane-telemetry
       version: 0.1.0
-      repository: file://../loco-collector-config
+      repository: file://telemetry
+      alias: platformTelemetry
+      condition: platformTelemetry.enabled
     - name: clickhouse
       version: 0.3.13
       repository: https://helm.altinity.com

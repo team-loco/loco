@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Build the helm chart dependencies; skipped while every chart's dependencies are newer than its Chart.yaml and Chart.lock"
-#MISE sources=["charts/*/Chart.yaml", "charts/*/Chart.lock"]
+#MISE sources=["charts/*/Chart.yaml", "charts/*/Chart.lock", "charts/loco-control-plane/telemetry/**"]
 #MISE outputs=["charts/*/charts/*.tgz"]
 set -euo pipefail
 
@@ -26,4 +26,5 @@ retry helm repo add open-telemetry https://open-telemetry.github.io/opentelemetr
 retry helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 retry helm repo update altinity open-telemetry metrics-server
 retry helm dependency build --skip-refresh ./charts/loco-worker
+retry helm dependency build --skip-refresh ./charts/loco-control-plane/telemetry
 retry helm dependency build --skip-refresh ./charts/loco-control-plane

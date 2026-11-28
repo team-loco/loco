@@ -1,143 +1,34 @@
 {{- if include "loco-control-plane.nodeLogs" . -}}
-{{- $collector := include "loco-control-plane.nodeCollector" . | fromYaml -}}
-{{- $name := include "loco-control-plane.nodeCollectorName" . -}}
+{{- $namespace := include "loco-control-plane.nodeCollectorName" . -}}
+{{- if eq $namespace .Release.Namespace -}}
+{{- fail "the control-plane namespace must differ from its node log collector namespace" -}}
+{{- end -}}
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ $name }}
-  annotations:
-    helm.sh/resource-policy: keep
+  name: {{ $namespace }}
   labels:
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: privileged
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: privileged
-    pod-security.kubernetes.io/warn-version: latest
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ $name }}
-  namespace: {{ $name }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: {{ $name }}
-rules:
-  - apiGroups: [""]
-    resources: [pods, namespaces, nodes]
-    verbs: [get, list, watch]
-  - apiGroups: [apps]
-    resources: [replicasets]
-    verbs: [get, list, watch]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ $name }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ $name }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ $name }}
-    namespace: {{ $name }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $name }}-agent
-  namespace: {{ $name }}
+  name: {{ .Release.Name }}-control-plane-logs
+  namespace: {{ $namespace }}
 data:
   relay: |
     {{- include "loco-control-plane.nodeCollectorConfig" . | nindent 4 }}
 ---
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: {{ $name }}-agent
-  namespace: {{ $name }}
-spec:
-  selector:
-    matchLabels:
-      {{- include "loco-control-plane.nodeCollectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      labels:
-        {{- include "loco-control-plane.nodeCollectorLabels" . | nindent 8 }}
-      annotations:
-        checksum/config: {{ include "loco-control-plane.nodeCollectorConfig" . | sha256sum }}
-    spec:
-      serviceAccountName: {{ $name }}
-      securityContext:
-        {{- toYaml $collector.Values.podSecurityContext | nindent 8 }}
-      tolerations:
-        - operator: Exists
-      initContainers:
-        {{- tpl (toYaml $collector.Values.initContainers) $collector | nindent 8 }}
-      containers:
-        - name: collector
-          image: {{ printf "%s:%s" $collector.Values.image.repository $collector.Values.image.tag | quote }}
-          args:
-            - --config=/conf/relay.yaml
-            {{- toYaml $collector.Values.command.extraArgs | nindent 12 }}
-          securityContext:
-            {{- toYaml $collector.Values.securityContext | nindent 12 }}
-          resources:
-            {{- toYaml $collector.Values.resources | nindent 12 }}
-          env:
-            - name: MY_POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: OTEL_K8S_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: GOMEMLIMIT
-              value: {{ printf "%vMiB" $collector.Values.config.processors.memory_limiter.limit_mib | quote }}
-          livenessProbe:
-            {{- toYaml $collector.Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml $collector.Values.readinessProbe | nindent 12 }}
-          volumeMounts:
-            - name: config
-              mountPath: /conf
-              readOnly: true
-            - name: varlogpods
-              mountPath: /var/log/pods
-              readOnly: true
-            - name: varlibdockercontainers
-              mountPath: /var/lib/docker/containers
-              readOnly: true
-            - name: log-checkpoint-permissions
-              mountPath: /var/lib/otelcol
-            {{- tpl (toYaml $collector.Values.extraVolumeMounts) $collector | nindent 12 }}
-      volumes:
-        - name: config
-          configMap:
-            name: {{ $name }}-agent
-            items:
-              - key: relay
-                path: relay.yaml
-        - name: varlogpods
-          hostPath:
-            path: /var/log/pods
-        - name: varlibdockercontainers
-          hostPath:
-            path: /var/lib/docker/containers
-        {{- tpl (toYaml $collector.Values.extraVolumes) $collector | nindent 8 }}
----
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny-ingress
-  namespace: {{ $name }}
+  name: {{ .Release.Name }}-control-plane-logs
+  namespace: {{ $namespace }}
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      {{- include "loco-control-plane.nodeCollectorLabels" . | nindent 6 }}
   policyTypes: [Ingress]
 {{- if include "loco-control-plane.systemIngest" . }}
 ---

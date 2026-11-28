@@ -14,8 +14,10 @@ kind: Secret
 metadata:
   name: {{ $name }}
   namespace: {{ $namespace }}
+  {{- if eq $namespace $.Release.Namespace }}
   annotations:
     helm.sh/resource-policy: keep
+  {{- end }}
 type: Opaque
 data:
   token: {{ $token }}

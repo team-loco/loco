@@ -213,6 +213,67 @@ def platform_pipeline_config(cluster, name):
     }
 
 
+@pytest.mark.parametrize(
+    "enabled,namespace,pipeline",
+    [
+        (False, "separate-control-plane", "logs"),
+        (True, "separate-control-plane", "logs"),
+        (True, RELEASE_NAMESPACE, "logs/platform"),
+    ],
+)
+def test_worker_skips_only_logs_owned_by_the_control_plane(
+    tmp_path, enabled, namespace, pipeline
+):
+    relays = collector_relays(render_chart("loco-worker", configured(enabled=enabled)))
+    daemon = relays["otel-col-daemon-agent"]
+    for route in daemon["service"]["pipelines"].values():
+        if "file_log" in route["receivers"]:
+            assert "filter/control_plane_logs" in route["processors"]
+    config = platform_pipeline_config(daemon, pipeline)
+    # Synthetic pod metadata replaces Kubernetes enrichment in this processor fixture.
+    processors = config["service"]["pipelines"]["logs"]["processors"]
+    processors[:] = [
+        name
+        for name in processors
+        if not name.startswith(("memory_limiter", "k8s_attributes"))
+    ]
+    config["processors"] = {name: config["processors"][name] for name in processors}
+    resources = []
+    for owner in (None, "control-plane"):
+        attributes = [
+            {"key": "k8s.namespace.name", "value": {"stringValue": namespace}}
+        ]
+        if owner:
+            attributes.append(
+                {"key": "loco.platform.log.owner", "value": {"stringValue": owner}}
+            )
+        resources.append(
+            {
+                "resource": {"attributes": attributes},
+                "scopeLogs": [
+                    {
+                        "logRecords": [
+                            {"body": {"stringValue": "owned" if owner else "unowned"}}
+                        ]
+                    }
+                ],
+            }
+        )
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+        post_otlp(collector, "logs", {"resourceLogs": resources})
+        records = read_output(
+            collector,
+            lambda document: [
+                record
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            1,
+        )
+    assert [record["body"]["stringValue"] for record in records] == ["unowned"]
+
+
 def test_controller_runtime_metrics_pass_the_platform_metrics_pipeline(
     configured_relays, tmp_path
 ):

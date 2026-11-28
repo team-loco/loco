@@ -11,12 +11,13 @@ Platform telemetry is the logs, metrics and traces Loco's own components produce
 | Control-plane gateway | Request traces linked to API spans, as `loco-gateway`; `gateway.tracing.samplingRate` defaults to 100 percent | `platformTelemetry.enabled` with the built-in system ingest |
 | API | Traces of requests and RPCs, Go runtime metrics | `loco-control-plane` value `platformTelemetry.enabled` |
 | Observability proxy | Workload ingestion traces, including the storage write and record counts | `loco-control-plane` value `platformTelemetry.enabled` |
+| Control-plane node collector | API and observability proxy container stdout logs | `platformTelemetry.enabled`, unless `platformTelemetry.logs.enabled: false` |
 | Application and build controllers | Traces of reconciles and Kubernetes API calls, controller-runtime metrics (reconciles, work queues, client requests), Go runtime metrics | `loco-worker` value `global.platformTelemetry.enabled` |
 | Cluster node collectors | Platform container stdout logs, node metrics, cluster state and Kubernetes events from the Loco, collector and `global.platformTelemetry.namespaces` namespaces | `loco-worker` value `global.platformTelemetry.enabled` |
 
 The API, controllers and observability proxy write structured logs to standard output. The `loco-worker` chart's collector DaemonSet tails container files on each node. With `global.platformTelemetry.enabled`, logs from allowed platform namespaces go to the system tenant, with Kubernetes identity, typed fields and trace/span correlation preserved. Workload namespaces use a separate log pipeline. Collector pods' own logs are excluded to prevent collection loops.
 
-Run the node collectors in every cluster whose platform logs you want to collect. Add the control-plane namespace to `global.platformTelemetry.namespaces` when it differs from the worker chart's release namespace. Turning on the control-plane chart's `platformTelemetry` enables SDK traces and metrics; it does not forward stdout logs.
+The control-plane chart installs its own node collector when `platformTelemetry.enabled` is true. `platformTelemetry.logs.enabled` defaults to true; set it to false when another collector handles these logs. The API and proxy export their SDK telemetry directly to the configured endpoint, independently of the node collector.
 
 The proxy traces admitted, decoded batches that retain at least one non-system record after tenancy filtering. HTTP and gRPC use the same ingestion path. It starts a root span rather than adopting a span from the submitted telemetry; attributes report accepted and rejected record counts, and a storage failure marks the span as an error. Health checks, authentication failures and decoding failures do not produce proxy spans. Proxy logs remain on standard output; the setting does not enable a proxy OTLP log exporter or runtime metric exporter.
 
@@ -32,7 +33,7 @@ By default, everything goes to the control plane's observability proxy, which st
 
 The proxy accepts system telemetry only from Loco's own senders:
 
-- The API and gateway collector present a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
+- The API, proxy, gateway collector and control-plane node collector present a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
 - A worker's collectors present the cluster's ingest token, as they do for application telemetry, and mark platform records with `loco.telemetry.scope=platform`. The collectors delete that marker from anything workloads send, and the proxy rejects a platform record that names a workspace.
 
 System rows keep 30 days of every signal. Set `SYSTEM_RETENTION_DAYS` through `obsProxy.ingest.env` to change it:
@@ -116,4 +117,4 @@ global:
         Authorization: Bearer EXAMPLE_TOKEN
 ```
 
-The API exports traces to `<endpoint>/v1/traces` and metrics to `/v1/metrics`. Controllers send traces and metrics to the cluster collector. Platform logs follow the node collector's exporter settings, independently of the API's endpoint. Collectors forward their records with persistent queues and retries. See the [`loco-control-plane`](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#platform-telemetry) and [`loco-worker`](https://github.com/team-loco/loco/blob/main/charts/loco-worker/README.md#kubernetes-platform-telemetry) chart READMEs for the details.
+The API exports traces to `<endpoint>/v1/traces` and metrics to `/v1/metrics`. Controllers send traces and metrics to the cluster collector. Control-plane logs use `platformTelemetry.exporter`; worker platform logs use `global.platformTelemetry.exporter`. Collectors forward their records with persistent queues and retries. See the [`loco-control-plane`](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#platform-telemetry) and [`loco-worker`](https://github.com/team-loco/loco/blob/main/charts/loco-worker/README.md#kubernetes-platform-telemetry) chart READMEs for the details.

@@ -1,7 +1,4 @@
 dependencies:
-- name: loco-collector-config
-  repository: file://../loco-collector-config
-  version: 0.1.0
 - name: metrics-server
   repository: https://kubernetes-sigs.github.io/metrics-server/
   version: 3.14.0
@@ -17,5 +14,5 @@ dependencies:
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.178.2
-digest: sha256:04b11995f5f2a20bc1373754e2f9317976251942b5e678c8bf75d9fb344c83b0
-generated: "2026-11-27T19:22:26.257728-08:00"
+digest: sha256:502e901fff8a9d8b3798487ceebe19c71b9167af27d1dcd5d4a4f184d937daba
+generated: "2026-11-11T10:03:31.972324-08:00"
