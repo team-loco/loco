@@ -61,13 +61,17 @@ emulation and font dependencies out of the platform modules.
 
 Builds, tests, code generation, linting and the local environment are mise tasks: `mise tasks` lists them, `mise run <task>` runs one. Every tool (go, bun, golangci-lint, buf, sqlc, helm, kind, ...) is pinned in `mise.toml` and `mise.lock`, and CI installs the same versions; `mise run setup` installs them, the web dependencies and the git hooks. `controller/Makefile` is the kubebuilder scaffold and stays; the root tasks call into it. Add a task to `mise.toml` (or a script under `mise-tasks/`) for commands you find yourself running often.
 
-A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress. Run deterministic browser suites in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes.
+In a fresh worktree, install JavaScript dependencies from the repository root with `mise exec -- bun install --frozen-lockfile` before running the UI.
+
+Open every PR ready (`gh pr create`). Use draft only when explicitly requested. Complete required checks, evidence and review before handoff. Draft PRs run no CI. Run deterministic browser suites in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes.
 
 For UX/UI-only changes, use `mise run ui:staging` for the local preview. It runs the dashboard with hot reload and a local proxy using the saved staging CLI login; it starts no local API, PostgreSQL, OpenBao or Kubernetes services. Sign in with `loco login --host https://api.staging.loco.build --web-host https://staging.loco.build` when needed. Open the localhost URL printed by the command. Each run gets a free port from the OS. Actions change real staging data, so capture existing data without changing it unless the task authorizes those changes. Use an isolated fixture for browser sign-in, sign-out, web-session refresh, backend changes, seeded edge cases and repeatable automated suites.
 
 Prefer taking UX/UI-only PR screenshots locally against this staging-backed preview. Capture before and after in light and dark mode, plus a narrow viewport for layout changes; inspect every image and attach it to the PR using the UI evidence upload workflow. Label the source as real staging data and explain that live data can change between captures. Keep screenshots and authentication state out of commits, and do not upload browser traces or recordings containing staging credentials or private response data. If local browser access or suitable staging data is unavailable, report the limitation and use `mise run ci:evidence` with an isolated fixture. A screenshot of one revision is preview evidence, not a before/after comparison.
 
 For visible CLI changes, attach before and after terminal screenshots in light and dark mode to the PR. Capture actual CLI output with synthetic data, never live login codes or credentials.
+
+For optional static UI audits, configure `sourceRoots` for the relevant frontend source area, such as `web/src/pages/resource`, instead of scanning the whole repository. Broad scans can spend minutes parsing unrelated files. Inspect findings against the actual code; report findings in untouched files separately and keep a small UI change scoped to its requirement. Static audits do not replace browser checks or screenshots.
 
 ## Principles
 
