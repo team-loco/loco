@@ -63,7 +63,7 @@ metadata:
 spec:
   {{- $collectorService := include "loco-worker.collectorService" . }}
   {{- $collectorNamespace := include "loco-worker.observabilityNamespace" . }}
-  {{- $collectorPort := index .Values "otel-col-deploy" "ports" "otlp" "servicePort" }}
+  {{- $collectorPort := index .Values "workloadCollector" "ports" "otlp" "servicePort" }}
   provider:
     type: Kubernetes
     kubernetes:

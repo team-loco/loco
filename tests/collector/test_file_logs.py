@@ -9,7 +9,7 @@ TIMESTAMP = "2026-10-19T12:00:00.000000000Z"
 
 def file_log_pipeline(relays):
     """The node collector's file-log receiver and processors, reading pod logs from /data/pods."""
-    config = relays["otel-col-daemon-agent"]
+    config = relays["node-collector-agent"]
     receiver = json.loads(
         json.dumps(config["receivers"]["file_log"]).replace(POD_LOGS, TEST_LOGS)
     )
@@ -77,7 +77,9 @@ def stream(record):
     )
 
 
-def test_platform_namespace_logs_stay_on_the_node(worker_relays, tmp_path):
+def test_platform_namespace_logs_stay_on_the_node(
+    worker_relays, worker_documents, tmp_path
+):
     for namespace in (
         "kube-system",
         "flux-system",
@@ -87,15 +89,21 @@ def test_platform_namespace_logs_stay_on_the_node(worker_relays, tmp_path):
         "loco-ws-a",
     ):
         write_pod_log(tmp_path, namespace, [f"from {namespace}"])
+    node = next(
+        document
+        for document in worker_documents
+        if document["kind"] == "DaemonSet"
+        and document["metadata"]["name"] == "node-collector-agent"
+    )
     write_pod_log(
         tmp_path,
-        "loco-obs-node",
+        node["metadata"]["namespace"],
         ["from the collector"],
-        "otel-col-daemon-x",
-        "otel-col-daemon",
+        node["metadata"]["name"] + "-x",
+        node["spec"]["template"]["spec"]["containers"][0]["name"],
     )
     config = file_log_pipeline(worker_relays)
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         assert sorted(map(body, collected_records(collector, 3))) == [
             "from loco-obs",
             "from loco-system",
@@ -152,7 +160,7 @@ def test_multiline_entries_arrive_as_one_record(worker_relays, tmp_path):
         ("user.login(alice)", ""),
     ]
     with run_collector(
-        tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
+        tmp_path, file_log_pipeline(worker_relays), "node-collector-agent"
     ) as collector:
         records = collected_records(collector, len(expected))
     assert [
@@ -170,7 +178,7 @@ def test_multiline_entries_join_only_lines_of_their_stream(worker_relays, tmp_pa
     ]
     write_pod_log(tmp_path, "loco-ws-a", lines)
     with run_collector(
-        tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
+        tmp_path, file_log_pipeline(worker_relays), "node-collector-agent"
     ) as collector:
         records = collected_records(collector, 3)
     assert sorted(
@@ -199,7 +207,7 @@ def test_http_echo_access_lines_leave_no_empty_records(worker_relays, tmp_path):
     texts = (line[1] if isinstance(line, tuple) else line for line in HTTP_ECHO_LINES)
     expected = sorted(text for text in texts if text)
     with run_collector(
-        tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
+        tmp_path, file_log_pipeline(worker_relays), "node-collector-agent"
     ) as collector:
         records = collected_records(collector, len(expected))
     assert sorted(map(body, records)) == expected

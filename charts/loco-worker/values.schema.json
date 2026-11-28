@@ -364,6 +364,9 @@
       },
       "additionalProperties": false
     },
+    "clusterCollector": {
+      "type": "object"
+    },
     "controller": {
       "type": "object",
       "properties": {
@@ -752,6 +755,15 @@
             "installation": {
               "type": "string"
             },
+            "logs": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
             "namespaces": {
               "type": "array",
               "items": {
@@ -801,13 +813,7 @@
     "metrics-server": {
       "type": "object"
     },
-    "otel-col-cluster": {
-      "type": "object"
-    },
-    "otel-col-daemon": {
-      "type": "object"
-    },
-    "otel-col-deploy": {
+    "nodeCollector": {
       "type": "object"
     },
     "registry": {
@@ -825,6 +831,9 @@
         }
       },
       "additionalProperties": false
+    },
+    "workloadCollector": {
+      "type": "object"
     }
   },
   "additionalProperties": false

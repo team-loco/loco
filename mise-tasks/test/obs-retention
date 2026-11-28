@@ -9,12 +9,12 @@ environment_id=retention-environment
 resource_id=retention-resource
 start_control_plane "$workspace_id"
 
-for name in otel-col-deploy otel-col-daemon-agent; do
+for name in workload-collector node-collector-agent; do
 	yq -e '.service.pipelines.traces.exporters[] | select(. == "otlp_http")' <<<"$(collector_config "$name")" >/dev/null ||
 		fail "$name does not export traces over OTLP/HTTP"
 done
 
-collector_config otel-col-deploy | yq '{
+collector_config workload-collector | yq '{
 	"receivers": {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}},
 	"exporters": .exporters,
 	"extensions": .extensions,

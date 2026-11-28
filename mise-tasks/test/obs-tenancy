@@ -4,7 +4,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/obs-stack.sh" tenancy
-collectors="otel-col-deploy otel-col-daemon-agent"
+collectors="workload-collector node-collector-agent"
 forged_organization=forged-organization
 forged_workspace=forged-workspace
 forged_environment=forged-environment
@@ -19,7 +19,7 @@ pod_build=pod-build
 forged_build=forged-build
 label_prefix=fixture.pod.label.
 namespace_label_prefix=fixture.namespace.label.
-envoy_collector=otel-col-deploy
+envoy_collector=workload-collector
 route_workspace=01a12668-411a-73d6-80e3-c21f044d5e71
 route_environment=01a1266a-411a-73d6-80e3-c21f044d5e71
 route_organization=route-organization

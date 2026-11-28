@@ -28,8 +28,8 @@ const (
 	sinkToken            = "local-metrics-fixture" //nolint:gosec // the throwaway sink's bearer token
 	sinkName             = "otlp-sink"
 	collectorPartOf      = "opentelemetry-collector"
-	clusterCollector     = "otel-col-cluster"
-	nodeCollector        = "otel-col-daemon-agent"
+	clusterCollector     = "cluster-collector"
+	nodeCollector        = "node-collector-agent"
 )
 
 var errNoMetrics = errors.New("not in the sink yet")
@@ -56,7 +56,7 @@ func TestClusterMetrics(t *testing.T) {
 				Repository string `json:"repository"`
 				Tag        string `json:"tag"`
 			} `json:"image"`
-		} `json:"otel-col-daemon"`
+		} `json:"nodeCollector"`
 	}
 	mustReadYAML(t, c.Path("charts", "loco-worker", "values.yaml"), &chart)
 	t.Cleanup(func() {
@@ -148,7 +148,7 @@ func TestClusterMetrics(t *testing.T) {
 		"app.kubernetes.io/name="+clusterCollector,
 		"--wait=true",
 	)
-	c.MustKubectl(t, "-n", nodeMetricsNamespace, "delete", "pod", "-l", "app.kubernetes.io/name=otel-col-daemon",
+	c.MustKubectl(t, "-n", nodeMetricsNamespace, "delete", "pod", "-l", "app.kubernetes.io/name=node-collector",
 		"--wait=true")
 	rollout(t, metricsNamespace, "statefulset/"+clusterCollector)
 	rollout(t, nodeMetricsNamespace, "daemonset/"+nodeCollector)
@@ -208,11 +208,11 @@ certManager:
   existingTLSSecret: unused
 gateway-helm:
   enabled: false
-otel-col-deploy:
+workloadCollector:
   enabled: false
-otel-col-cluster:
+clusterCollector:
   namespaceOverride: %[5]s
-otel-col-daemon:
+nodeCollector:
   namespaceOverride: %[6]s
 `, metricsRegion, c.KindCluster(), metricsInterval, sinkName, metricsNamespace, nodeMetricsNamespace))
 	rendered := helm(t, "template", "metrics", c.Path("charts", "loco-worker"), "--namespace", metricsNamespace,

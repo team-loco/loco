@@ -28,7 +28,7 @@ that environment's apps and carries the workspace ID label `loco.io/workspace-id
 |---|---|
 | `loco-ws-*` | environment namespaces, one per environment per cluster, holding its apps |
 | `loco-system` | agent, controller, Envoy Gateway proxies (`gateway.envoyproxy.io/owning-gateway-name=eg`) |
-| `loco-obs` | otel-col-deploy (OTLP receiver), otel-col-cluster; the `loco-worker` chart's `otel-col-deploy.namespaceOverride` |
+| `loco-obs` | workload-collector (OTLP receiver), cluster-collector; the `loco-worker` chart's `workloadCollector.namespaceOverride` |
 | `kube-system` | kube-dns |
 | `cert-manager` | cert-manager |
 
@@ -49,7 +49,7 @@ that environment's apps and carries the workspace ID label `loco.io/workspace-id
 |---|---|---|
 | pods in the workspace's environment namespaces | any | apps of one workspace talking to each other |
 | `kube-system` kube-dns pods | 53 UDP + TCP | DNS resolution |
-| `otel-col-deploy` in the observability namespace | 4317, 4318 TCP (`otel-col-deploy.ports` in the `loco-worker` chart) | traces and metrics |
+| `workload-collector` in the observability namespace | 4317, 4318 TCP (`workloadCollector.ports` in the `loco-worker` chart) | traces and metrics |
 | `0.0.0.0/0` and `::/0`, except reserved ranges and the cluster's own ranges (below) | any | external APIs |
 
 Everything else is denied.
@@ -100,7 +100,7 @@ deletes when the workspace is deleted.
 | `default-deny` | all pods, ingress and egress, no rules |
 | `allow-workspace` | all pods, ingress from and egress to every pod in namespaces labelled with the workspace's ID, managed by the controller and marked as Loco app namespaces |
 | `allow-dns-egress` | egress to kube-dns on 53 UDP and TCP |
-| `allow-telemetry-egress` | egress to `otel-col-deploy` on 4317 and 4318 |
+| `allow-telemetry-egress` | egress to `workload-collector` on 4317 and 4318 |
 | `allow-internet-egress` | egress to public addresses, excluding the ranges above |
 
 The `allow-workspace` peer selects namespaces by the workspace ID label that the controller

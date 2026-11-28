@@ -8,7 +8,7 @@ templates:
   - templates/gateway.yaml
   - templates/application-fallback.yaml
   - templates/network-policies.yaml
-  - charts/otel-col-deploy/templates/service.yaml
+  - charts/workloadCollector/templates/service.yaml
   - charts/gateway-helm/templates/envoy-gateway-config.yaml
   - charts/gateway-helm/templates/infra-manager-rbac.yaml
   - charts/gateway-helm/templates/envoy-gateway-deployment.yaml
@@ -96,7 +96,7 @@ tests:
         template: charts/gateway-helm/templates/infra-manager-rbac.yaml
         documentSelector: {path: kind, value: ClusterRole}
 
-  - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service, metrics as deltas
+  - it: sends every Envoy signal to the workload collector's OTLP gRPC Service, metrics as deltas
     asserts:
       - equal:
           path: spec.telemetry.metrics
@@ -105,42 +105,42 @@ tests:
             sinks:
               - type: OpenTelemetry
                 openTelemetry:
-                  backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]
+                  backendRefs: [{name: workload-collector, namespace: loco-obs, port: 4317}]
                   reportCountersAsDeltas: true
                   reportHistogramsAsDeltas: true
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
           path: spec.telemetry.tracing.provider
-          value: {type: OpenTelemetry, backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
+          value: {type: OpenTelemetry, backendRefs: [{name: workload-collector, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
           path: spec.telemetry.accessLog.settings[0].sinks
           value:
             - type: OpenTelemetry
-              openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
+              openTelemetry: {backendRefs: [{name: workload-collector, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
           path: metadata.name
-          value: otel-col-deploy
-        template: charts/otel-col-deploy/templates/service.yaml
+          value: workload-collector
+        template: charts/workloadCollector/templates/service.yaml
       - equal:
           path: metadata.namespace
           value: loco-obs
-        template: charts/otel-col-deploy/templates/service.yaml
+        template: charts/workloadCollector/templates/service.yaml
       - contains:
           path: spec.ports
           content: {name: otlp, port: 4317}
           any: true
-        template: charts/otel-col-deploy/templates/service.yaml
+        template: charts/workloadCollector/templates/service.yaml
 
   - it: resolves every telemetry backend from the collector values
     set:
-      otel-col-deploy.namespaceOverride: telemetry
-      otel-col-deploy.fullnameOverride: collector
-      otel-col-deploy.ports.otlp.servicePort: 14317
+      workloadCollector.namespaceOverride: telemetry
+      workloadCollector.fullnameOverride: collector
+      workloadCollector.ports.otlp.servicePort: 14317
     asserts:
       - equal:
           path: spec.telemetry.metrics.sinks[0].openTelemetry.backendRefs

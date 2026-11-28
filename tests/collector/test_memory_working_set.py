@@ -15,7 +15,7 @@ def gauge(name, value):
 
 
 def test_working_set_is_rated_against_the_pod_memory_limit(tmp_path):
-    daemon = chart_values("loco-worker")["otel-col-daemon"]["config"]
+    daemon = chart_values("loco-worker")["nodeCollector"]["config"]
     (pipeline,) = [
         p
         for p in daemon["service"]["pipelines"].values()
@@ -39,7 +39,7 @@ def test_working_set_is_rated_against_the_pod_memory_limit(tmp_path):
         },
     }
     pods = {"cached": (64, 30, 13), "idle": (128, 20, 20)}
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+    with run_collector(tmp_path, config, "node-collector-agent") as collector:
         resources = [
             {
                 "resource": {

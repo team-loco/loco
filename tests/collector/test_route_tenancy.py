@@ -125,7 +125,7 @@ def route_records(request, worker_relays, tmp_path_factory):
     """Send one record from a gateway and one from another pod, both naming a route and forging tenancy."""
     signal = request.param
     cluster, payload, records = SIGNALS[signal]
-    transform = worker_relays["otel-col-deploy"]["processors"][
+    transform = worker_relays["workload-collector"]["processors"][
         "transform/envoy_tenancy"
     ]
     config = {
@@ -146,7 +146,7 @@ def route_records(request, worker_relays, tmp_path_factory):
         {**FORGED, cluster: f"httproute/{namespace()}/resource-resource-a-route/rule/0"}
     )
     directory = tmp_path_factory.mktemp(signal)
-    with run_collector(directory, config, "otel-col-deploy") as collector:
+    with run_collector(directory, config, "workload-collector") as collector:
         for resource in ({GATEWAY_LABEL: "loco"}, {"service.name": "dependency"}):
             post_otlp(
                 collector, signal, payload({"attributes": attributes(resource)}, record)

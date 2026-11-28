@@ -47,7 +47,7 @@ mise run chart:schema
 mise run test:charts
 ```
 
-`test:charts` builds the chart dependencies and runs `untt`, helm-unittest's standalone binary, on both charts. Each chart keeps its suites in `tests/*_test.yaml`, one per template or feature, and the value files they share in `tests/values/`. `loco-worker/tests/kind-values.yaml` holds the values the kind installation tests add. Suites read the chart's `ci/default-values.yaml` for its required values. Address a subchart's template through its alias, for example `charts/otel-col-daemon/templates/daemonset.yaml`.
+`test:charts` builds the chart dependencies and runs `untt`, helm-unittest's standalone binary, on both charts. Each chart keeps its suites in `tests/*_test.yaml`, one per template or feature, and the value files they share in `tests/values/`. `loco-worker/tests/kind-values.yaml` holds the values the kind installation tests add. Suites read the chart's `ci/default-values.yaml` for its required values. Address a subchart's template through its alias, for example `charts/nodeCollector/templates/daemonset.yaml`.
 
 Run one suite while you work on it:
 

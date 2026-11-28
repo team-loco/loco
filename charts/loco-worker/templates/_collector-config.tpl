@@ -1,13 +1,13 @@
 {{- define "loco-worker.collectorConfig" -}}
 {{- $collector := .collector -}}
 {{- $template := "opentelemetry-collector.deploymentConfig" -}}
-{{- if eq .name "otel-col-daemon" -}}
+{{- if eq .name "nodeCollector" -}}
 {{- $template = "opentelemetry-collector.daemonsetConfig" -}}
 {{- end -}}
 {{- $config := include $template $collector | fromYaml -}}
 {{/* The subchart defines batch; only the persistent exporter queue buffers records. */}}
 {{- $_ := unset $config.processors "batch" -}}
-{{- if eq .name "otel-col-daemon" -}}
+{{- if eq .name "nodeCollector" -}}
 {{- $metadata := index $config.processors "k8s_attributes/pod_uid" -}}
 {{- $_ := set $metadata "wait_for_metadata" true -}}
 {{- $_ := set $metadata.extract "labels" (append $metadata.extract.labels (dict "from" "pod" "key" "loco.io/platform-log-owner" "tag_name" "loco.platform.log.owner")) -}}
@@ -23,11 +23,11 @@
 {{- end -}}
 {{- $settings := .root.Values.global.platformTelemetry -}}
 {{- $export := .root.Values.global.exporter -}}
-{{- if and $settings.enabled (eq .name "otel-col-cluster") (or (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled) -}}
-{{- fail "platform telemetry requires one otel-col-cluster replica with autoscaling disabled" -}}
+{{- if and $settings.enabled (eq .name "clusterCollector") (or (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled) -}}
+{{- fail "platform telemetry requires one clusterCollector replica with autoscaling disabled" -}}
 {{- end -}}
-{{- if and (eq .name "otel-col-deploy") $collector.Values.autoscaling.enabled -}}
-{{- fail "otel-col-deploy runs a fixed replica count; autoscaling would strand the queues of removed replicas" -}}
+{{- if and (eq .name "workloadCollector") $collector.Values.autoscaling.enabled -}}
+{{- fail "workloadCollector runs a fixed replica count; autoscaling would strand the queues of removed replicas" -}}
 {{- end -}}
 {{- if and $settings.platformOnly (not $settings.enabled) -}}
 {{- fail "global.platformTelemetry.platformOnly requires platformTelemetry.enabled" -}}
@@ -53,13 +53,13 @@
 {{- $_ := set $own "headers" $settings.exporter.headers -}}
 {{- $_ := set $config.exporters $platformExporter $own -}}
 {{- end -}}
-{{- if and $settings.platformOnly (index .root.Values "otel-col-deploy" "enabled") -}}
-{{- fail "platformOnly requires otel-col-deploy.enabled=false" -}}
+{{- if and $settings.platformOnly (index .root.Values "workloadCollector" "enabled") -}}
+{{- fail "platformOnly requires workloadCollector.enabled=false" -}}
 {{- end -}}
-{{- if ne .name "otel-col-deploy" -}}
+{{- if ne .name "workloadCollector" -}}
 {{- $namespaces := list -}}
 {{- $chartNamespaces := list .root.Release.Namespace -}}
-{{- range $collectorName := list "otel-col-deploy" "otel-col-daemon" "otel-col-cluster" -}}
+{{- range $collectorName := list "workloadCollector" "nodeCollector" "clusterCollector" -}}
 {{- $chartNamespaces = append $chartNamespaces (index $.root.Values $collectorName "namespaceOverride") -}}
 {{- end -}}
 {{- range concat $settings.namespaces $chartNamespaces | uniq -}}
@@ -74,7 +74,7 @@
 {{- end -}}
 {{- $_ := set $config.processors "resource/platform" (dict "attributes" $attributes) -}}
 {{- $receivers := list "k8s_cluster" -}}
-{{- if eq .name "otel-col-daemon" -}}
+{{- if eq .name "nodeCollector" -}}
 {{- $receivers = list "kubeletstats/platform" -}}
 {{- $kubelet := deepCopy $config.receivers.kubeletstats -}}
 {{- $_ := set $kubelet "collection_interval" $settings.collectionInterval -}}
@@ -88,9 +88,11 @@
 {{- $_ := set $podMetadata.extract "labels" (append $podMetadata.extract.labels (dict "from" "pod" "key" "app.kubernetes.io/name" "tag_name" "loco.platform.service.name")) -}}
 {{- $_ := set $config.processors "filter/workload_logs" (dict "error_mode" "propagate" "log_conditions" (list (printf "resource.attributes[\"k8s.namespace.name\"] != nil and IsMatch(resource.attributes[\"k8s.namespace.name\"], %s)" ($pattern | toJson)))) -}}
 {{- $_ := set $config.service.pipelines.logs "processors" (append $config.service.pipelines.logs.processors "filter/workload_logs") -}}
+{{- if $settings.logs.enabled -}}
 {{- $_ := set $config.service.pipelines "logs/platform" (dict "receivers" (list "file_log") "processors" (list "memory_limiter" "k8s_attributes/pod_uid" "filter/platform" "filter/control_plane_logs" "transform/log_severity" "transform/platform_log" "filter/platform_feedback" "resource/platform")) -}}
+{{- end -}}
 {{- $excluded := index $config.receivers "file_log" "exclude" | default list -}}
-{{- range $collectorName := list "otel-col-daemon" "otel-col-deploy" "otel-col-cluster" -}}
+{{- range $collectorName := list "nodeCollector" "workloadCollector" "clusterCollector" -}}
 {{- if index $.root.Values $collectorName "enabled" -}}
 {{- $other := index $.root.Subcharts $collectorName -}}
 {{- $excluded = append $excluded (printf "/var/log/pods/%s_%s*_*/*/*.log" (include "opentelemetry-collector.namespace" $other) (include "opentelemetry-collector.fullname" $other)) -}}

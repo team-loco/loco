@@ -39,9 +39,9 @@ spec:
                     - name: LOCO_OTEL_COLLECTOR_SERVICE
                       value: {{ include "loco-worker.collectorService" . | quote }}
                     - name: LOCO_OTEL_COLLECTOR_GRPC_PORT
-                      value: {{ index .Values "otel-col-deploy" "ports" "otlp" "servicePort" | quote }}
+                      value: {{ index .Values "workloadCollector" "ports" "otlp" "servicePort" | quote }}
                     - name: LOCO_OTEL_COLLECTOR_HTTP_PORT
-                      value: {{ index .Values "otel-col-deploy" "ports" "otlp-http" "servicePort" | quote }}
+                      value: {{ index .Values "workloadCollector" "ports" "otlp-http" "servicePort" | quote }}
                     - name: LOCO_GATEWAY
                       value: {{ include "loco-worker.gateway" . | quote }}
                     - name: LOCO_WORKSPACE_NAMESPACE_PREFIX
