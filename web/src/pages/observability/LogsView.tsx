@@ -72,7 +72,10 @@ const LOGS_PARAMS = {
 	at: msParser,
 	live: parseAsStringLiteral(["0"]),
 };
-const SYSTEM_LOGS_PARAMS = { ...LOGS_PARAMS, cols: columnsParser.withDefault(SYSTEM_COLUMNS) };
+const SYSTEM_LOGS_PARAMS = {
+	...LOGS_PARAMS,
+	cols: columnsParser.withDefault(SYSTEM_COLUMNS),
+};
 const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set([
 	"component",
 	"cluster",
@@ -228,7 +231,12 @@ export function LogsView() {
 		if (!canTail) {
 			setRange({ kind: "relative", spanMs: DEFAULT_SPAN_MS });
 			void setParams({ live: null });
-			setPlayback({ ...currentPlayback, on: true, pending: null, paused: null });
+			setPlayback({
+				...currentPlayback,
+				on: true,
+				pending: null,
+				paused: null,
+			});
 			return;
 		}
 		if (tail) {
@@ -255,7 +263,10 @@ export function LogsView() {
 			range,
 			null,
 		]);
-		const pending = { from: playbackKey, to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]) };
+		const pending = {
+			from: playbackKey,
+			to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]),
+		};
 		setHistory(createLogHistory());
 		setWindowEnd(latest.end);
 		setView(0, null);
@@ -317,7 +328,10 @@ export function LogsView() {
 		const total = [...point.counts.values()].reduce((a, n) => a + n, 0);
 		return {
 			label: `${fmtTs(point.start, false, timePref)}, ${formatCount(total)} ${total === 1 ? "line" : "lines"}`,
-			segments: LEVELS.map((level) => ({ value: point.counts.get(level) ?? 0, color: LEVEL_COLOR[level] })),
+			segments: LEVELS.map((level) => ({
+				value: point.counts.get(level) ?? 0,
+				color: LEVEL_COLOR[level],
+			})),
 		};
 	});
 
@@ -499,8 +513,7 @@ export function LogsView() {
 						installation ? (
 							<>
 								Node collectors send platform stdout and stderr here with{" "}
-								<InlineCode>global.platformTelemetry.enabled</InlineCode>
-								enabled in the worker chart.
+								<InlineCode>global.platformTelemetry.enabled</InlineCode> enabled in the worker chart.
 							</>
 						) : (
 							<>
@@ -568,7 +581,11 @@ export function LogsView() {
 										buckets={buckets}
 										label="Log volume over the selected range. Arrow keys move between bars, Enter zooms in."
 										onPick={(i) => {
-											setRange({ kind: "absolute", from: chartStart + i * bw, to: chartStart + (i + 1) * bw });
+											setRange({
+												kind: "absolute",
+												from: chartStart + i * bw,
+												to: chartStart + (i + 1) * bw,
+											});
 										}}
 									/>
 								)}
