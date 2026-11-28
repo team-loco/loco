@@ -118,7 +118,16 @@ func TestTokenModeBuildCredentialGrantsItsRepositoryUntilTheBuildFinishes(t *tes
 	wantBuildAccess(t, realm, firstCredential, repository)
 
 	reconnected := newSyncSession(server, f.clusterID, sent.send)
-	resent := onlyStart(t, f.sendBuilds(t, reconnected, sent), id)
+	// The initial inventory may settle before the new stream's first dispatch.
+	if err := reconnected.reconcileInventory(f.ctx, &agentv1.Inventory{Builds: []*agentv1.InventoryBuild{
+		{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_PENDING},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	resent := onlyStart(t, startedBuilds(sent.take()), id)
+	if starts := f.sendBuilds(t, reconnected, sent); len(starts) != 0 {
+		t.Fatalf("resent queued build twice on one stream: %v", starts)
+	}
 	secondCredential := resent.GetRegistryCredential()
 	if secondCredential == "" || secondCredential == firstCredential {
 		t.Fatalf("resent credential %q, want a new one", secondCredential)
@@ -135,6 +144,15 @@ func TestTokenModeBuildCredentialGrantsItsRepositoryUntilTheBuildFinishes(t *tes
 	}
 	wantBuildAccess(t, realm, firstCredential, repository)
 	wantBuildAccess(t, realm, secondCredential, repository)
+	runningSession := newSyncSession(server, f.clusterID, sent.send)
+	if err := runningSession.reconcileInventory(f.ctx, &agentv1.Inventory{Builds: []*agentv1.InventoryBuild{
+		{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_RUNNING},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if starts := startedBuilds(sent.take()); len(starts) != 0 {
+		t.Fatalf("restarted a running build on reconnect: %v", starts)
+	}
 
 	realm.exec(t, "UPDATE builds SET cluster_id = $2 WHERE id = $1", id, f.otherCluster)
 	wantBuildRefused(t, realm, firstCredential, repository, "first credential after the build moved cluster")
