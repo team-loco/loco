@@ -32,7 +32,6 @@ const resourceListSQL = `WITH ws AS MATERIALIZED (
 ),
 regions AS MATERIALIZED (
   SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas,
-    d.id AS deployment_id, d.created_at AS deployment_created_at, d.spec AS deployment_spec,
     d.spec->'build'->>'image' AS image,
     region_status(region_status_cause(
         i.last_heartbeat, i.health_status, make_interval(secs => $2::float8),
@@ -44,9 +43,7 @@ regions AS MATERIALIZED (
     AND ($3::uuid IS NULL OR $10::uuid IS NULL OR i.environment_id IN ($3::uuid, $10::uuid))
 ),
 cells AS (
-  SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status,
-    min(region) AS first_region,
-    (array_agg(deployment_spec ORDER BY deployment_created_at DESC, deployment_id DESC))[1] AS live_spec
+  SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status
   FROM regions GROUP BY resource_id, environment_id
 ),
 facts AS (
@@ -76,7 +73,12 @@ facts AS (
     SELECT cpu_millicores(sized.target->>'cpu') AS cpu,
            memory_bytes(sized.target->>'memory') AS memory
     FROM resource_environments config
-    LEFT JOIN cells env ON env.resource_id = config.resource_id AND env.environment_id = config.environment_id
+    LEFT JOIN LATERAL (
+      SELECT min(l.region) AS first_region,
+        (array_agg(d.spec ORDER BY d.created_at DESC, d.id DESC))[1] AS live_spec
+      FROM live_deployment_placements l JOIN deployments d ON d.id = l.deployment_id
+      WHERE l.resource_id = config.resource_id AND l.environment_id = config.environment_id
+    ) env ON true
     LEFT JOIN LATERAL (
       SELECT t.key AS region, t.value AS target FROM jsonb_each(config.spec->'regions') t
       WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
