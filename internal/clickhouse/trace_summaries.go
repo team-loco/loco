@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,6 +14,12 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+const (
+	traceSortTimestamp = "Int64"
+	traceSortUnsigned  = "UInt64"
+	traceSortText      = "String" //nolint:usestdlibvars // ClickHouse type name, not a Go constant kind.
 )
 
 // traceRequest holds the scope and range ListTracesRequest and QueryTraceBucketsRequest share.
@@ -56,22 +63,18 @@ func (c *Client) ListTraces(
 	filter TraceFilter,
 	limit int32,
 ) (*observabilityv1.ListTracesResponse, error) {
-	offset, err := decodeTraceOffset(req.GetPageToken())
-	if err != nil {
-		return nil, err
-	}
 	b := &positionalBinder{}
 	query := buildTraceSummaryQuery(req, filter, b)
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	summaryQuery, summaryArgs := query, slices.Clone(b.args)
-	sort := "start_time"
+	sort, sortType := "toUnixTimestamp64Nano(start_time)", traceSortTimestamp
 	switch req.GetOrderBy() {
 	case observabilityv1.TraceOrder_TRACE_ORDER_DURATION:
-		sort = "duration_nanos"
+		sort, sortType = "duration_nanos", traceSortUnsigned
 	case observabilityv1.TraceOrder_TRACE_ORDER_OPERATION:
-		sort = "root.1"
+		sort, sortType = "root.1", traceSortText
 	case observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE:
-		sort = "root.2"
+		sort, sortType = "root.2", traceSortText
 		if len(filter.Resources) > 0 {
 			choices := make([]string, 0, 2*len(filter.Resources)+1)
 			for _, resource := range filter.Resources {
@@ -81,28 +84,43 @@ func (c *Client) ListTraces(
 			sort = "multiIf(" + strings.Join(append(choices, sort), ", ") + ")"
 		}
 	case observabilityv1.TraceOrder_TRACE_ORDER_STATUS:
-		sort = "root.4"
+		sort, sortType = "root.4", traceSortUnsigned
 	case observabilityv1.TraceOrder_TRACE_ORDER_SPAN_COUNT:
-		sort = "span_count"
+		sort, sortType = "span_count", traceSortUnsigned
+	}
+	cursor, err := decodeTraceCursor(req, sortType)
+	if err != nil {
+		return nil, err
 	}
 	direction := " ASC"
 	if req.GetDescending() || req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_UNSPECIFIED {
 		direction = " DESC"
 	}
 	columns := "TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4"
+	query = "WITH trace_summaries AS (" + query + ") SELECT *, " + sort + " AS sort_value FROM trace_summaries"
 	if req.GetIncludeTotalCount() {
-		// The window count totals every matching trace before LIMIT, so one aggregation serves the page and its total.
-		columns += ", count() OVER ()"
+		// Count the whole matching range before seeking past the previous page.
+		query = "SELECT *, count() OVER () AS total_count FROM (" + query + ")"
+		columns += ", total_count"
 	}
-	query = "SELECT " + columns + " FROM (" + query + ") ORDER BY " + sort + direction +
-		", TraceId ASC LIMIT ? OFFSET ?" + settings
-	b.args = append(b.args, limit+pageLookahead, offset)
+	query = "SELECT " + columns + ", toString(sort_value) FROM (" + query + ")"
+	if cursor != nil {
+		comparison := ">"
+		if direction == " DESC" {
+			comparison = "<"
+		}
+		query += " WHERE sort_value " + comparison + " CAST(" + b.str(cursor.value) + " AS " + sortType + ")" +
+			" OR (sort_value = CAST(" + b.str(cursor.value) + " AS " + sortType + ") AND TraceId > " + b.str(cursor.trace) + ")"
+	}
+	query += " ORDER BY sort_value" + direction + ", TraceId ASC LIMIT ?" + settings
+	b.args = append(b.args, limit+pageLookahead)
 	rows, err := c.query(ctx, "ListTraces", query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace summaries: %w", err)
 	}
 	defer rows.Close()
 	summaries := make([]*observabilityv1.TraceSummary, 0)
+	var lastValue string
 	var total uint64
 	for rows.Next() {
 		var id, name, service, resource string
@@ -110,10 +128,12 @@ func (c *Client) ListTraces(
 		var httpStatus uint32
 		var start time.Time
 		var duration, count uint64
+		var value string
 		dest := []any{&id, &name, &service, &resource, &start, &duration, &status, &count, &httpStatus}
 		if req.GetIncludeTotalCount() {
 			dest = append(dest, &total)
 		}
+		dest = append(dest, &value)
 		if err := rows.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("scan trace summary: %w", err)
 		}
@@ -128,6 +148,9 @@ func (c *Client) ListTraces(
 			SpanCount:      count,
 			HttpStatusCode: httpStatus,
 		})
+		if int32(len(summaries)) == limit {
+			lastValue = value
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("trace summary rows: %w", err)
@@ -135,10 +158,10 @@ func (c *Client) ListTraces(
 	response := &observabilityv1.ListTracesResponse{Summaries: summaries}
 	if int32(len(summaries)) > limit {
 		response.Summaries = summaries[:limit]
-		response.NextPageToken = encodeTraceOffset(offset + int64(limit))
+		response.NextPageToken = encodeTraceCursor(req, summaries[limit-1].GetTraceId(), lastValue)
 	}
 	// A page past the end has no rows to carry the total.
-	pastEnd := len(summaries) == 0 && offset > 0
+	pastEnd := len(summaries) == 0 && cursor != nil
 	if req.GetIncludeTotalCount() && pastEnd {
 		err := c.scanRow(ctx, "CountTraces", "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs, &total)
 		if err != nil {
@@ -149,22 +172,44 @@ func (c *Client) ListTraces(
 	return response, nil
 }
 
-// A ListTraces page token holds the offset of the page's first trace.
-func encodeTraceOffset(offset int64) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(offset, 10)))
+type traceCursor struct {
+	trace string
+	value string
 }
 
-func decodeTraceOffset(token string) (int64, error) {
-	if token == "" {
-		return 0, nil
+func encodeTraceCursor(req *observabilityv1.ListTracesRequest, trace, value string) string {
+	return base64.RawURLEncoding.EncodeToString(
+		[]byte(fmt.Sprintf("%d:%t:%s:%s", req.GetOrderBy(), req.GetDescending(), trace, value)),
+	)
+}
+
+func decodeTraceCursor(req *observabilityv1.ListTracesRequest, sortType string) (*traceCursor, error) {
+	if req.GetPageToken() == "" {
+		return nil, nil
 	}
-	decoded, err := base64.RawURLEncoding.DecodeString(token)
+	decoded, err := base64.RawURLEncoding.DecodeString(req.GetPageToken())
 	if err != nil {
-		return 0, ErrInvalidTracePageToken
+		return nil, ErrInvalidTracePageToken
 	}
-	offset, err := strconv.ParseInt(string(decoded), 10, 64)
-	if err != nil || offset <= 0 {
-		return 0, ErrInvalidTracePageToken
+	parts := strings.SplitN(string(decoded), ":", 4)
+	if len(parts) != 4 {
+		return nil, ErrInvalidTracePageToken
 	}
-	return offset, nil
+	if parts[0] != strconv.Itoa(int(req.GetOrderBy())) || parts[1] != strconv.FormatBool(req.GetDescending()) {
+		return nil, ErrInvalidTracePageToken
+	}
+	trace, err := hex.DecodeString(parts[2])
+	if err != nil || len(trace) != 16 {
+		return nil, ErrInvalidTracePageToken
+	}
+	switch sortType {
+	case traceSortTimestamp:
+		_, err = strconv.ParseInt(parts[3], 10, 64)
+	case traceSortUnsigned:
+		_, err = strconv.ParseUint(parts[3], 10, 64)
+	}
+	if err != nil {
+		return nil, ErrInvalidTracePageToken
+	}
+	return &traceCursor{trace: parts[2], value: parts[3]}, nil
 }

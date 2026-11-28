@@ -174,7 +174,6 @@ func TestTraceSummaryValidation(t *testing.T) {
 		change func(*observabilityv1.ListTracesRequest)
 	}{
 		{"excessive page size", func(r *observabilityv1.ListTracesRequest) { r.PageSize = 201 }},
-		{"long page token", func(r *observabilityv1.ListTracesRequest) { r.PageToken = strings.Repeat("a", 65) }},
 		{"invalid order", func(r *observabilityv1.ListTracesRequest) {
 			r.OrderBy = observabilityv1.TraceOrder(99)
 		}},

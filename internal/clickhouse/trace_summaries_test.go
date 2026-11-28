@@ -1,9 +1,11 @@
 package clickhouse
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +17,110 @@ import (
 
 const summaryService = "summary-web"
 const summaryHTTPStatus = "http.response.status_code"
+const summaryRootSpan = "root"
+
+func TestTraceSummaryPageIncludesLateRootAndChildren(t *testing.T) {
+	f := newQueryFixture(t)
+	req := &observabilityv1.ListTracesRequest{
+		Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+		StartTime: timestamppb.New(f.start), EndTime: timestamppb.New(f.end), IncludeTotalCount: true,
+	}
+	insert := func(trace int, span, parent, name string, offset time.Duration) {
+		t.Helper()
+		if err := f.conn.Exec(t.Context(), "INSERT INTO otel_traces "+
+			"(Timestamp, TraceId, SpanId, ParentSpanId, SpanName, Duration, ResourceAttributes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			f.start.Add(offset), fmt.Sprintf("%032x", trace), span, parent, name, uint64(time.Second),
+			tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert(1, "child", summaryRootSpan, "child", time.Second)
+	insert(2, "other", "", "other trace", 2*time.Second)
+	first := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
+	if first.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", 2) {
+		t.Fatalf("first page: %v", first)
+	}
+	// The unseen trace receives a root before the page boundary and a child after it.
+	// Seeking over raw spans would silently remove that child from its summary.
+	insert(1, summaryRootSpan, "", "GET /late-root", 0)
+	insert(1, "later-child", summaryRootSpan, "later child", 3*time.Second)
+	req.PageToken = first.GetNextPageToken()
+	second := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
+	if len(second.GetSummaries()) != 1 {
+		t.Fatalf("second page: %v", second)
+	}
+	got := second.GetSummaries()[0]
+	complete := got.GetRootSpanName() == "GET /late-root" && got.GetSpanCount() == 3 &&
+		got.GetDurationNanos() == uint64(4*time.Second)
+	if !complete {
+		t.Fatalf("late spans missing from summary: %v", got)
+	}
+}
+
+func TestTraceSummaryPagesAfterLateArrival(t *testing.T) {
+	for _, order := range []observabilityv1.TraceOrder{
+		observabilityv1.TraceOrder_TRACE_ORDER_START_TIME,
+		observabilityv1.TraceOrder_TRACE_ORDER_DURATION,
+		observabilityv1.TraceOrder_TRACE_ORDER_OPERATION,
+		observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE,
+		observabilityv1.TraceOrder_TRACE_ORDER_STATUS,
+		observabilityv1.TraceOrder_TRACE_ORDER_SPAN_COUNT,
+	} {
+		for _, descending := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%t", order, descending), func(t *testing.T) {
+				f := newQueryFixture(t)
+				req := &observabilityv1.ListTracesRequest{
+					Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
+					StartTime: timestamppb.New(f.start), EndTime: timestamppb.New(f.end), IncludeTotalCount: true,
+				}
+				insert := func(id int) {
+					t.Helper()
+					if err := f.conn.Exec(
+						t.Context(),
+						"INSERT INTO otel_traces "+
+							"(Timestamp, TraceId, SpanId, SpanName, ServiceName, ResourceAttributes) VALUES (?, ?, ?, ?, ?, ?)",
+						f.start.Add(
+							time.Minute,
+						),
+						fmt.Sprintf("%032x", id),
+						summaryRootSpan,
+						"GET /cart",
+						summaryService,
+						tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID),
+					); err != nil {
+						t.Fatal(err)
+					}
+				}
+				for _, id := range []int{32, 48, 64} {
+					insert(id)
+				}
+				req.OrderBy, req.Descending = order, descending
+				filter := TraceFilter{Resources: []ResourceName{{ID: testResourceID, Name: "aaa"}}}
+				original := queryTraceSummaries(t, f, req, filter, testFullPage).GetSummaries()
+				first := queryTraceSummaries(t, f, req, filter, 1)
+				boundary := first.GetSummaries()[0]
+				// This new trace ties the boundary's primary sort value but its lower ID puts it
+				// before the first page, in either direction. It must not shift the next page.
+				insert(16)
+				req.PageToken = first.GetNextPageToken()
+				second := queryTraceSummaries(t, f, req, filter, testFullPage)
+				got := make([]string, 0, len(second.GetSummaries()))
+				want := make([]string, 0, len(original)-1)
+				for _, summary := range second.GetSummaries() {
+					got = append(got, summary.GetTraceId())
+				}
+				for _, summary := range original[1:] {
+					want = append(want, summary.GetTraceId())
+				}
+				if !slices.Equal(got, want) || second.GetTotalCount() != 4 {
+					t.Fatalf("after late arrival: got %v count %d, want %v count 4", got, second.GetTotalCount(), want)
+				}
+				t.Logf("order=%s descending=%t page1=%s page2=%v total=%d", order, descending,
+					boundary.GetTraceId(), got, second.GetTotalCount())
+			})
+		}
+	}
+}
 
 func TestTraceSummaries(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
@@ -203,17 +309,48 @@ func TestTraceSummaryPages(t *testing.T) {
 		})
 	}
 	req := proto.CloneOf(base)
-	req.PageToken = encodeTraceOffset(int64(len(want)))
+	last := queryTraceSummaries(t, f, req, TraceFilter{}, testFullPage).GetSummaries()[2]
+	req.PageToken = encodeTraceCursor(
+		req,
+		last.GetTraceId(),
+		strconv.FormatInt(last.GetStartTime().AsTime().UnixNano(), 10),
+	)
 	got := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
 	if len(got.GetSummaries()) != 0 || got.GetTotalCount() != 3 {
 		t.Fatalf("page past the end: %v", got)
 	}
-	for _, token := range []string{"not base64!", encodeTraceOffset(0), "LTE"} {
-		req.PageToken = token
-		_, err := f.client.ListTraces(t.Context(), req, TraceFilter{}, 1)
-		if !errors.Is(err, ErrInvalidTracePageToken) {
-			t.Errorf("token %q: err = %v, want ErrInvalidTracePageToken", token, err)
-		}
+	durationOrder := proto.CloneOf(base)
+	durationOrder.OrderBy = observabilityv1.TraceOrder_TRACE_ORDER_DURATION
+	reversed := proto.CloneOf(base)
+	reversed.Descending = true
+	for _, tc := range []struct {
+		name, token string
+		order       observabilityv1.TraceOrder
+	}{
+		{name: "bad base64", token: "not base64!"},
+		{name: "missing boundary", token: "LTE"},
+		{name: "invalid trace ID", token: base64.RawURLEncoding.EncodeToString([]byte("0:false:bad:3"))},
+		{name: "invalid time", token: encodeTraceCursor(base, last.GetTraceId(), "not a time")},
+		{name: "different sort", token: encodeTraceCursor(
+			durationOrder, last.GetTraceId(), strconv.FormatUint(last.GetDurationNanos(), 10),
+		)},
+		{name: "different direction", token: encodeTraceCursor(
+			reversed, last.GetTraceId(), strconv.FormatInt(last.GetStartTime().AsTime().UnixNano(), 10),
+		)},
+		{name: "negative unsigned value", token: encodeTraceCursor(durationOrder, last.GetTraceId(), "-1"),
+			order: durationOrder.GetOrderBy()},
+		{name: "overflowing unsigned value",
+			token: encodeTraceCursor(durationOrder, last.GetTraceId(), "18446744073709551616"),
+			order: durationOrder.GetOrderBy()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := proto.CloneOf(base)
+			req.OrderBy, req.PageToken = tc.order, tc.token
+			_, err := f.client.ListTraces(t.Context(), req, TraceFilter{}, 1)
+			if !errors.Is(err, ErrInvalidTracePageToken) {
+				t.Errorf("token %q: err = %v, want ErrInvalidTracePageToken", tc.token, err)
+			}
+		})
 	}
 }
 
@@ -259,7 +396,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 		{
 			1,
 			"child",
-			"root",
+			summaryRootSpan,
 			"child operation",
 			"worker",
 			"Error",
@@ -272,7 +409,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 		},
 		{
 			1,
-			"root",
+			summaryRootSpan,
 			"",
 			"GET /cart",
 			summaryService,

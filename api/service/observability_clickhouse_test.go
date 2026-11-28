@@ -589,6 +589,59 @@ func TestListTracesRejectsAnInvalidPageToken(t *testing.T) {
 	}
 }
 
+func TestListTracesPagesLongOperationNames(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	client := f.client(t, ch)
+	ctx := callerContext(t, workspaceReader)
+	name := "GET /" + strings.Repeat("long-operation/", 20)
+	now := time.Now().UTC().Add(-time.Minute)
+	insert := func(id int) {
+		t.Helper()
+		batch, err := ch.Conn().PrepareBatch(t.Context(),
+			"INSERT INTO otel_traces (Timestamp, TraceId, SpanId, SpanName, ResourceAttributes)")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := batch.Append(now, fmt.Sprintf("%032x", id), "root", name,
+			map[string]string{workspaceAttribute: f.workspace.String(), retentionAttribute: "1"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := batch.Send(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert(16)
+	insert(32)
+	req := &observabilityv1.ListTracesRequest{
+		Scope:     &observabilityv1.TraceScope{WorkspaceId: f.workspace.String()},
+		StartTime: timestamppb.New(now), EndTime: timestamppb.New(now), PageSize: 1,
+		OrderBy: observabilityv1.TraceOrder_TRACE_ORDER_OPERATION, IncludeTotalCount: true,
+	}
+	first, err := client.ListTraces(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.GetSummaries()) != 1 || first.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", 16) {
+		t.Fatalf("first page: %v", first)
+	}
+	insert(8)
+	req.PageToken = first.GetNextPageToken()
+	second, err := client.ListTraces(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.GetSummaries()) != 1 || second.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", 32) {
+		t.Fatalf("second page after late arrival: %v", second)
+	}
+	if second.GetTotalCount() != 3 {
+		t.Fatalf("whole-range count after late arrival: %v", second)
+	}
+	t.Logf("synthetic same-name traces: page1=%s late=%032x page2=%s count=%d",
+		first.GetSummaries()[0].GetTraceId(), 8, second.GetSummaries()[0].GetTraceId(), second.GetTotalCount())
+}
+
 func logBodies(entries []*observabilityv1.LogEntry) []string {
 	bodies := make([]string, 0, len(entries))
 	for _, entry := range entries {
