@@ -2,8 +2,13 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
+
+	"k8s.io/apimachinery/pkg/api/equality"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -157,7 +162,39 @@ func (r *ApplicationReconciler) ensureWorkspaceNetworkPolicies(
 		return err
 	}
 	policies := r.workspaceNetworkPolicies(app, exclusions)
-	return isolation.ApplyPolicies(ctx, r.Client, policies)
+	for _, policy := range policies {
+		raw, err := json.Marshal(policy)
+		if err != nil {
+			return fmt.Errorf("encode environment policy: %w", err)
+		}
+		desired := &networkingv1.NetworkPolicy{}
+		if err = json.Unmarshal(raw, desired); err != nil {
+			return fmt.Errorf("decode environment policy: %w", err)
+		}
+		current := &networkingv1.NetworkPolicy{}
+		err = r.APIReader.Get(ctx, client.ObjectKeyFromObject(desired), current)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("get environment policy: %w", err)
+		}
+		if apierrors.IsNotFound(err) {
+			if err := r.Create(ctx, desired); err != nil {
+				return fmt.Errorf("create environment policy %s: %w", desired.Name, err)
+			}
+			continue
+		}
+		if networkPolicyMatches(current, desired) {
+			continue
+		}
+		current.Spec = desired.Spec
+		if current.Labels == nil {
+			current.Labels = make(map[string]string)
+		}
+		maps.Copy(current.Labels, desired.Labels)
+		if err := r.Update(ctx, current); err != nil {
+			return fmt.Errorf("update environment policy %s: %w", desired.Name, err)
+		}
+	}
+	return nil
 }
 
 func (r *ApplicationReconciler) gatewayIngressPolicy(
@@ -211,4 +248,8 @@ func (r *ApplicationReconciler) ensureGatewayIngressPolicy(
 		return fmt.Errorf("apply network policy %s/%s: %w", namespace, policyName, err)
 	}
 	return nil
+}
+
+func networkPolicyMatches(current, desired *networkingv1.NetworkPolicy) bool {
+	return containsLabels(current.Labels, desired.Labels) && equality.Semantic.DeepEqual(current.Spec, desired.Spec)
 }

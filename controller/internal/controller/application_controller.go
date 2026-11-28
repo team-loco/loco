@@ -45,7 +45,6 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
-	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
 	"github.com/team-loco/loco/controller/internal/tracing"
 	"github.com/team-loco/loco/internal/clip"
@@ -222,16 +221,8 @@ func (r *ApplicationReconciler) reconcileResources(
 			}
 		}
 	}()
-	if err := tracing.Step(ctx, namespaceSpan, func(ctx context.Context) error {
-		return r.ensureNamespace(ctx, app)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
-	}
-
-	if err := tracing.Step(ctx, networkPoliciesSpan, func(ctx context.Context) error {
-		return r.ensureWorkspaceNetworkPolicies(ctx, app)
-	}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
+	if err := r.ensureEnvironment(ctx, app); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	err := tracing.Wait(ctx, pullSecretSpan, errRegistryPullSecretPending, func(ctx context.Context) error {
@@ -528,21 +519,6 @@ func ownerAnnotations(app *locov1alpha1.Application) map[string]string {
 		locolabels.AnnotationApplicationNamespace: app.Namespace,
 		locolabels.AnnotationApplicationName:      app.Name,
 	}
-}
-
-// ensureNamespace ensures the application namespace exists and is configured
-func (r *ApplicationReconciler) ensureNamespace(ctx context.Context, app *locov1alpha1.Application) error {
-	namespace := r.environmentNamespace(app)
-	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
-
-	labels := environmentNamespaceLabels(app)
-	ns := corev1ac.Namespace(namespace).WithLabels(labels)
-
-	opts := managed.ApplyOptions()
-	if err := r.Apply(ctx, ns, opts...); err != nil {
-		return fmt.Errorf("apply namespace %s: %w", namespace, err)
-	}
-	return nil
 }
 
 type envSecretMount struct {
@@ -1026,6 +1002,9 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := r.setupEnvironmentController(mgr); err != nil {
+		return err
+	}
 	podEvents := make(chan event.GenericEvent)
 	if err := r.watchWorkspacePodEvents(mgr, podEvents); err != nil {
 		return err
@@ -1039,9 +1018,6 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Gateways report attachment and acceptance in status. Only desired route changes need repair.
 	routeChanged := predicate.Or(applicationChanged, predicate.LabelChangedPredicate{})
 	routePredicates := builder.WithPredicates(routeChanged)
-	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerEnvironment)
-	nodeChanges := isolation.NodeRangesChanged()
-	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
 	envSecretHandler := handler.EnqueueRequestForOwner(
@@ -1061,7 +1037,8 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
-		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
+		Watches(&corev1.ServiceAccount{}, applicationHandler).
+		Watches(&networkingv1.NetworkPolicy{}, applicationHandler)
 	if r.copiesPullSecret() {
 		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationsForPullSecret)
 		pullSecretChanges := r.pullSecretChanged()
