@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	assertionLifetime = time.Minute
-	ingestTimeout     = 30 * time.Second
-	protobufContent   = "application/x-protobuf"
+	assertionLifetime     = time.Minute
+	ingestTimeout         = 30 * time.Second
+	protobufContent       = "application/x-protobuf"
+	nodeLogsCollectorName = "cp-node-logs"
 )
 
 var selectGrant = regexp.MustCompile(`^GRANT SELECT `)
@@ -183,14 +184,23 @@ gateway-helm: {enabled: false}
 otel-col-deploy: {enabled: false}
 otel-col-cluster: {enabled: false}
 otel-col-daemon:
+  fullnameOverride: %[7]s
   namespaceOverride: %[4]s
+  ports:
+    jaeger-compact: {enabled: false}
+    jaeger-grpc: {enabled: false}
+    jaeger-thrift: {enabled: false}
+    otlp: {enabled: false}
+    otlp-http: {enabled: false}
+    zipkin: {enabled: false}
   config:
     extensions:
       file_storage:
         # Other suites run another node collector on this same kind node.
         directory: /var/lib/otelcol/%[4]s-node-logs
         create_directory: true
-`, metricsRegion, c.KindCluster(), release, nodeNamespace, cp.values.ObsProxy.Ingest.HTTPPort, "Bearer "+token))
+`, metricsRegion, c.KindCluster(), release, nodeNamespace,
+		cp.values.ObsProxy.Ingest.HTTPPort, "Bearer "+token, nodeLogsCollectorName))
 	rendered := helm(t, "template", "platform-logs", c.Path("charts", "loco-worker"), "--namespace", cp.namespace,
 		"--values", values)
 	var objects []any
@@ -206,7 +216,7 @@ otel-col-daemon:
 		}
 	}
 	applyJSON(t, objects...)
-	rollout(t, nodeNamespace, "daemonset/"+nodeCollector)
+	rollout(t, nodeNamespace, "daemonset/"+nodeLogsCollectorName+"-agent")
 	// Restart the producers after collection is ready; checkpoints may already cover
 	// their earlier output when this suite reuses a kept cluster.
 	emittedAfter := time.Now().UnixNano()
