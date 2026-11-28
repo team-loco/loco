@@ -65,31 +65,8 @@ facts AS (
     (SELECT max(n.at) FROM (
       SELECT DISTINCT ON (d.environment_id) COALESCE(d.started_at, d.created_at) AS at FROM deployments d
       WHERE d.resource_id = ws.id AND ($10::uuid IS NULL OR d.environment_id = $10::uuid)
-      ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at,
-    COALESCE(size.cpu, 0) AS cpu,
-    COALESCE(size.memory, 0) AS memory
+      ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at
   FROM ws
-  LEFT JOIN LATERAL (
-    SELECT cpu_millicores(sized.target->>'cpu') AS cpu,
-           memory_bytes(sized.target->>'memory') AS memory
-    FROM resource_environments config
-    LEFT JOIN LATERAL (
-      SELECT min(l.region) AS first_region,
-        (array_agg(d.spec ORDER BY d.created_at DESC, d.id DESC))[1] AS live_spec
-      FROM live_deployment_placements l JOIN deployments d ON d.id = l.deployment_id
-      WHERE l.resource_id = config.resource_id AND l.environment_id = config.environment_id
-    ) env ON true
-    LEFT JOIN LATERAL (
-      SELECT t.key AS region, t.value AS target FROM jsonb_each(config.spec->'regions') t
-      WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
-    ) desired ON true
-    CROSS JOIN LATERAL (
-      SELECT COALESCE(env.live_spec->'regions'->desired.region,
-                      env.live_spec->'regions'->env.first_region, desired.target) AS target
-    ) sized
-    WHERE config.resource_id = ws.id AND ($10::uuid IS NULL OR config.environment_id = $10::uuid)
-    ORDER BY cpu DESC, memory DESC, config.environment_id LIMIT 1
-  ) size ON true
 ),
 matched AS (
   SELECT * FROM facts f
@@ -108,6 +85,29 @@ matched AS (
       OR NOT EXISTS (SELECT 1 FROM resource_environments re WHERE re.resource_id = f.id))
 )`
 
+const resourceSizeSQL = `
+  LEFT JOIN LATERAL (
+    SELECT cpu_millicores(sized.target->>'cpu') AS cpu,
+           memory_bytes(sized.target->>'memory') AS memory
+    FROM resource_environments config
+    LEFT JOIN LATERAL (
+      SELECT min(l.region) AS first_region,
+        (array_agg(d.spec ORDER BY d.created_at DESC, d.id DESC))[1] AS live_spec
+      FROM live_deployment_placements l JOIN deployments d ON d.id = l.deployment_id
+      WHERE l.resource_id = config.resource_id AND l.environment_id = config.environment_id
+    ) env ON true
+    LEFT JOIN LATERAL (
+      SELECT t.key AS region, t.value AS target FROM jsonb_each(config.spec->'regions') t
+      WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
+    ) desired ON true
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(env.live_spec->'regions'->desired.region,
+                      env.live_spec->'regions'->env.first_region, desired.target) AS target
+    ) sized
+    WHERE config.resource_id = m.id AND ($10::uuid IS NULL OR config.environment_id = $10::uuid)
+    ORDER BY cpu DESC, memory DESC, config.environment_id LIMIT 1
+  ) size ON true`
+
 // The sort keys of each order as k1, k2 and kt; every order then sorts by name_key and id.
 var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
 	resourcev1.ResourceOrder_RESOURCE_ORDER_NAME: `0::bigint, 0::bigint, name_key`,
@@ -118,7 +118,7 @@ var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
 	    ELSE 2 END) FROM unnest(sort_statuses) s), 4)::bigint, 0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED: `(EXTRACT(EPOCH FROM created_at) * 1000000)::bigint,
 	    0::bigint, ''::text`,
-	resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE:     `cpu, memory, ''::text`,
+	resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE:     `COALESCE(size.cpu, 0), COALESCE(size.memory, 0), ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_REGION:   `0::bigint, 0::bigint, COALESCE(regions[1], '')`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_REPLICAS: `replicas, 0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_DEPLOYED: `COALESCE((EXTRACT(EPOCH FROM deployed_at) * 1000000)::bigint, 0),
@@ -366,7 +366,11 @@ func (s *ResourceServer) resourcePage(
 ) ([]resourceKey, error) {
 	args := filter.args()
 	sql := resourceListSQL + " SELECT id, name_key, k1, k2, kt FROM (SELECT m.id, m.name_key, x.k1, x.k2, x.kt" +
-		" FROM matched m CROSS JOIN LATERAL (SELECT " + resourceOrderKeys[after.Order] + ") x (k1, k2, kt)) k"
+		" FROM matched m"
+	if after.Order == resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE {
+		sql += resourceSizeSQL
+	}
+	sql += " CROSS JOIN LATERAL (SELECT " + resourceOrderKeys[after.Order] + ") x (k1, k2, kt)) k"
 	direction, beyond := "ASC", ">"
 	if after.Descending {
 		direction, beyond = "DESC", "<"
