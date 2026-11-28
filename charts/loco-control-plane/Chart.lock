@@ -1,9 +1,12 @@
 dependencies:
-- name: loco-control-plane-telemetry
-  repository: file://telemetry
-  version: 0.1.0
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.178.2
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.178.2
 - name: clickhouse
   repository: https://helm.altinity.com
   version: 0.3.13
-digest: sha256:f2a94577c952e76c3dbd284ce82341fd731788457da0acac17ec3f21ae9747b4
-generated: "2026-11-27T20:25:27.780333-08:00"
+digest: sha256:6a97ae13f7d90352a8e17808143a52b2c90fc55bd297586c41b278b4de66b2e5
+generated: "2026-11-27T22:44:04.418823-08:00"

@@ -32,6 +32,15 @@ const (
 // chartValues are the loco-control-plane values the suite reads: the chart's defaults overlaid
 // with tests/e2e/control-plane-values.yaml.
 type chartValues struct {
+	NodeCollector struct {
+		NamespaceOverride string `json:"namespaceOverride"`
+	} `json:"nodeCollector"`
+	ClusterCollector struct {
+		NamespaceOverride string `json:"namespaceOverride"`
+	} `json:"clusterCollector"`
+	PlatformTelemetry struct {
+		Region string `json:"region"`
+	} `json:"platformTelemetry"`
 	GatewayNamespace     string `json:"gatewayNamespace"`
 	ControlPlaneHostname string `json:"controlPlaneHostname"`
 	Gateway              struct {
@@ -239,11 +248,27 @@ func loadImages(t *testing.T) {
 	}
 }
 
-func (cp *controlPlane) upgrade(t *testing.T) {
+func (cp *controlPlane) upgrade(t *testing.T, overrides ...string) {
 	t.Helper()
-	helm(t, "upgrade", "--install", release, c.Path("charts", "loco-control-plane"), "--namespace", cp.namespace,
-		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait=legacy", "--wait-for-jobs",
-		"--timeout", upgradeTimeout.String())
+	args := make([]string, 0, 12+2*len(overrides))
+	args = append(args,
+		"upgrade",
+		"--install",
+		release,
+		c.Path("charts", "loco-control-plane"),
+		"--namespace",
+		cp.namespace,
+		"-f",
+		c.Path("tests", "e2e", "control-plane-values.yaml"),
+		"--wait=legacy",
+		"--wait-for-jobs",
+		"--timeout",
+		upgradeTimeout.String(),
+	)
+	for _, value := range overrides {
+		args = append(args, "--set", value)
+	}
+	helm(t, args...)
 	cp.waitAPIReady(t)
 }
 

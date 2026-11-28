@@ -53,7 +53,6 @@ CLAUDE.local.md
 # local helm charts and values
 **/values/local.yaml
 charts/loco-*/charts/
-charts/loco-control-plane/telemetry/charts/
 **/dist/**
 
 # e2e test artifacts

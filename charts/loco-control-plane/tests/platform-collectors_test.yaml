@@ -1,0 +1,170 @@
+suite: control-plane platform collectors
+release:
+  name: regional
+  namespace: loco-system
+  revision: 7
+values:
+  - ../ci/default-values.yaml
+set:
+  platformTelemetry.region: test-region
+templates:
+  - templates/platform-collectors.yaml
+  - templates/api-deployment.yaml
+  - templates/obs-proxy-ingest-network-policy.yaml
+  - charts/nodeCollector/templates/daemonset.yaml
+  - charts/clusterCollector/templates/statefulset.yaml
+tests:
+  - it: installs no infrastructure collectors while platform telemetry is off
+    template: templates/platform-collectors.yaml
+    asserts:
+      - hasDocuments: {count: 0}
+  - it: installs a non-root node collector with persistent checkpoints and queue
+    set:
+      platformTelemetry.enabled: true
+    template: charts/nodeCollector/templates/daemonset.yaml
+    asserts:
+      - equal: {path: metadata.name, value: node-collector-agent}
+      - equal: {path: metadata.namespace, value: loco-obs-control-plane}
+      - equal: {path: 'spec.template.metadata.annotations["loco.io/release-revision"]', value: "7"}
+      - equal: {path: 'spec.template.spec.containers[0].securityContext.runAsUser', value: 10001}
+      - equal: {path: 'spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem', value: true}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_K8S_NODE_IP
+            valueFrom:
+              fieldRef: {fieldPath: status.hostIP}
+          count: 1
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --feature-gates=stanza.synchronousLogEmitter,processor.k8sattributes.ShareProcessorBetweenPipelines
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: checkpoints
+            hostPath: {path: /var/lib/otelcol/loco-obs-control-plane/node-collector, type: DirectoryOrCreate}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: exporter-queue
+            hostPath: {path: /var/lib/otelcol-exporter/loco-obs-control-plane/node-collector, type: DirectoryOrCreate}
+  - it: collects cluster state once with a persistent exporter queue
+    set:
+      platformTelemetry.enabled: true
+    template: charts/clusterCollector/templates/statefulset.yaml
+    asserts:
+      - equal: {path: metadata.name, value: cluster-collector}
+      - equal: {path: metadata.namespace, value: loco-obs-control-plane-cluster}
+      - equal: {path: spec.replicas, value: 1}
+      - equal: {path: spec.template.spec.securityContext.runAsUser, value: 10001}
+      - contains:
+          path: spec.volumeClaimTemplates
+          content:
+            metadata: {name: exporter-queue}
+            spec:
+              accessModes: [ReadWriteOnce]
+              resources:
+                requests: {storage: 2Gi}
+  - it: retains the cluster namespace so disabling collection preserves queued exports
+    set:
+      platformTelemetry.enabled: true
+    template: templates/platform-collectors.yaml
+    documentSelector:
+      path: metadata.name
+      value: loco-obs-control-plane-cluster
+    asserts:
+      - equal: {path: kind, value: Namespace}
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+  - it: retains infrastructure collectors and SDK telemetry when stdout collection is off
+    set:
+      platformTelemetry.enabled: true
+      platformTelemetry.logs.enabled: false
+    asserts:
+      - hasDocuments: {count: 1}
+        template: charts/nodeCollector/templates/daemonset.yaml
+      - hasDocuments: {count: 1}
+        template: charts/clusterCollector/templates/statefulset.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://regional-obs-proxy-ingest.loco-system.svc.cluster.local:4318"}
+        template: templates/api-deployment.yaml
+      - notExists:
+          path: spec.template.metadata.labels["loco.io/platform-log-owner"]
+        template: templates/api-deployment.yaml
+  - it: delegates collection while retaining direct SDK export
+    set:
+      platformTelemetry.enabled: true
+      nodeCollector.enabled: false
+      clusterCollector.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/platform-collectors.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://regional-obs-proxy-ingest.loco-system.svc.cluster.local:4318"}
+        template: templates/api-deployment.yaml
+      - notExists:
+          path: spec.template.metadata.labels["loco.io/platform-log-owner"]
+        template: templates/api-deployment.yaml
+  - it: refuses an explicitly enabled node collector while the master switch is off
+    set:
+      nodeCollector.enabled: true
+    template: templates/platform-collectors.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: nodeCollector.enabled requires platformTelemetry.enabled
+  - it: refuses an explicitly enabled cluster collector while the master switch is off
+    set:
+      clusterCollector.enabled: true
+    template: templates/platform-collectors.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: clusterCollector.enabled requires platformTelemetry.enabled
+  - it: refuses duplicate cluster state collection
+    set:
+      platformTelemetry.enabled: true
+      clusterCollector.replicaCount: 2
+    template: templates/platform-collectors.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: clusterCollector requires one StatefulSet replica with autoscaling disabled
+  - it: isolates node and cluster collection permissions in separate namespaces
+    set:
+      platformTelemetry.enabled: true
+      clusterCollector.namespaceOverride: loco-obs-control-plane
+    template: templates/platform-collectors.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: nodeCollector and clusterCollector must use different namespaces
+  - it: admits both collector roles on the configured ingest HTTP port
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.ingest.httpPort: 5518
+    template: templates/obs-proxy-ingest-network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: loco-obs-control-plane
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: regional
+                    app.kubernetes.io/name: node-collector
+            ports: [{protocol: TCP, port: 5518}]
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: loco-obs-control-plane-cluster
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: regional
+                    app.kubernetes.io/name: cluster-collector
+            ports: [{protocol: TCP, port: 5518}]

@@ -1,0 +1,76 @@
+{{- $root := . -}}
+{{- $active := list -}}
+{{- if and (hasKey .Subcharts "nodeCollector") (hasKey .Subcharts "clusterCollector") -}}
+{{- if eq .Values.nodeCollector.namespaceOverride .Values.clusterCollector.namespaceOverride -}}
+{{- fail "nodeCollector and clusterCollector must use different namespaces" -}}
+{{- end -}}
+{{- end -}}
+{{- range $name := list "nodeCollector" "clusterCollector" -}}
+{{- if and (index $root.Values $name "enabled") (not $root.Values.platformTelemetry.enabled) -}}
+{{- fail (printf "%s.enabled requires platformTelemetry.enabled" $name) -}}
+{{- end -}}
+{{- if hasKey $root.Subcharts $name -}}
+{{- $active = append $active $name -}}
+{{- $collector := index $root.Subcharts $name -}}
+{{- $namespace := required (printf "%s.namespaceOverride is required" $name) $collector.Values.namespaceOverride -}}
+{{- if eq $namespace $root.Release.Namespace -}}
+{{- fail "control-plane collectors must use dedicated namespaces" -}}
+{{- end -}}
+{{- if eq $name "nodeCollector" -}}
+{{- if ne $collector.Values.mode "daemonset" -}}
+{{- fail "nodeCollector.mode must be daemonset" -}}
+{{- end -}}
+{{- else -}}
+{{- $invalidTopology := or (ne $collector.Values.mode "statefulset") (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled -}}
+{{- if $invalidTopology -}}
+{{- fail "clusterCollector requires one StatefulSet replica with autoscaling disabled" -}}
+{{- end -}}
+{{- end -}}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $namespace }}
+  annotations:
+    # Retain queue claims when collection is disabled or delegated.
+    helm.sh/resource-policy: keep
+  labels:
+    pod-security.kubernetes.io/enforce: {{ ternary "privileged" "restricted" (eq $name "nodeCollector") }}
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentelemetry-collector.configName" $collector }}
+  namespace: {{ $namespace }}
+data:
+  relay: |
+    {{- include "loco-control-plane.collectorConfig" (dict "root" $root "name" $name) | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $root.Release.Name }}-{{ kebabcase $name }}
+  namespace: {{ $namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "loco-control-plane.collectorLabels" (dict "root" $root "name" $name) | nindent 6 }}
+  policyTypes: [Ingress]
+{{ end }}
+{{ end }}
+{{- if and $active (include "loco-control-plane.systemIngest" .) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-system-ingest
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-obs-proxy-ingest
+  ports:
+    - name: otlp-http
+      port: 80
+      targetPort: otlp-http
+{{- end }}

@@ -1,29 +1,105 @@
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 from helpers import chart_values, post_otlp, read_output, render_chart, run_collector
 from test_platform_telemetry import platform_pipeline_config
 
 
-@pytest.mark.parametrize("enabled,logs_enabled", [(False, True), (True, False)])
-def test_control_plane_log_gates_remove_the_daemonset(enabled, logs_enabled):
+def control_plane_config(documents, name):
+    relay = next(
+        document["data"]["relay"]
+        for document in documents
+        if document["kind"] == "ConfigMap"
+        and document["metadata"]["name"] == "loco-control-plane-" + name
+    )
+    return json.loads(
+        subprocess.check_output(["yq", "-o=json", ".", "-"], input=relay, text=True)
+    )
+
+
+def test_control_plane_telemetry_is_opt_in():
+    documents = render_chart("loco-control-plane", {})
+    assert not any(
+        document["kind"] in ("DaemonSet", "StatefulSet")
+        and document["metadata"]["name"]
+        in ("node-collector-agent", "cluster-collector")
+        for document in documents
+    )
+
+
+def test_control_plane_log_opt_out_keeps_node_metrics_cluster_state_and_events():
     documents = render_chart(
         "loco-control-plane",
         {
             "platformTelemetry": {
-                "enabled": enabled,
+                "enabled": True,
                 "region": "test-region",
-                "logs": {"enabled": logs_enabled},
+                "logs": {"enabled": False},
             }
         },
     )
-    assert not any(document["kind"] == "DaemonSet" for document in documents)
+    node = control_plane_config(documents, "node-collector")
+    cluster = control_plane_config(documents, "cluster-collector")
+    assert set(node["service"]["pipelines"]) == {"metrics"}
+    assert set(node["receivers"]) == {"kubeletstats"}
+    assert set(cluster["service"]["pipelines"]) == {"metrics", "logs"}
+    assert set(cluster["receivers"]) == {"k8s_cluster", "k8sobjects"}
+    assert any(document["kind"] == "DaemonSet" for document in documents)
 
 
+def test_control_plane_collector_delegation_retains_sdk_exports():
+    documents = render_chart(
+        "loco-control-plane",
+        {
+            "platformTelemetry": {"enabled": True, "region": "test-region"},
+            "nodeCollector": {"enabled": False},
+            "clusterCollector": {"enabled": False},
+        },
+    )
+    assert not any(
+        document["kind"] in ("DaemonSet", "StatefulSet")
+        and document["metadata"]["name"]
+        in ("node-collector-agent", "cluster-collector")
+        for document in documents
+    )
+    api = next(
+        document
+        for document in documents
+        if document["kind"] == "Deployment"
+        and document["metadata"]["name"] == "loco-control-plane-api"
+    )
+    assert any(
+        variable["name"] == "OTEL_EXPORTER_OTLP_ENDPOINT"
+        for variable in api["spec"]["template"]["spec"]["containers"][0]["env"]
+    )
+    assert (
+        "loco.io/platform-log-owner"
+        not in api["spec"]["template"]["metadata"]["labels"]
+    )
+
+
+@pytest.mark.parametrize(
+    "name,role,receivers,pipelines",
+    [
+        (
+            "node-collector",
+            "nodeCollector",
+            {"file_log", "kubeletstats"},
+            {"logs", "metrics"},
+        ),
+        (
+            "cluster-collector",
+            "clusterCollector",
+            {"k8s_cluster", "k8sobjects"},
+            {"logs", "metrics"},
+        ),
+    ],
+)
 @pytest.mark.parametrize("external", [False, True])
-def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
-    tmp_path, external
+def test_control_plane_config_is_valid_and_uses_the_selected_exporter(
+    tmp_path, name, role, receivers, pipelines, external
 ):
     settings = {"enabled": True, "region": "test-region"}
     if external:
@@ -32,18 +108,11 @@ def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
             "headers": {"Authorization": "Bearer synthetic"},
         }
     documents = render_chart("loco-control-plane", {"platformTelemetry": settings})
-    relay = next(
-        document["data"]["relay"]
-        for document in documents
-        if document["kind"] == "ConfigMap"
-        and document["metadata"]["name"] == "loco-control-plane-control-plane-logs"
-    )
-    config = json.loads(
-        subprocess.check_output(["yq", "-o=json", ".", "-"], input=relay, text=True)
-    )
-    assert list(config["service"]["pipelines"]) == ["logs"]
-    assert list(config["receivers"]) == ["file_log"]
-    assert config["receivers"]["file_log"]["storage"] == "file_storage"
+    config = control_plane_config(documents, name)
+    assert set(config["service"]["pipelines"]) == pipelines
+    assert set(config["receivers"]) == receivers
+    if name == "node-collector":
+        assert config["receivers"]["file_log"]["storage"] == "file_storage"
     exporter = config["exporters"]["otlp_http"]
     assert exporter["sending_queue"]["storage"] == "file_storage/exporter"
     assert exporter["retry_on_failure"]["max_elapsed_time"] == "0s"
@@ -63,12 +132,16 @@ def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
             if document["kind"] == "Secret"
             and document["metadata"]["name"].endswith("-system-ingest-token")
         ]
-        assert len(secrets) == 2
-        assert secrets[0]["data"]["token"] == secrets[1]["data"]["token"]
-        daemon = next(
-            document for document in documents if document["kind"] == "DaemonSet"
+        assert len(secrets) == 3
+        assert len({secret["data"]["token"] for secret in secrets}) == 1
+        workload = next(
+            document
+            for document in documents
+            if document["kind"] in ("DaemonSet", "StatefulSet")
+            and document["metadata"]["name"]
+            == name + ("-agent" if name == "node-collector" else "")
         )
-        labels = daemon["spec"]["template"]["metadata"]["labels"]
+        labels = workload["spec"]["template"]["metadata"]["labels"]
         policy = next(
             document
             for document in documents
@@ -79,14 +152,22 @@ def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
             peer.get("namespaceSelector", {})
             .get("matchLabels", {})
             .get("kubernetes.io/metadata.name")
-            == daemon["metadata"]["namespace"]
+            == workload["metadata"]["namespace"]
             and peer["podSelector"]["matchLabels"].items() <= labels.items()
             for rule in policy["spec"]["ingress"]
             for peer in rule.get("from", [])
         )
     path = tmp_path / "collector.yaml"
-    path.write_text(relay)
-    image = chart_values("loco-control-plane/telemetry")["logs"]["image"]
+    path.write_text(json.dumps(config))
+    # Synthetic credentials let validate construct clients; installed tests prove authorization.
+    service_account = tmp_path / "serviceaccount"
+    service_account.mkdir()
+    (service_account / "token").write_text("synthetic-token")
+    (service_account / "namespace").write_text("synthetic-namespace")
+    (service_account / "ca.crt").write_bytes(
+        (Path(__file__).parent / "fixtures" / "ca.crt").read_bytes()
+    )
+    image = chart_values("loco-control-plane")[role]["image"]
     subprocess.run(
         [
             "docker",
@@ -94,6 +175,16 @@ def test_control_plane_log_config_is_valid_and_uses_the_selected_exporter(
             "--rm",
             "--env",
             "OTEL_K8S_NODE_NAME=synthetic-node",
+            "--env",
+            "OTEL_K8S_NODE_IP=127.0.0.1",
+            "--env",
+            "MY_POD_IP=127.0.0.1",
+            "--env",
+            "KUBERNETES_SERVICE_HOST=127.0.0.1",
+            "--env",
+            "KUBERNETES_SERVICE_PORT=443",
+            "--volume",
+            f"{service_account}:/var/run/secrets/kubernetes.io/serviceaccount:ro",
             "--tmpfs",
             "/var/lib/otelcol",
             "--tmpfs",
@@ -116,15 +207,7 @@ def test_control_plane_logs_preserve_typed_fields_and_drop_export_feedback(tmp_p
         "loco-control-plane",
         {"platformTelemetry": {"enabled": True, "region": "test-region"}},
     )
-    relay = next(
-        document["data"]["relay"]
-        for document in documents
-        if document["kind"] == "ConfigMap"
-        and document["metadata"]["name"] == "loco-control-plane-control-plane-logs"
-    )
-    rendered = json.loads(
-        subprocess.check_output(["yq", "-o=json", ".", "-"], input=relay, text=True)
-    )
+    rendered = control_plane_config(documents, "node-collector")
     config = platform_pipeline_config(rendered, "logs")
     processors = config["service"]["pipelines"]["logs"]["processors"]
     processors[:] = [
@@ -170,7 +253,7 @@ def test_control_plane_logs_preserve_typed_fields_and_drop_export_feedback(tmp_p
         ]
     }
     with run_collector(
-        tmp_path, config, "logs", chart="loco-control-plane/telemetry"
+        tmp_path, config, "node-collector-agent", chart="loco-control-plane"
     ) as collector:
         post_otlp(collector, "logs", payload)
         received = read_output(

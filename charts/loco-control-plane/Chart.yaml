@@ -2,13 +2,18 @@ apiVersion: v2
 name: loco-control-plane
 description: Helm chart for the regional Loco dashboard, API, observability proxy, OpenBao and ClickHouse
 type: application
-version: 0.12.36
+version: 0.12.37
 dependencies:
-    - name: loco-control-plane-telemetry
-      version: 0.1.0
-      repository: file://telemetry
-      alias: platformTelemetry
-      condition: platformTelemetry.enabled
+    - name: opentelemetry-collector
+      version: 0.178.2
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      alias: nodeCollector
+      condition: nodeCollector.enabled,platformTelemetry.enabled
+    - name: opentelemetry-collector
+      version: 0.178.2
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      alias: clusterCollector
+      condition: clusterCollector.enabled,platformTelemetry.enabled
     - name: clickhouse
       version: 0.3.13
       repository: https://helm.altinity.com
