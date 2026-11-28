@@ -29,7 +29,10 @@ type RequestMetricsLimits struct {
 	MaxRowsRead    int32
 }
 
-func requestMetricsError(err error) error {
+func requestMetricsError(ctx context.Context, err error) error {
+	if errors.Is(context.Cause(ctx), ErrRequestMetricsTooBroad) {
+		return fmt.Errorf("%w: %w", ErrRequestMetricsTooBroad, err)
+	}
 	exception, ok := errors.AsType[*ch.Exception](err)
 	if !ok {
 		return err
@@ -49,12 +52,12 @@ func (c *Client) QueryRequestMetrics(
 	req *observabilityv1.QueryRequestMetricsRequest,
 	limits RequestMetricsLimits,
 ) (*observabilityv1.QueryRequestMetricsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.queryTimeout)
+	ctx, cancel := context.WithTimeoutCause(ctx, c.queryTimeout, ErrRequestMetricsTooBroad)
 	defer cancel()
 	query, args := requestMetricsQuery(req, limits, int(math.Ceil(c.queryTimeout.Seconds())))
 	rows, err := c.query(ctx, "QueryRequestMetrics", query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query request metrics: %w", requestMetricsError(err))
+		return nil, fmt.Errorf("query request metrics: %w", requestMetricsError(ctx, err))
 	}
 	defer rows.Close()
 	response := &observabilityv1.QueryRequestMetricsResponse{}
@@ -77,7 +80,7 @@ func (c *Client) QueryRequestMetrics(
 		response.Buckets = append(response.Buckets, bucket)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read request metrics: %w", requestMetricsError(err))
+		return nil, fmt.Errorf("read request metrics: %w", requestMetricsError(ctx, err))
 	}
 	return response, nil
 }

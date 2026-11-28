@@ -190,6 +190,10 @@ func (s *ObservabilityServer) QueryMetrics(
 	if err := guardrails.ValidateMetricsRequest(req, s.cfg.Limits); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
+	if req.GetWorkspaceId() == systemtenant.WorkspaceID {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).
+			WithCause(authz.ErrEntityNotFound)
+	}
 	query := proto.CloneOf(req)
 	if req.GetReadableResources() && len(req.GetResourceIds()) == 0 {
 		if s.clickhouse == nil {

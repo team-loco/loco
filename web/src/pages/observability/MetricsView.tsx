@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Input } from "@/components/design/Input";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { useNow } from "@/hooks/useNow";
+import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { aroundWindow, resolveWindow, stepSeconds, windowSpan } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 import { formatCpu, formatMemory, BYTES_PER_MI, MILLI_PER_CORE } from "@/lib/quantity";
@@ -48,6 +49,10 @@ const PREFS = {
 	traffic: parseAsStringLiteral(["Requests", "5xx"]).withDefault("Requests"),
 	latency: parseAsStringLiteral(["Combined", "By path"]).withDefault("Combined"),
 };
+function isMetricToken(token: Token): boolean {
+	if (token.neg) return false;
+	return token.key === "resource" || token.key === "region";
+}
 function Choice({
 	label,
 	value,
@@ -89,7 +94,7 @@ function DeploymentDetails({ id, onClose }: { id: string; onClose: () => void })
 	if (deployment !== undefined)
 		content = (
 			<SpecDialogContent
-				resourceName={deployment.resourceId}
+				resourceName={deployment.resourceName}
 				deployments={[deployment]}
 				deploymentId={id}
 				compareId={null}
@@ -142,7 +147,7 @@ export function MetricsView() {
 	const ready = !environmentLoading && !resourcesLoading;
 	const resolving = selectedQueries.some((q) => q.isPending);
 	const selectedError = selectedQueries.find((q) => q.error !== null)?.error ?? null;
-	const supported = tokens.every((t) => !t.neg && (t.key === "resource" || t.key === "region")) && text === "";
+	const supported = tokens.every(isMetricToken) && text === "";
 	const selectionReady = !resolving && selectedError === null;
 	const scopeReady = ready && supported;
 	const enabled = scopeReady && selectionReady;
@@ -154,7 +159,8 @@ export function MetricsView() {
 		?.regions.filter((status) => regions.length === 0 || regions.includes(status.region));
 	const readyReplicas = statusRegions?.reduce((total, status) => total + status.readyReplicas, 0);
 	const desiredReplicas = statusRegions?.reduce((total, status) => total + status.desiredReplicas, 0);
-	const worker = single && isWorker(selected[0]!, []);
+	const current = useCurrentDeployments(single ? selected : [], environmentId)[0] ?? [];
+	const worker = single && isWorker(selected[0]!, current);
 	const pathGrouping = single && prefs.latency === "By path";
 	const pathMode = !worker && pathGrouping;
 	const visibility = [true, true, !worker, !worker && prefs.traffic === "5xx", !worker && !pathMode, single, single];
@@ -274,7 +280,7 @@ export function MetricsView() {
 					{
 						t: Number(b.meanCreatedAt.seconds) * 1000,
 						label: `${b.deploymentCount.toString()} deployment${b.deploymentCount === 1 ? "" : "s"}`,
-						title: "Deployment started",
+						title: "Deployment",
 						color: "var(--fg3)",
 					},
 				],
@@ -547,7 +553,11 @@ export function MetricsView() {
 							(v) => trafficValue(v, "B/s"),
 							undefined,
 							[
-								...(series[5] ?? []).map((s) => ({ ...s, key: `receive-${s.key}`, name: `Received · ${s.name}` })),
+								...(series[5] ?? []).map((s) => ({
+									...s,
+									key: `receive-${s.key}`,
+									name: `Received · ${s.name}`,
+								})),
 								...(series[6] ?? []).map((s) => ({
 									...s,
 									key: `transmit-${s.key}`,

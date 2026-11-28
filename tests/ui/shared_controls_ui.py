@@ -2194,6 +2194,49 @@ def metrics(page):
     menu.get_by_role("menuitem", name="View logs", exact=True).click()
     expect(page).to_have_url(re.compile(r"view=logs"))
     assert "controls-pilot" in page.url and "us-ca-1" in page.url
+    # Environment deployments, rather than shared configuration, own traffic visibility.
+    deployment_id = "00000000-0000-4000-8000-0000000000ab"
+
+    def configured_worker(route):
+        response = route.fetch().json()
+        current = response.get("resource")
+        if current and current["id"] == resource:
+            current["spec"] = {"service": {"routing": {}}}
+            current["environmentStatuses"] = [
+                {
+                    "environmentId": state["environments"]["acme/shared/production"],
+                    "regions": [{"region": "us-ca-1", "deploymentId": deployment_id}],
+                }
+            ]
+        route.fulfill(json=response)
+
+    deployment_reads = []
+
+    def deployed_web(route):
+        deployment_reads.append(route.request.post_data_json)
+        route.fulfill(
+            json={
+                "deployment": {
+                    "id": deployment_id,
+                    "resourceId": resource,
+                    "spec": {"service": {"port": 8080}},
+                }
+            }
+        )
+
+    resource_url = "**/loco.resource.v1.ResourceService/GetResource"
+    deployment_url = "**/loco.deployment.v1.DeploymentService/GetDeployment"
+    page.route(resource_url, configured_worker)
+    page.route(deployment_url, deployed_web)
+    page.goto(
+        state["ui_url"]
+        + base
+        + "/observability?env=production&view=metrics&q=%40resource%3Acontrols-pilot"
+    )
+    expect(page.get_by_role("heading", name="Traffic", exact=True)).to_be_visible()
+    assert any(body.get("deploymentId") == deployment_id for body in deployment_reads)
+    page.unroute(resource_url, configured_worker)
+    page.unroute(deployment_url, deployed_web)
     page.unroute(metric_url, regional)
     page.remove_listener("request", observed)
 

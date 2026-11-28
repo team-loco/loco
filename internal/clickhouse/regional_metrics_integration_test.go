@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -231,4 +232,22 @@ func TestCombinedGatewayMetricsMergeCountsWithinEachRegion(t *testing.T) {
 	req.MetricName = "cluster.upstream_rq_time"
 	req.Aggregation = "p95"
 	check(map[string]float64{testRegion: 95.95, testWorkerRegion: 195})
+}
+
+func TestRequestMetricsDeadlineKeepsBudgetAndCallerCancellationDistinct(t *testing.T) {
+	f := newQueryFixture(t)
+	f.client.queryTimeout = time.Nanosecond
+	req := &observabilityv1.QueryRequestMetricsRequest{
+		WorkspaceId: testWorkspaceID, EnvironmentId: testEnvironmentID, ResourceId: testResourceID,
+		StartTime: timestamppb.New(f.start), EndTime: timestamppb.New(f.end), IntervalSeconds: 60,
+	}
+	limits := RequestMetricsLimits{MaxGroups: 100, MaxMemoryBytes: 256 * 1024 * 1024, MaxRowsRead: 10000000}
+	if _, err := f.client.QueryRequestMetrics(t.Context(), req, limits); !errors.Is(err, ErrRequestMetricsTooBroad) {
+		t.Fatalf("local budget error=%v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := f.client.QueryRequestMetrics(ctx, req, limits); !errors.Is(err, context.Canceled) {
+		t.Fatalf("caller cancellation=%v", err)
+	}
 }

@@ -11,6 +11,7 @@ import (
 	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
+	"github.com/team-loco/loco/internal/systemtenant"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -153,5 +154,16 @@ func TestReadableMetricScopeIncludesOnlyGrantedResources(t *testing.T) {
 		err,
 	) != connect.CodePermissionDenied {
 		t.Fatalf("stranger error=%v", err)
+	}
+	req.WorkspaceId = systemtenant.WorkspaceID
+	for _, caller := range []string{systemAdmin, systemReader} {
+		if _, err := client.QueryMetrics(
+			callerContext(t, caller),
+			req,
+		); connect.CodeOf(
+			err,
+		) != connect.CodePermissionDenied {
+			t.Fatalf("workspace metric scope error=%v", err)
+		}
 	}
 }
