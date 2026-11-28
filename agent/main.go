@@ -35,7 +35,7 @@ import (
 
 // agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
 // blocks on its send after Run has returned.
-const agentLoops = 4
+const agentLoops = 5
 
 func isCleartext(controlPlaneURL string) bool {
 	return strings.HasPrefix(strings.ToLower(controlPlaneURL), "http://")
@@ -131,6 +131,12 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if err = inspector.StartCapacity(ctx, restConfig); err != nil {
+		slog.Error("failed to watch cluster capacity", "error", err)
+		os.Exit(1)
+	}
+	defer inspector.StopCapacity()
 
 	watcher, err := appwatch.Start(ctx, restConfig, cfg.Namespace)
 	if err != nil {
@@ -235,6 +241,10 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go func() {
 		errCh <- a.runSync(ctx)
+	}()
+
+	go func() {
+		errCh <- a.inspector.WaitCapacity(ctx)
 	}()
 
 	go func() {

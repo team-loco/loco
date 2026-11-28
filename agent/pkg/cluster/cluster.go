@@ -3,15 +3,10 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
-	"github.com/team-loco/loco/internal/workloadplatform"
-
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	podresource "k8s.io/component-helpers/resource"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
@@ -24,6 +19,7 @@ type Inspector struct {
 	client               kubernetes.Interface
 	controllerNamespace  string
 	controllerDeployment string
+	capacity             *capacityWatch
 }
 
 func NewInspector(client kubernetes.Interface, controllerNamespace, controllerDeployment string) *Inspector {
@@ -32,53 +28,6 @@ func NewInspector(client kubernetes.Interface, controllerNamespace, controllerDe
 		controllerNamespace:  controllerNamespace,
 		controllerDeployment: controllerDeployment,
 	}
-}
-
-func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error) {
-	nodes, err := i.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("list nodes: %w", err)
-	}
-
-	capacity := &agentv1.AgentCapacity{}
-	for idx := range nodes.Items {
-		node := &nodes.Items[idx]
-		if platform, parseErr := workloadplatform.Parse(
-			node.Status.NodeInfo.OperatingSystem + "/" + node.Status.NodeInfo.Architecture,
-		); parseErr == nil {
-			capacity.Platforms = append(capacity.Platforms, string(platform))
-		}
-		allocatable := node.Status.Allocatable
-		capacity.CpuMillicoresTotal += allocatable.Cpu().MilliValue()
-		capacity.MemoryBytesTotal += allocatable.Memory().Value()
-		capacity.PodsTotal += int32(allocatable.Pods().Value())
-	}
-
-	slices.Sort(capacity.GetPlatforms())
-	capacity.Platforms = slices.Compact(capacity.GetPlatforms())
-
-	pods, err := i.client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-		FieldSelector: activePodsSelector,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list pods: %w", err)
-	}
-
-	for idx := range pods.Items {
-		pod := &pods.Items[idx]
-		if pod.Spec.NodeName == "" {
-			continue
-		}
-		capacity.PodsAssigned++
-		if pod.Status.Phase == corev1.PodRunning {
-			capacity.PodsRunning++
-		}
-		requests := podresource.PodRequests(pod, podresource.PodResourcesOptions{})
-		capacity.CpuMillicoresRequested += requests.Cpu().MilliValue()
-		capacity.MemoryBytesRequested += requests.Memory().Value()
-	}
-
-	return capacity, nil
 }
 
 func (i *Inspector) Health(ctx context.Context) *agentv1.AgentHealth {
