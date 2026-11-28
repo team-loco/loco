@@ -5,5 +5,13 @@
 		"lib": ["ES2024"],
 		"types": ["bun"]
 	},
-	"include": ["build.ts", "dev.ts", "preview.ts", "env-plugin.ts", "vendor-chunks.ts", "vendor-chunks.test.ts"]
+	"include": [
+		"build.ts",
+		"dev.ts",
+		"dev-proxy.ts",
+		"preview.ts",
+		"env-plugin.ts",
+		"vendor-chunks.ts",
+		"vendor-chunks.test.ts"
+	]
 }

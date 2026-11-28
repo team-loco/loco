@@ -56,4 +56,8 @@ The author changing a flow owns its assertions and fixture updates. Reviewers ch
 
 ## PR evidence
 
+For UX/UI-only work, start `mise run ui:staging` and capture the local dashboard against real staging data. This uses the saved staging CLI login and starts no local API, PostgreSQL or OpenBao. See [UI changes against staging](development.md#ui-changes-against-staging) for setup. Use existing data for screenshots; actions in the dashboard change staging.
+
+Capture before and after in light and dark mode and include a narrow viewport for layout changes. Label the screenshots as real staging data; live values may differ between captures. Inspect every image before attaching it to the pull request. Keep authentication state and staging browser traces out of commits and public attachments. Use the CI evidence fixture when local browser access or suitable staging data is unavailable. Browser regression suites remain isolated and deterministic; do not point them at staging.
+
 Browser assertions check behavior continuously. The [CI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ci-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions; `mise run ci:evidence --shots FILE` takes them in CI, and the [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) takes them locally. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.
