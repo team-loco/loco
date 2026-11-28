@@ -319,13 +319,38 @@ func TestTraceSummaryPages(t *testing.T) {
 	if len(got.GetSummaries()) != 0 || got.GetTotalCount() != 3 {
 		t.Fatalf("page past the end: %v", got)
 	}
-	for _, token := range []string{"not base64!", "LTE", base64.RawURLEncoding.EncodeToString([]byte("0:false:bad:3")),
-		encodeTraceCursor(req, last.GetTraceId(), "not a time")} {
-		req.PageToken = token
-		_, err := f.client.ListTraces(t.Context(), req, TraceFilter{}, 1)
-		if !errors.Is(err, ErrInvalidTracePageToken) {
-			t.Errorf("token %q: err = %v, want ErrInvalidTracePageToken", token, err)
-		}
+	durationOrder := proto.CloneOf(base)
+	durationOrder.OrderBy = observabilityv1.TraceOrder_TRACE_ORDER_DURATION
+	reversed := proto.CloneOf(base)
+	reversed.Descending = true
+	for _, tc := range []struct {
+		name, token string
+		order       observabilityv1.TraceOrder
+	}{
+		{name: "bad base64", token: "not base64!"},
+		{name: "missing boundary", token: "LTE"},
+		{name: "invalid trace ID", token: base64.RawURLEncoding.EncodeToString([]byte("0:false:bad:3"))},
+		{name: "invalid time", token: encodeTraceCursor(base, last.GetTraceId(), "not a time")},
+		{name: "different sort", token: encodeTraceCursor(
+			durationOrder, last.GetTraceId(), strconv.FormatUint(last.GetDurationNanos(), 10),
+		)},
+		{name: "different direction", token: encodeTraceCursor(
+			reversed, last.GetTraceId(), strconv.FormatInt(last.GetStartTime().AsTime().UnixNano(), 10),
+		)},
+		{name: "negative unsigned value", token: encodeTraceCursor(durationOrder, last.GetTraceId(), "-1"),
+			order: durationOrder.GetOrderBy()},
+		{name: "overflowing unsigned value",
+			token: encodeTraceCursor(durationOrder, last.GetTraceId(), "18446744073709551616"),
+			order: durationOrder.GetOrderBy()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := proto.CloneOf(base)
+			req.OrderBy, req.PageToken = tc.order, tc.token
+			_, err := f.client.ListTraces(t.Context(), req, TraceFilter{}, 1)
+			if !errors.Is(err, ErrInvalidTracePageToken) {
+				t.Errorf("token %q: err = %v, want ErrInvalidTracePageToken", tc.token, err)
+			}
+		})
 	}
 }
 
