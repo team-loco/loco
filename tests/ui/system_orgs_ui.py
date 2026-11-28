@@ -249,10 +249,11 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     expect(selected).to_have_attribute("aria-checked", "true")
     hovered.hover()
     expect(hovered).to_be_focused()
-    assert selected.evaluate(
-        "el => getComputedStyle(el).backgroundColor"
-    ) != hovered.evaluate("el => getComputedStyle(el).backgroundColor"), (
-        "Selection and hover must not paint two rows alike"
+    page.wait_for_function(
+        """([selected, hovered]) => document.activeElement === hovered &&
+          getComputedStyle(selected).backgroundColor !==
+          getComputedStyle(hovered).backgroundColor""",
+        arg=[selected.element_handle(), hovered.element_handle()],
     )
     expect(
         selected.locator("[data-slot=dropdown-menu-radio-item-indicator]")
