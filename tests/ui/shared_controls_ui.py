@@ -2225,10 +2225,7 @@ def metrics(page):
             ]
         route.fulfill(json=response)
 
-    deployment_reads = []
-
     def deployed_web(route):
-        deployment_reads.append(route.request.post_data_json)
         route.fulfill(
             json={
                 "deployment": {
@@ -2243,13 +2240,15 @@ def metrics(page):
     deployment_url = "**/loco.deployment.v1.DeploymentService/GetDeployment"
     page.route(resource_url, configured_worker)
     page.route(deployment_url, deployed_web)
-    page.goto(
-        state["ui_url"]
-        + base
-        + "/observability?env=production&view=metrics&q=%40resource%3Acontrols-pilot"
-    )
+    with expect_rpc(
+        page, "GetDeployment", lambda body: body.get("deploymentId") == deployment_id
+    ):
+        page.goto(
+            state["ui_url"]
+            + base
+            + "/observability?env=production&view=metrics&q=%40resource%3Acontrols-pilot"
+        )
     expect(page.get_by_role("heading", name="Traffic", exact=True)).to_be_visible()
-    assert any(body.get("deploymentId") == deployment_id for body in deployment_reads)
     page.unroute(resource_url, configured_worker)
     page.unroute(deployment_url, deployed_web)
     page.unroute(metric_url, regional)
