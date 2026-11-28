@@ -87,13 +87,17 @@ func TestSyncAgainstRealAPIBacklog(t *testing.T) {
 		domains:           testDomains(t),
 		heartbeatInterval: time.Hour,
 	}
-	done := make(chan error, 1)
-	go func() { done <- a.syncLoop(ctx) }()
+	done := make(chan struct{})
+	var syncErr error
+	go func() {
+		syncErr = a.syncLoop(ctx)
+		close(done)
+	}()
 	defer func() {
 		cancel()
 		select {
-		case err := <-done:
-			if err == nil {
+		case <-done:
+			if syncErr == nil {
 				t.Error("sync ended without cancellation error")
 			}
 		case <-time.After(5 * time.Second):
@@ -127,8 +131,8 @@ func TestSyncAgainstRealAPIBacklog(t *testing.T) {
 				)
 				return
 			}
-		case err := <-done:
-			t.Fatalf("sync stopped before inventory and build reports completed: %v", err)
+		case <-done:
+			t.Fatalf("sync stopped before inventory and build reports completed: %v", syncErr)
 		case <-ctx.Done():
 			t.Fatal("inventory or build reports stalled under response backpressure")
 		}

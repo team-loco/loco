@@ -81,18 +81,14 @@ FROM generate_series(1, $4::int) n`, f.resourceID, f.clusterID, f.userID, builds
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.CommandContext(
-		ctx,
-		"go",
-		"test",
-		"-race",
-		"-mod=readonly",
-		"-run",
-		"^TestSyncAgainstRealAPIBacklog$",
-		"-count=1",
-		"-v",
-		".",
-	)
+	agentBinary := filepath.Join(t.TempDir(), "agent.test")
+	build := exec.CommandContext(ctx, "go", "test", "-race", "-mod=readonly", "-c", "-o", agentBinary, ".")
+	build.Dir = agentDir
+	if buildOutput, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build agent sync fixture: %v\n%s", buildErr, buildOutput)
+	}
+	// Compile before issuing the assertion: a cold build can exceed its one-minute lifetime.
+	cmd := exec.CommandContext(ctx, agentBinary, "-test.run=^TestSyncAgainstRealAPIBacklog$", "-test.v")
 	cmd.Dir = agentDir
 	certificate := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
 	cmd.Env = append(os.Environ(), "LOCO_TEST_SYNC_URL="+srv.URL, "LOCO_TEST_SYNC_CERTIFICATE="+string(certificate),
