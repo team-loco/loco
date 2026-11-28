@@ -371,9 +371,11 @@ func TestReplayKeepsSecretAuthorizationAfterReferencedVariableBecomesPlain(t *te
 		t.Fatal(err)
 	}
 	stored, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(replayed.GetDeploymentId()))
-	if err != nil || !maps.Equal(stored.SecretEnv, original.SecretEnv) ||
-		!maps.Equal(stored.PlainEnv, original.PlainEnv) {
-		t.Fatalf("authorized replay changed captured bindings: %v (%v)", stored, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !maps.Equal(stored.SecretEnv, original.SecretEnv) || !maps.Equal(stored.PlainEnv, original.PlainEnv) {
+		t.Fatalf("authorized replay changed captured bindings: %v", stored)
 	}
 	f.storeSecret(t, provider, passwordName, strings.Repeat("s", testMaxPlacementBytes))
 	if _, err = deployRequest(t, f, request, authorized...); !errors.Is(err, ErrSecretEnvTooLarge) {
