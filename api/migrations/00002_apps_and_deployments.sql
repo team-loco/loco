@@ -281,6 +281,8 @@ CREATE TABLE deployment_requests (
     response BYTEA
 );
 
+CREATE INDEX deployment_requests_resource_idx ON deployment_requests (resource_id);
+
 -- One region of a deployment.
 CREATE TABLE
     deployment_placements (
@@ -756,6 +758,7 @@ DROP TABLE IF EXISTS deployment_activity;
 DROP TABLE IF EXISTS deployment_rollouts;
 DROP FUNCTION IF EXISTS deployment_status_from_placements;
 DROP TABLE IF EXISTS deployment_placements;
+DROP TABLE IF EXISTS deployment_requests;
 DROP TABLE IF EXISTS deployments;
 DROP FUNCTION IF EXISTS notify_deployment_placement_change;
 DROP FUNCTION IF EXISTS notify_deployment_change;
