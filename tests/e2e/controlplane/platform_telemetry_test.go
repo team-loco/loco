@@ -14,19 +14,37 @@ import (
 
 func (cp *controlPlane) checkPlatformCollection(t *testing.T, reader, password, clickhousePod string) {
 	t.Helper()
+	cp.checkInfrastructureCollection(t, reader, password, clickhousePod, "platform telemetry enabled")
+	cp.upgrade(t, "platformTelemetry.logs.enabled=false")
+	defer cp.upgrade(t)
+	c.MustKubectl(t, "-n", cp.values.NodeCollector.NamespaceOverride, "get", "daemonset/node-collector-agent")
+	c.MustKubectl(t, "-n", cp.values.ClusterCollector.NamespaceOverride, "get", "statefulset/cluster-collector")
+	cp.checkInfrastructureCollection(t, reader, password, clickhousePod, "platform stdout disabled")
+}
+
+func (cp *controlPlane) checkInfrastructureCollection(t *testing.T, reader, password, clickhousePod, phase string) {
+	t.Helper()
 	query := func(ctx context.Context, statement string) (string, error) {
 		return c.Kubectl(ctx, "-n", cp.namespace, "exec", clickhousePod, "-c", "clickhouse", "--", "clickhouse-client",
 			"--user", reader, "--password", password, "-q", statement)
 	}
-	check := func(phase string) {
-		cutoff := time.Now().UnixNano()
-		marker := "control-plane-event-" + platform.RandomHex(4)
-		event(t, marker, cp.namespace)
-		for _, metric := range []string{"k8s.node.cpu.usage", "k8s.node.allocatable_cpu", "k8s.deployment.available"} {
-			var receipt string
-			platform.Eventually(t, metricsTimeout, phase+": fresh "+metric+" reaches system storage", func(ctx context.Context) error {
+	cutoff := time.Now().UnixNano()
+	marker := "control-plane-event-" + platform.RandomHex(4)
+	event(t, marker, cp.namespace)
+	for _, metric := range []string{"k8s.node.cpu.usage", "k8s.node.allocatable_cpu", deploymentAvailableMetric} {
+		namespaceClause := ""
+		if metric == deploymentAvailableMetric {
+			namespaceClause = fmt.Sprintf("AND ResourceAttributes['k8s.namespace.name'] = '%s'", cp.namespace)
+		}
+		var receipt string
+		platform.Eventually(
+			t,
+			metricsTimeout,
+			phase+": fresh "+metric+" reaches system storage",
+			func(ctx context.Context) error {
 				statement := fmt.Sprintf(`SELECT MetricName, Value,
 ResourceAttributes['k8s.node.name'] AS node,
+ResourceAttributes['k8s.namespace.name'] AS namespace,
 ResourceAttributes['loco.cluster.id'] AS cluster,
 ResourceAttributes['loco.region'] AS region FROM
 (SELECT MetricName, Value, ResourceAttributes, WorkspaceId, TimeUnix FROM loco_obs.otel_metrics_gauge
@@ -34,8 +52,8 @@ ResourceAttributes['loco.region'] AS region FROM
 WHERE WorkspaceId = '%s' AND MetricName = '%s'
 AND ResourceAttributes['loco.cluster.id'] = 'control-plane'
 AND ResourceAttributes['loco.region'] = '%s'
-AND TimeUnix >= fromUnixTimestamp64Nano(%d) LIMIT 1 FORMAT JSONEachRow`,
-					systemtenant.WorkspaceID, metric, cp.values.PlatformTelemetry.Region, cutoff)
+AND TimeUnix >= fromUnixTimestamp64Nano(%d) %s LIMIT 1 FORMAT JSONEachRow`,
+					systemtenant.WorkspaceID, metric, cp.values.PlatformTelemetry.Region, cutoff, namespaceClause)
 				row, err := query(ctx, statement)
 				if err != nil {
 					return err
@@ -55,11 +73,16 @@ AND TimeUnix >= fromUnixTimestamp64Nano(%d) LIMIT 1 FORMAT JSONEachRow`,
 				}
 				receipt = strings.TrimSpace(row)
 				return nil
-			})
-			t.Logf("synthetic installation: %s; stored infrastructure metric: %s", phase, receipt)
-		}
-		var receipt string
-		platform.Eventually(t, metricsTimeout, phase+": Kubernetes event reaches system storage", func(ctx context.Context) error {
+			},
+		)
+		t.Logf("synthetic installation: %s; stored infrastructure metric: %s", phase, receipt)
+	}
+	var receipt string
+	platform.Eventually(
+		t,
+		metricsTimeout,
+		phase+": Kubernetes event reaches system storage",
+		func(ctx context.Context) error {
 			row, err := query(ctx, fmt.Sprintf(`SELECT Body,
 ResourceAttributes['k8s.namespace.name'] AS namespace,
 ResourceAttributes['loco.cluster.id'] AS cluster,
@@ -78,13 +101,7 @@ AND Timestamp >= fromUnixTimestamp64Nano(%d) LIMIT 1 FORMAT JSONEachRow`,
 				return fmt.Errorf("event %s has not reached system storage", marker)
 			}
 			return nil
-		})
-		t.Logf("synthetic installation: %s; created event %s; stored event: %s", phase, marker, receipt)
-	}
-	check("platform telemetry enabled")
-	cp.upgrade(t, "platformTelemetry.logs.enabled=false")
-	t.Cleanup(func() { cp.upgrade(t) })
-	c.MustKubectl(t, "-n", cp.values.NodeCollector.NamespaceOverride, "get", "daemonset/node-collector-agent")
-	c.MustKubectl(t, "-n", cp.values.ClusterCollector.NamespaceOverride, "get", "statefulset/cluster-collector")
-	check("platform stdout disabled")
+		},
+	)
+	t.Logf("synthetic installation: %s; created event %s; stored event: %s", phase, marker, receipt)
 }

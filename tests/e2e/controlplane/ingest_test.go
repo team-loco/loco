@@ -157,6 +157,7 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 	)
 	cp.checkNodeLogs(t, reader, readerPassword, pod)
 	cp.checkPlatformCollection(t, reader, readerPassword, pod)
+	cp.checkCoLocatedCollection(t, reader, readerPassword, pod)
 }
 
 func (cp *controlPlane) checkNodeLogs(t *testing.T, reader, password, clickhousePod string) {
@@ -189,6 +190,11 @@ func (cp *controlPlane) checkNodeLogs(t *testing.T, reader, password, clickhouse
 		t.Fatal("the node collector does not have the API's system ingest credential")
 	}
 	rollout(t, nodeNamespace, "daemonset/"+collector.Name)
+	cp.checkStartupLogDelivery(t, reader, password, clickhousePod)
+}
+
+func (cp *controlPlane) checkStartupLogDelivery(t *testing.T, reader, password, clickhousePod string) {
+	t.Helper()
 	// Restart the producers after collection is ready; checkpoints may already cover
 	// their earlier output when this suite reuses a kept cluster.
 	emittedAfter := time.Now().UnixNano()

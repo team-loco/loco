@@ -16,20 +16,21 @@ import (
 )
 
 const (
-	metricsNamespace     = "platform-metrics"
-	nodeMetricsNamespace = "platform-metrics-node"
-	tenantNamespace      = "tenant-metrics-fixture"
-	metricsRegion        = "test-region"
-	metricsInterval      = "3s"
-	metricsTimeout       = 3 * time.Minute
-	outage               = 8 * time.Second
-	sinkPath             = "/var/local/loco-platform-metrics"
-	sinkFile             = sinkPath + "/output.json"
-	sinkToken            = "local-metrics-fixture" //nolint:gosec // the throwaway sink's bearer token
-	sinkName             = "otlp-sink"
-	collectorPartOf      = "opentelemetry-collector"
-	clusterCollector     = "cluster-collector"
-	nodeCollector        = "node-collector-agent"
+	metricsNamespace          = "platform-metrics"
+	nodeMetricsNamespace      = "platform-metrics-node"
+	tenantNamespace           = "tenant-metrics-fixture"
+	metricsRegion             = "test-region"
+	metricsInterval           = "3s"
+	metricsTimeout            = 3 * time.Minute
+	outage                    = 8 * time.Second
+	sinkPath                  = "/var/local/loco-platform-metrics"
+	sinkFile                  = sinkPath + "/output.json"
+	sinkToken                 = "local-metrics-fixture" //nolint:gosec // the throwaway sink's bearer token
+	sinkName                  = "otlp-sink"
+	collectorPartOf           = "opentelemetry-collector"
+	clusterCollector          = "metrics-cluster-collector"
+	nodeCollector             = "metrics-node-collector-agent"
+	deploymentAvailableMetric = "k8s.deployment.available"
 )
 
 var errNoMetrics = errors.New("not in the sink yet")
@@ -73,7 +74,7 @@ func TestClusterMetrics(t *testing.T) {
 
 	c.MustApply(t, namespace(metricsNamespace, "privileged")+"---\n"+namespace(nodeMetricsNamespace, "privileged")+
 		"---\n"+namespace(tenantNamespace, "baseline"))
-	collectors := collectorManifest(t)
+	collectors := collectorManifest(t, metricsNamespace)
 	c.MustKubectl(t, "-n", metricsNamespace, "delete", "deployment", sinkName, "--ignore-not-found", "--wait=true")
 	if _, err := c.KubectlInput(
 		t.Context(),
@@ -103,7 +104,7 @@ func TestClusterMetrics(t *testing.T) {
 		for _, point := range readSink(ctx).points() {
 			names[point.name] = true
 		}
-		for _, name := range []string{"k8s.deployment.available", "k8s.node.allocatable_cpu", "k8s.node.cpu.usage"} {
+		for _, name := range []string{deploymentAvailableMetric, "k8s.node.allocatable_cpu", "k8s.node.cpu.usage"} {
 			if !names[name] {
 				return fmt.Errorf("%s: %w", name, errNoMetrics)
 			}
@@ -113,7 +114,7 @@ func TestClusterMetrics(t *testing.T) {
 	sink := readSink(t.Context())
 	available := false
 	for _, point := range sink.points() {
-		if point.name == "k8s.deployment.available" && point.attributes["k8s.deployment.name"] == sinkName &&
+		if point.name == deploymentAvailableMetric && point.attributes["k8s.deployment.name"] == sinkName &&
 			point.value == 1 {
 			available = true
 		}
@@ -145,7 +146,7 @@ func TestClusterMetrics(t *testing.T) {
 		"delete",
 		"pod",
 		"-l",
-		"app.kubernetes.io/name="+clusterCollector,
+		"app.kubernetes.io/name=cluster-collector",
 		"--wait=true",
 	)
 	c.MustKubectl(t, "-n", nodeMetricsNamespace, "delete", "pod", "-l", "app.kubernetes.io/name=node-collector",
@@ -180,7 +181,7 @@ metadata:
 }
 
 // collectorManifest renders the chart's collectors, platform-only, exporting to the sink.
-func collectorManifest(t *testing.T) string {
+func collectorManifest(t *testing.T, releaseNamespace string, overrides ...string) string {
 	t.Helper()
 	values := writeFile(t, "metrics-values.yaml", fmt.Sprintf(`global:
   region: %[1]s
@@ -211,12 +212,24 @@ gateway-helm:
 workloadCollector:
   enabled: false
 clusterCollector:
+  fullnameOverride: metrics-cluster-collector
   namespaceOverride: %[5]s
 nodeCollector:
+  fullnameOverride: metrics-node-collector
   namespaceOverride: %[6]s
+  config:
+    extensions:
+      file_storage:
+        directory: /var/lib/otelcol/metrics-e2e
+        create_directory: true
 `, metricsRegion, c.KindCluster(), metricsInterval, sinkName, metricsNamespace, nodeMetricsNamespace))
-	rendered := helm(t, "template", "metrics", c.Path("charts", "loco-worker"), "--namespace", metricsNamespace,
+	args := make([]string, 0, 7+2*len(overrides))
+	args = append(args, "template", "metrics", c.Path("charts", "loco-worker"), "--namespace", releaseNamespace,
 		"--values", values)
+	for _, override := range overrides {
+		args = append(args, "--set", override)
+	}
+	rendered := helm(t, args...)
 	var collectors []any
 	for _, document := range renderedDocuments(t, rendered) {
 		var object struct {

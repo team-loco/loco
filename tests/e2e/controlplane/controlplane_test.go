@@ -250,9 +250,21 @@ func loadImages(t *testing.T) {
 
 func (cp *controlPlane) upgrade(t *testing.T, overrides ...string) {
 	t.Helper()
-	args := []string{"upgrade", "--install", release, c.Path("charts", "loco-control-plane"), "--namespace", cp.namespace,
-		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait=legacy", "--wait-for-jobs",
-		"--timeout", upgradeTimeout.String()}
+	args := make([]string, 0, 12+2*len(overrides))
+	args = append(args,
+		"upgrade",
+		"--install",
+		release,
+		c.Path("charts", "loco-control-plane"),
+		"--namespace",
+		cp.namespace,
+		"-f",
+		c.Path("tests", "e2e", "control-plane-values.yaml"),
+		"--wait=legacy",
+		"--wait-for-jobs",
+		"--timeout",
+		upgradeTimeout.String(),
+	)
 	for _, value := range overrides {
 		args = append(args, "--set", value)
 	}
