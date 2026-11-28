@@ -385,6 +385,10 @@ def handle(route):
                 )
                 for index in range(60)
             ]
+        if "@status:error" in body.get("query", ""):
+            summaries = [
+                row for row in summaries if row["status"] == "TRACE_STATUS_ERROR"
+            ]
         if body.get("pageToken") == "stale":
             route.fulfill(
                 status=400,
@@ -1106,8 +1110,9 @@ with session(out) as browser:
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
     expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
-    lists = [row for row in recorded[sent:] if row.get("pageSize") in (25, 50, 100)]
+    lists = [row for row in recorded[sent:] if "pageSize" in row]
     assert len(lists) == 1, lists
+    expect(page.get_by_text("1–1 of 1", exact=True)).to_be_visible()
     # The All count comes from the unfiltered histogram the All tab already loaded.
     histograms = [row for row in recorded[sent:] if "intervalSeconds" in row]
     assert len(histograms) == 1, histograms
