@@ -2271,6 +2271,24 @@ def metrics(page):
             .map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
         return labels.length >= 2 && labels.every((label, i) => i === 0 || labels[i - 1].right + 1 <= label.left);
     }""")
+    # Theme changes replace the monospace font while the chart stays open.
+    page.keyboard.press("ControlOrMeta+k")
+    page.get_by_role("combobox").fill("Set theme")
+    page.locator("[cmdk-item]").filter(has_text="Set theme").click()
+    page.get_by_role("combobox").fill("GitHub")
+    page.locator("[cmdk-item]").filter(has_text="GitHub").click()
+    evidence.settle(page)
+    page.wait_for_function("""() => {
+        const chart = document.querySelector('[aria-label="CPU over time"]');
+        const bounds = chart.getBoundingClientRect();
+        const labels = [...chart.querySelectorAll('.recharts-xAxis-tick-labels text')]
+            .map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+        return labels.length >= 2 && labels.every((label, i) => {
+            const inside = label.left >= bounds.left && label.right <= bounds.right;
+            const separated = i === 0 || labels[i - 1].right + 1 <= label.left;
+            return inside && separated;
+        });
+    }""")
     page.unroute(resource_url, configured_worker)
     page.unroute(deployment_url, deployed_web)
     page.unroute(metric_url, regional)

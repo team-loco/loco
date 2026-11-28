@@ -202,6 +202,7 @@ with session(out) as browser:
         (evidence.DESKTOP, False),
     ):
         page.set_viewport_size(viewport)
+        evidence.settle(page)
         expect(events).to_be_visible()
         settings_button = page.get_by_role(
             "button", name="Resource settings", exact=True

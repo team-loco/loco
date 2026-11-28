@@ -1,0 +1,194 @@
+diff --git a/es6/cartesian/CartesianAxis.js b/es6/cartesian/CartesianAxis.js
+index 06e54bd86bbd8493c628c63bbeedc25bbb456fa1..f30bf186068c016c17096d2ace15af72583102f4 100644
+--- a/es6/cartesian/CartesianAxis.js
++++ b/es6/cartesian/CartesianAxis.js
+@@ -307,6 +307,7 @@ var Ticks = /*#__PURE__*/forwardRef((props, ref) => {
+     tickMargin = props.tickMargin,
+     fontSize = props.fontSize,
+     letterSpacing = props.letterSpacing,
++    fontFamily = props.fontFamily,
+     getTicksConfig = props.getTicksConfig,
+     events = props.events,
+     axisType = props.axisType,
+@@ -314,7 +315,7 @@ var Ticks = /*#__PURE__*/forwardRef((props, ref) => {
+   // @ts-expect-error some properties are optional in props but required in getTicks
+   var finalTicks = getTicks(_objectSpread(_objectSpread({}, getTicksConfig), {}, {
+     ticks
+-  }), fontSize, letterSpacing);
++  }), fontSize, letterSpacing, fontFamily);
+   var axisProps = svgPropertiesNoEvents(getTicksConfig);
+   var customTickProps = svgPropertiesNoEventsFromUnknown(tick);
+   // Use user-provided textAnchor if available, otherwise calculate from orientation/mirror
+@@ -405,6 +406,10 @@ var CartesianAxisComponent = /*#__PURE__*/forwardRef((props, ref) => {
+     _useState4 = _slicedToArray(_useState3, 2),
+     letterSpacing = _useState4[0],
+     setLetterSpacing = _useState4[1];
++  var _useState5 = useState(''),
++    _useState6 = _slicedToArray(_useState5, 2),
++    fontFamily = _useState6[0],
++    setFontFamily = _useState6[1];
+   var tickRefs = useRef(null);
+   useImperativeHandle(ref, () => ({
+     getCalculatedWidth: () => {
+@@ -437,13 +442,16 @@ var CartesianAxisComponent = /*#__PURE__*/forwardRef((props, ref) => {
+         var computedStyle = window.getComputedStyle(tick);
+         var calculatedFontSize = computedStyle.fontSize;
+         var calculatedLetterSpacing = computedStyle.letterSpacing;
+-        if (calculatedFontSize !== fontSize || calculatedLetterSpacing !== letterSpacing) {
++        var calculatedFontFamily = computedStyle.fontFamily;
++        var sizeChanged = calculatedFontSize !== fontSize || calculatedLetterSpacing !== letterSpacing;
++        if (sizeChanged || calculatedFontFamily !== fontFamily) {
+           setFontSize(calculatedFontSize);
++          setFontFamily(calculatedFontFamily);
+           setLetterSpacing(calculatedLetterSpacing);
+         }
+       }
+     }
+-  }, [fontSize, letterSpacing]);
++  }, [fontSize, letterSpacing, fontFamily]);
+   if (hide) {
+     return null;
+   }
+@@ -473,6 +481,7 @@ var CartesianAxisComponent = /*#__PURE__*/forwardRef((props, ref) => {
+     axisType: axisType,
+     events: rest,
+     fontSize: fontSize,
++    fontFamily: fontFamily,
+     getTicksConfig: props,
+     height: props.height,
+     letterSpacing: letterSpacing,
+diff --git a/es6/cartesian/getTicks.js b/es6/cartesian/getTicks.js
+index ac435c9266b94a85d0f83d5e9ae30f77dedabcf0..163b069828169ce409df3d343ecb50ce95193d1d 100644
+--- a/es6/cartesian/getTicks.js
++++ b/es6/cartesian/getTicks.js
+@@ -116,7 +116,7 @@ function getTicksStart(sign, boundaries, getTickSize, ticks, minTickGap, preserv
+   }
+   return result;
+ }
+-export function getTicks(props, fontSize, letterSpacing) {
++export function getTicks(props, fontSize, letterSpacing, fontFamily) {
+   var tick = props.tick,
+     ticks = props.ticks,
+     viewBox = props.viewBox,
+@@ -137,6 +137,7 @@ export function getTicks(props, fontSize, letterSpacing) {
+   var sizeKey = orientation === 'top' || orientation === 'bottom' ? 'width' : 'height';
+   var unitSize = unit && sizeKey === 'width' ? getStringSize(unit, {
+     fontSize,
++    fontFamily,
+     letterSpacing
+   }) : {
+     width: 0,
+@@ -147,9 +148,11 @@ export function getTicks(props, fontSize, letterSpacing) {
+     // Recharts only supports angles when sizeKey === 'width'
+     return sizeKey === 'width' ? getAngledTickWidth(getStringSize(value, {
+       fontSize,
++      fontFamily,
+       letterSpacing
+     }), unitSize, angle) : getStringSize(value, {
+       fontSize,
++      fontFamily,
+       letterSpacing
+     })[sizeKey];
+   };
+diff --git a/lib/cartesian/CartesianAxis.js b/lib/cartesian/CartesianAxis.js
+index 7a1272fa57a65680b9e4c8784230ff82ae9b49db..51bec89f99543fd563debecef57c17cc31d0566d 100644
+--- a/lib/cartesian/CartesianAxis.js
++++ b/lib/cartesian/CartesianAxis.js
+@@ -313,6 +313,7 @@ var Ticks = /*#__PURE__*/(0, _react.forwardRef)((props, ref) => {
+     tickMargin = props.tickMargin,
+     fontSize = props.fontSize,
+     letterSpacing = props.letterSpacing,
++    fontFamily = props.fontFamily,
+     getTicksConfig = props.getTicksConfig,
+     events = props.events,
+     axisType = props.axisType,
+@@ -320,7 +321,7 @@ var Ticks = /*#__PURE__*/(0, _react.forwardRef)((props, ref) => {
+   // @ts-expect-error some properties are optional in props but required in getTicks
+   var finalTicks = (0, _getTicks.getTicks)(_objectSpread(_objectSpread({}, getTicksConfig), {}, {
+     ticks
+-  }), fontSize, letterSpacing);
++  }), fontSize, letterSpacing, fontFamily);
+   var axisProps = (0, _svgPropertiesNoEvents.svgPropertiesNoEvents)(getTicksConfig);
+   var customTickProps = (0, _svgPropertiesNoEvents.svgPropertiesNoEventsFromUnknown)(tick);
+   // Use user-provided textAnchor if available, otherwise calculate from orientation/mirror
+@@ -411,6 +412,10 @@ var CartesianAxisComponent = /*#__PURE__*/(0, _react.forwardRef)((props, ref) =>
+     _useState4 = _slicedToArray(_useState3, 2),
+     letterSpacing = _useState4[0],
+     setLetterSpacing = _useState4[1];
++  var _useState5 = (0, _react.useState)(''),
++    _useState6 = _slicedToArray(_useState5, 2),
++    fontFamily = _useState6[0],
++    setFontFamily = _useState6[1];
+   var tickRefs = (0, _react.useRef)(null);
+   (0, _react.useImperativeHandle)(ref, () => ({
+     getCalculatedWidth: () => {
+@@ -443,13 +448,16 @@ var CartesianAxisComponent = /*#__PURE__*/(0, _react.forwardRef)((props, ref) =>
+         var computedStyle = window.getComputedStyle(tick);
+         var calculatedFontSize = computedStyle.fontSize;
+         var calculatedLetterSpacing = computedStyle.letterSpacing;
+-        if (calculatedFontSize !== fontSize || calculatedLetterSpacing !== letterSpacing) {
++        var calculatedFontFamily = computedStyle.fontFamily;
++        var sizeChanged = calculatedFontSize !== fontSize || calculatedLetterSpacing !== letterSpacing;
++        if (sizeChanged || calculatedFontFamily !== fontFamily) {
+           setFontSize(calculatedFontSize);
++          setFontFamily(calculatedFontFamily);
+           setLetterSpacing(calculatedLetterSpacing);
+         }
+       }
+     }
+-  }, [fontSize, letterSpacing]);
++  }, [fontSize, letterSpacing, fontFamily]);
+   if (hide) {
+     return null;
+   }
+@@ -479,6 +487,7 @@ var CartesianAxisComponent = /*#__PURE__*/(0, _react.forwardRef)((props, ref) =>
+     axisType: axisType,
+     events: rest,
+     fontSize: fontSize,
++    fontFamily: fontFamily,
+     getTicksConfig: props,
+     height: props.height,
+     letterSpacing: letterSpacing,
+diff --git a/lib/cartesian/getTicks.js b/lib/cartesian/getTicks.js
+index be6116f36f1c7d70ab02994f32b1b5582efebd18..817df4df6bdeb1c1d7fed9af61eb1638d93641c5 100644
+--- a/lib/cartesian/getTicks.js
++++ b/lib/cartesian/getTicks.js
+@@ -122,7 +122,7 @@ function getTicksStart(sign, boundaries, getTickSize, ticks, minTickGap, preserv
+   }
+   return result;
+ }
+-function getTicks(props, fontSize, letterSpacing) {
++function getTicks(props, fontSize, letterSpacing, fontFamily) {
+   var tick = props.tick,
+     ticks = props.ticks,
+     viewBox = props.viewBox,
+@@ -143,6 +143,7 @@ function getTicks(props, fontSize, letterSpacing) {
+   var sizeKey = orientation === 'top' || orientation === 'bottom' ? 'width' : 'height';
+   var unitSize = unit && sizeKey === 'width' ? (0, _DOMUtils.getStringSize)(unit, {
+     fontSize,
++    fontFamily,
+     letterSpacing
+   }) : {
+     width: 0,
+@@ -153,9 +154,11 @@ function getTicks(props, fontSize, letterSpacing) {
+     // Recharts only supports angles when sizeKey === 'width'
+     return sizeKey === 'width' ? (0, _TickUtils.getAngledTickWidth)((0, _DOMUtils.getStringSize)(value, {
+       fontSize,
++      fontFamily,
+       letterSpacing
+     }), unitSize, angle) : (0, _DOMUtils.getStringSize)(value, {
+       fontSize,
++      fontFamily,
+       letterSpacing
+     })[sizeKey];
+   };
+diff --git a/types/cartesian/getTicks.d.ts b/types/cartesian/getTicks.d.ts
+index 7ffdcf51db8e9fd94ad6980c376ce33d5ef4238b..a3a9f7622adaf4225878c663c6df08e7786c5aa6 100644
+--- a/types/cartesian/getTicks.d.ts
++++ b/types/cartesian/getTicks.d.ts
+@@ -12,4 +12,4 @@ export type GetTicksInput = {
+     unit?: CartesianAxisSettings['unit'];
+     viewBox: CartesianViewBoxRequired;
+ };
+-export declare function getTicks(props: GetTicksInput, fontSize?: string, letterSpacing?: string): ReadonlyArray<CartesianTickItem>;
++export declare function getTicks(props: GetTicksInput, fontSize?: string, letterSpacing?: string, fontFamily?: string): ReadonlyArray<CartesianTickItem>;
