@@ -500,7 +500,6 @@ clickhouse:
     # Every OTLP batch is an insert; logging each one would grow system.query_log with ingest volume.
     profiles:
       loco_ingest:
-        profile: default
         log_queries: "0"
     # keep the database in these grants in sync with clickhouse.clickhouse.database above
     users:
