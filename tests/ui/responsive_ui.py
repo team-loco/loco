@@ -154,6 +154,7 @@ def mock_traffic(context):
     context.route(
         "**/loco.observability.v1.ObservabilityService/QueryMetrics", query_metrics
     )
+    return now - timedelta(minutes=30)
 
 
 def open_at(browser, width, height, mode="light", **options):
@@ -290,7 +291,8 @@ with session(out) as browser:
 
     for mode in MODES:
         context, page, errors = open_at(browser, 390, 844, mode, has_touch=True)
-        mock_traffic(context)
+        sample_time = mock_traffic(context)
+        context.add_init_script("localStorage.setItem('loco-tz', 'utc')")
         page.goto(PAGES["resource"])
         chart = page.locator('[aria-label="CPU: average"]')
         expect(page.get_by_text("0.04 vCPU", exact=True)).to_be_visible()
@@ -302,6 +304,11 @@ with session(out) as browser:
         tooltip = page.locator(".recharts-tooltip-wrapper").first
         expect(tooltip).to_have_css("visibility", "visible")
         expect(tooltip.get_by_text("us-ca-1 0.05 vCPU", exact=True)).to_be_visible()
+        expect(
+            tooltip.get_by_text(
+                sample_time.strftime("%b %-d, %Y, %H:%M:%S UTC"), exact=True
+            )
+        ).to_be_visible()
         page.screenshot(path=out / f"{mode}-390-chart-tooltip.png")
         page.evaluate("window.scrollBy(0, 400)")
         expect(tooltip).to_have_css("visibility", "hidden")
